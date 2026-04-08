@@ -1,0 +1,13 @@
+{
+  "name": "3d-orca-maze-multiplayer",
+  "version": "1.0.0",
+  "description": "Multiplayer Racing Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}

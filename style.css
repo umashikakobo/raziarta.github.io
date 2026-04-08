@@ -1,0 +1,215 @@
+:root {
+    --urushi-black: #050505;
+    --urushi-dark: #151515;
+    --urushi-red: #C22026; /* 朱色 */
+    --urushi-gold: #D4AF37; /* 金箔 */
+    --text-color: #F0F0F0;
+    --font-kanji: 'Noto Serif JP', serif;
+    --font-romaji: 'Outfit', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--urushi-black);
+    color: var(--text-color);
+    font-family: var(--font-kanji);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+}
+
+/* 漆塗りの光沢をシミュレートする背景エフェクト */
+.urushi-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 0%, rgba(25,25,25,1) 0%, rgba(3,3,3,1) 70%);
+    pointer-events: none;
+    z-index: -1;
+}
+.urushi-bg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 40%, rgba(255,255,255,0.01) 80%);
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.logo-section {
+    text-align: center;
+    margin-top: 5rem;
+    margin-bottom: 7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+/* ロゴ下部の朱色の装飾線 */
+.logo-section::after {
+    content: '';
+    position: absolute;
+    bottom: -25px;
+    width: 80px;
+    height: 3px;
+    background-color: var(--urushi-red);
+    box-shadow: 0 0 15px rgba(194,32,38,0.4);
+    border-radius: 2px;
+}
+
+.romaji {
+    font-family: var(--font-romaji);
+    font-size: 1.1rem;
+    font-weight: 300;
+    letter-spacing: 0.6em;
+    margin-right: -0.6em; /* letter-spacingの調整 */
+    color: var(--urushi-gold);
+    opacity: 0.85;
+    margin-bottom: 0.8rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.kanji {
+    font-family: var(--font-kanji);
+    font-size: 4.5rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    margin-right: -0.15em;
+    color: #F8F8F8;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.9), 0 0 1px rgba(255,255,255,0.2);
+}
+
+/* ゲームセクション */
+.games-section {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+}
+
+.game-card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    width: 100%;
+    max-width: 380px;
+    perspective: 1000px;
+}
+
+.card-inner {
+    background-color: var(--urushi-dark);
+    border: 1px solid rgba(255,255,255,0.03);
+    border-left: 4px solid var(--urushi-red);
+    border-radius: 4px;
+    padding: 2.5rem;
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(0); /* ハードウェアアクセラレーション */
+}
+
+/* ホバー時の漆光沢エフェクト */
+.card-inner::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -100%;
+    width: 60%;
+    height: 200%;
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0) 100%);
+    transform: rotate(30deg);
+    transition: all 0.7s ease;
+}
+
+.game-card:hover .card-inner {
+    transform: translateY(-8px);
+    border-left: 4px solid var(--urushi-gold);
+    border-color: rgba(255,255,255,0.06);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.game-card:hover .card-inner::before {
+    left: 200%;
+}
+
+.card-header {
+    margin-bottom: 1.5rem;
+}
+
+.game-tag {
+    font-family: var(--font-romaji);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--urushi-black);
+    background-color: var(--urushi-gold);
+    padding: 0.3rem 0.8rem;
+    border-radius: 2px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.card-body h2 {
+    font-family: var(--font-romaji);
+    font-size: 1.7rem;
+    margin-bottom: 0.8rem;
+    color: #fff;
+    font-weight: 500;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.card-body p {
+    font-size: 0.95rem;
+    color: #aaa;
+    line-height: 1.7;
+}
+
+.card-footer {
+    margin-top: 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-romaji);
+    color: var(--urushi-red);
+    transition: color 0.3s ease;
+}
+
+.game-card:hover .card-footer {
+    color: var(--urushi-gold);
+}
+
+.play-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+}
+
+.arrow-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.game-card:hover .arrow-icon {
+    transform: translateX(8px);
+}
