@@ -1,0 +1,3271 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シャチ２つめ</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            overflow: hidden;
+            background: #0a0a14;
+            font-family: 'Segoe UI', sans-serif;
+            user-select: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #height-display {
+            position: absolute;
+            top: 50%;
+            left: 30px;
+            transform: translateY(-50%);
+            font-size: 56px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.13);
+            text-shadow: 0 0 30px rgba(80, 160, 255, 0.3);
+        }
+
+        #time-display {
+            position: absolute;
+            top: calc(50% + 45px);
+            left: 35px;
+            font-size: 24px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            color: rgba(255, 255, 255, 0.13);
+            text-shadow: 0 0 15px rgba(80, 160, 255, 0.2);
+        }
+
+        #home-button {
+            position: absolute;
+            top: 110px;
+            left: 30px;
+            padding: 8px 16px;
+            background: rgba(40, 40, 60, 0.8);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            pointer-events: auto;
+            /* Allow click in UI layer */
+            transition: 0.2s;
+        }
+
+        #home-button:hover {
+            background: rgba(80, 80, 120, 0.9);
+        }
+
+        #entity-list {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #aaccaa;
+            line-height: 1.6;
+            text-shadow: 0 0 5px #000;
+        }
+
+        #crosshair {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 4px rgba(255,255,255,0.5);
+        }
+        #crosshair-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) translateX(-10px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .ammo-gauge-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .ammo-segment {
+            width: 12px;
+            height: 4px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 1px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .ammo-segment-inner {
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s;
+        }
+        .shot-inner { background: linear-gradient(90deg, #64b4ff, #8abfff); }
+        .bubble-inner { background: linear-gradient(90deg, #a78bfa, #c4b5fd); }
+
+        #air-indicator {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #7ec8ff;
+            text-shadow: 0 0 10px #7ec8ff88;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #air-indicator.hidden {
+            display: block !important;
+            opacity: 0;
+        }
+
+        #start-screen {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 40%, #131330 0%, #06060f 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        .logo {
+            font-size: 4.5em;
+            font-weight: 800;
+            letter-spacing: 14px;
+            background: linear-gradient(135deg, #64b4ff 0%, #a78bfa 55%, #f472b6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: breathe 3s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                filter: brightness(1)
+            }
+
+            50% {
+                filter: brightness(1.4)
+            }
+        }
+
+        .hint {
+            color: #556;
+            margin-top: 16px;
+            font-size: 13px;
+            line-height: 1.9;
+            text-align: center;
+        }
+
+        kbd {
+            display: inline-block;
+            padding: 1px 6px;
+            border: 1px solid #334;
+            border-radius: 4px;
+            background: #1a1a2e;
+            font-size: 0.9em;
+            color: #aac;
+        }
+    </style>
+
+    <!-- 安定版ライブラリ：グローバル読み込み (CDN 中断に強い .min 版) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/oimo/1.0.9/oimo.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+    <!-- マルチプレイ用ライブラリ -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+</head>
+
+<body>
+
+    <div id="ui-layer" style="pointer-events: none;">
+        <button id="home-button" class="hidden">HOME</button>
+        <div id="entity-list"></div>
+        <div id="height-display">0m</div>
+        <div id="time-display">00:00</div>
+        <div id="crosshair-container">
+            <div id="gauge-shot-group" class="ammo-gauge-group">
+                <div class="ammo-segment"><div id="shot-seg-0" class="ammo-segment-inner shot-inner"></div></div>
+                <div class="ammo-segment"><div id="shot-seg-1" class="ammo-segment-inner shot-inner"></div></div>
+                <div class="ammo-segment"><div id="shot-seg-2" class="ammo-segment-inner shot-inner"></div></div>
+            </div>
+            <div id="crosshair"></div>
+            <div id="gauge-bubble-group" class="ammo-gauge-group">
+                <div class="ammo-segment" style="width: 30px;"><div id="bubble-seg" class="ammo-segment-inner bubble-inner"></div></div>
+            </div>
+        </div>
+        <div id="air-indicator" class="hidden">・ AIR JUMP READY</div>
+        <div id="life-display" style="position: absolute; bottom: 30px; right: 30px; font-size: 28px; color: rgba(255, 80, 80, 0.9); text-shadow: 0 0 10px rgba(255, 0, 0, 0.3); letter-spacing: 4px;">♥♥♥</div>
+        <div id="tutorial-ui" class="hidden"
+            style="position: absolute; top: 50%; right: 30px; transform: translateY(-50%); background: rgba(0,0,0,0.6); padding: 20px; border-radius: 8px; color: rgba(255,255,255,0.9); font-size: 14px; border: 1px solid rgba(255,255,255,0.2); pointer-events: none; text-shadow: 1px 1px 2px #000; z-index: 10;">
+            <h3 style="color: #64b4ff; margin-bottom: 15px; font-size: 16px;">How to Play</h3>
+            <p style="margin-bottom: 8px;"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</p>
+            <p style="margin-bottom: 8px;"><kbd>SPACE / 左クリック</kbd>ジャンプ, 2段ジャンプ</p>
+            <p style="margin-bottom: 8px;"><kbd>SPACE 長押し、左クリック 長押し</kbd>長いジャンプ</p>
+            <p><kbd>壁 押し込み</kbd>張り付く(摩擦)</p>
+            <p style="margin-bottom: 8px;"><kbd>壁 押し込み</kbd>壁ジャンプ(たまに)</p>
+            <p style="margin-bottom: 8px;"><kbd>赤い膜</kbd>チェックポイント</p>
+            <p style="margin-bottom: 8px;"><kbd>自機が見えない</kbd>オレンジ色で透ける</p>
+            <p style="margin-bottom: 8px;"><kbd>赤しま</kbd>通れない所</p>
+            <p style="margin-bottom: 8px;"><kbd>右クリック / Shift</kbd>弾丸発射</p>
+            <p style="margin-bottom: 8px;"><kbd>B</kbd>シャボン玉</p>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <div class="logo">シャチ元</div>
+        <div class="modes" style="display:flex; gap: 10px;">
+            <button id="btn-tutorial">PLAY TUTORIAL</button>
+            <button id="btn-main">MAIN ASCENT</button>
+        </div>
+
+        <!-- MAIN ASCENT設定パネル -->
+        <div id="main-settings" style="margin-top: 15px; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); text-align: center;">
+            <div style="color: #aac; font-size: 11px; margin-bottom: 10px; letter-spacing: 2px;">MAIN ASCENT SETTINGS</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #aac;">
+                <label>Area Size<br><input type="number" id="cfg-areaSize" value="9" min="5" max="20" step="1" style="width: 60px; background: #1a1a2e; color: white; border: 1px solid #334; padding: 3px; border-radius: 4px; text-align: center;"></label>
+                <label>Density<br><input type="number" id="cfg-density" value="0.16" min="0.05" max="0.5" step="0.01" style="width: 60px; background: #1a1a2e; color: white; border: 1px solid #334; padding: 3px; border-radius: 4px; text-align: center;"></label>
+                <label>Goal (m)<br><select id="cfg-goalHeight" style="width: 70px; background: #1a1a2e; color: white; border: 1px solid #334; padding: 3px; border-radius: 4px;"><option value="100">100</option><option value="150">150</option><option value="200">200</option><option value="250">250</option><option value="300">300</option><option value="350">350</option><option value="400" selected>400</option><option value="450">450</option><option value="500">500</option><option value="600">600</option><option value="800">800</option><option value="1000">1000</option></select></label>
+                <label>Lives<br><input type="number" id="cfg-maxLives" value="3" min="1" max="10" step="1" style="width: 60px; background: #1a1a2e; color: white; border: 1px solid #334; padding: 3px; border-radius: 4px; text-align: center;"></label>
+                <label>AI Count<br><input type="number" id="cfg-aiCount" value="1" min="0" max="10" step="1" style="width: 60px; background: #1a1a2e; color: white; border: 1px solid #334; padding: 3px; border-radius: 4px; text-align: center;"></label>
+            </div>
+        </div>
+
+        <!-- マルチプレイ UI -->
+        <div id="multiplayer-ui"
+            style="margin-top: 30px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; border: 1px solid rgba(100, 180, 255, 0.3); text-align: center;">
+            <div style="margin-bottom: 10px;">
+                <label for="player-name-input" style="color: #aac; font-size: 13px;">Player Name: </label>
+                <input type="text" id="player-name-input" maxlength="10" placeholder="Guest"
+                    style="background: #1a1a2e; color: white; border: 1px solid #334; padding: 5px; border-radius: 4px; text-align: center;">
+            </div>
+            <div style="display:flex; gap: 10px; justify-content: center;">
+                <button id="btn-host" style="background: #2a2a4e; color: #a78bfa; border: 1px solid #a78bfa;">HOST
+                    ROOM</button>
+                <button id="btn-join" style="background: #2a2a4e; color: #64b4ff; border: 1px solid #64b4ff;">JOIN
+                    ROOM</button>
+            </div>
+            <div id="mp-status" style="margin-top: 10px; font-size: 12px; color: #ffeb3b; min-height: 15px;"></div>
+        </div>
+
+        <p style="color:#667; letter-spacing:4px; font-size:13px; margin-top: 20px;">SELECT MODE TO START</p>
+        <div class="hint">
+            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVE &nbsp;|&nbsp;
+            <kbd>SPACE</kbd> / <kbd>CLICK</kbd> JUMP / AIR JUMP<br>
+            <kbd>WHEEL</kbd> ZOOM &nbsp;|&nbsp; <kbd>ESC</kbd> UNLOCK<br>
+            <kbd>SHIFT</kbd> / <kbd>RIGHT CLICK</kbd> FIRE PROJECTILE<br>
+            <span style="color:#ff5555;">Red membrane</span> – pass from below, land from above
+        </div>
+    </div>
+
+
+
+    <script>
+        'use strict';
+
+
+
+        const config = {
+            playerSpeed: 6.0,
+            jumpVelocity: 2.6,
+            jumpMultiplier: 0.65,
+            gravity: -9.8,
+            density: 0.16,
+            fogRange: 150,
+            areaSize: 9,
+            holdBoost: 0.38,
+            maxHoldTime: 9,
+            showHitboxes: false,
+            goalHeight: 400,
+            maxLives: 3,
+            damageProjectile: 1,
+            damageBubble: 1,
+            aiDamageFactor: 1.0,
+            aiCount: 1
+        };
+        let playerLives = 3;
+        let isDead = false;
+        let deathTimer = 0;
+        let deathTextEl = null;
+        let playerProjectileStock = 3.0;
+        let playerBubbleStock = 1.0;
+        let scene, camera, renderer, controls, world;
+        let playerBody, playerMesh;
+        let mapObjects = [];   
+        let mapGrid = new Map(); 
+        let pendingBlocks = [];
+        let membranes = [];   
+        let walls = [];   
+        let warningTapes = []; 
+        let projectiles = [];
+        const PROJECTILE_LAYER = 1 << 20;
+        const BUBBLE_LAYER = 1 << 21;
+        let bubbles = [];
+        let explosions = [];
+        let netObjects = new Map(); // クライアント側のネットワーク表示用メッシュ管理
+        let netIdCounter = 0; // ホスト用：オブジェクトID
+        let isStarted = false;
+        let lastFireTimeProjectile = 0;
+        let lastFireTimeBubble = 0;
+        let lastAnimTime = 0;
+        let mapInitialized = false;
+        let currentMode = 'main';
+        let animFrameId = null;
+        let highestY = 0;
+        let playerModel = null;
+
+        // --- マップ用 InstancedMesh 管理 ---
+        const MAX_BLOCKS = 15000;
+        let mapInstancedMesh;
+        let freeInstanceIndices = [];
+        for (let i = MAX_BLOCKS - 1; i >= 0; i--) freeInstanceIndices.push(i);
+        const dummy = new THREE.Object3D();
+        // ---------------------------------
+
+        const loader = new THREE.GLTFLoader();
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+        loader.setDRACOLoader(dracoLoader);
+
+        // --- 高速化のための共通リソース ---
+        const sharedProjectileGeo = new THREE.SphereGeometry(0.15, 8, 8); // 分割数も下げてGPU負荷軽減
+        const sharedProjectileMat = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff, emissive: 0x444444, metalness: 0.8, roughness: 0.2
+        });
+        const sharedExplosionGeo = new THREE.SphereGeometry(1, 16, 12);
+        const sharedExplosionMat = new THREE.MeshLambertMaterial({ // Standardより軽量なLambertを使用
+            color: 0xffaa00, emissive: 0xff6600, transparent: true, opacity: 1, side: THREE.DoubleSide
+        });
+        const sharedBubbleGeo = new THREE.SphereGeometry(2.5, 16, 16); // 分割数を下げて負荷軽減 (元 32,32)
+        // ---------------------------------
+
+        loader.load('model/asyu.glb', (gltf) => {
+            playerModel = gltf.scene;
+            playerModel.scale.set(0.175, 0.175, 0.175);
+            playerModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    // ステンシルバッファに自身の位置を記録する設定
+                    node.material.stencilWrite = true;
+                    node.material.stencilRef = 1;
+                    node.material.stencilFunc = THREE.AlwaysStencilFunc;
+                    node.material.stencilZPass = THREE.ReplaceStencilOp;
+                }
+            });
+            console.log("Model loaded successfully from asyu.glb");
+            // 読み込み完了後、既に作成されたエンティティ（箱）をモデルに差し替える
+            updateExistingEntitiesWithModel();
+        }, undefined, (error) => {
+            console.error("Model load error at asyu.glb. (Note: Loading local files via file:// protocol is often blocked by modern browsers for security. Try using a local server like Live Server.)");
+            console.error(error);
+        });
+
+        const entities = [];   
+        let camDist = 3.3; 
+        const keys = { w: false, a: false, s: false, d: false, space: false };
+        let isGrounded = false;
+        let minJumpInterval = 0;   
+        let nextChunkY = 0;
+
+        let jumpCount = 0;
+        const maxJumps = 2;
+        let isJumping = false;
+        let jumpTimer = 0;
+        let lastSpaceState = false;
+
+        const hitboxHelpers = []; 
+
+        function addHitboxHelper(body, size, type = 'box') {
+            const geo = (type === 'sphere')
+                ? new THREE.SphereGeometry(size[0], 12, 12)
+                : new THREE.BoxGeometry(size[0], size[1], size[2]);
+
+            const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, depthTest: false, transparent: true, opacity: 0.8 }));
+            wire.renderOrder = 999;
+            scene.add(wire);
+            hitboxHelpers.push({ mesh: wire, body: body });
+            return wire;
+        }
+
+        const CHUNK = 50;
+
+        const heightEl = document.getElementById('height-display');
+        const timeEl = document.getElementById('time-display');
+        const airEl = document.getElementById('air-indicator');
+        const entityListEl = document.getElementById('entity-list');
+        let startTime = 0;
+
+        let peer = null;
+        let connections = []; 
+        let hostConn = null;  
+        let isOnline = false;
+        let isHost = false;
+        let myPlayerName = "Guest";
+        let myPeerId = null;
+        let randomSeed = Math.random(); 
+        const ROOM_PREFIX = "ascent-room-";
+
+
+        const ASCENT_NAMES = [
+            "くろねこ", "しろくま", "ふくろう", "きんぎょ", "まんぼう", "かるがも", "うみがめ", "きつねび", "たぬきや", "うぐいす",
+            "ひまわり", "たんぽぽ", "あさがお", "どんぐり", "あじさい", "すずらん", "はなびら", "いなずま", "そよかぜ", "あおぞら",
+            "ほしぞら", "ゆうやけ", "あさやけ", "みずたま", "みかづき", "まぼろし", "あまおと", "わたあめ", "だいふく", "まっちゃ",
+            "たいやき", "おにぎり", "からあげ", "たこやき", "かまぼこ", "えだまめ", "せんべい", "かすてら", "はちみつ", "おりがみ",
+            "えんぴつ", "ほうせき", "びーだま", "はぐるま", "けんだま", "すごろく", "おもちゃ", "ふうせん", "ふでばこ", "やじるし"
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            myPlayerName = ASCENT_NAMES[Math.floor(Math.random() * ASCENT_NAMES.length)];
+            const inp = document.getElementById('player-name-input');
+            if (inp) inp.value = myPlayerName;
+        });
+
+
+        document.getElementById('btn-tutorial').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isOnline && !isHost) {
+                logStatus('ホストのゲーム開始を待っています…');
+                return;
+            }
+            if (!isStarted) {
+                if (isOnline && isHost) {
+                    broadcastEvent(6, { seed: randomSeed, mode: 'tutorial' });
+                } else if (!isOnline) {
+                    randomSeed = Math.random();
+                }
+                isStarted = true;
+                currentMode = 'tutorial';
+                playerLives = config.maxLives;
+                updateLifeHUD();
+                document.getElementById('tutorial-ui').classList.remove('hidden');
+                document.getElementById('multiplayer-ui').classList.add('hidden');
+                init();
+                startTime = Date.now();
+            }
+            if (controls) controls.lock();
+        });
+
+        document.getElementById('btn-main').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!isStarted) {
+                if (isOnline && !isHost) {
+                    // クライアントはホストの開始信号を待つ
+                    logStatus('ホストのゲーム開始を待っています…');
+                    return;
+                }
+
+                config.areaSize = parseInt(document.getElementById('cfg-areaSize').value) || 9;
+                config.density = parseFloat(document.getElementById('cfg-density').value) || 0.16;
+                config.goalHeight = parseInt(document.getElementById('cfg-goalHeight').value) || 400;
+                config.maxLives = parseInt(document.getElementById('cfg-maxLives').value) || 3;
+                const aiInp = document.getElementById('cfg-aiCount');
+                if (aiInp && aiInp.value !== "") {
+                    config.aiCount = parseInt(aiInp.value);
+                } else {
+                    config.aiCount = 1;
+                }
+                if (isNaN(config.aiCount)) config.aiCount = 0;
+
+                if (isOnline && isHost) {
+                    // ホストはシードを全クライアントへ共有しながら開始信号を送る
+                    broadcastEvent(6, { 
+                        seed: randomSeed, 
+                        mode: 'main',
+                        areaSize: config.areaSize,
+                        density: config.density,
+                        goalHeight: config.goalHeight,
+                        maxLives: config.maxLives,
+                        aiCount: config.aiCount
+                    });
+                } else if (!isOnline) {
+                    // オフラインソロプレイ開始時はシードを新しく設定
+                    randomSeed = Math.random();
+                }
+
+                isStarted = true;
+                currentMode = 'main';
+                playerLives = config.maxLives;
+                updateLifeHUD();
+                document.getElementById('tutorial-ui').classList.add('hidden');
+                document.getElementById('multiplayer-ui').classList.add('hidden');
+                init();
+                startTime = Date.now();
+            }
+            if (controls) controls.lock();
+        });
+
+        document.getElementById('btn-host').addEventListener('click', (e) => {
+            e.stopPropagation();
+            myPlayerName = document.getElementById('player-name-input').value.trim() || ASCENT_NAMES[Math.floor(Math.random() * ASCENT_NAMES.length)];
+            setupHost();
+        });
+
+        document.getElementById('btn-join').addEventListener('click', (e) => {
+            e.stopPropagation();
+            myPlayerName = document.getElementById('player-name-input').value.trim() || ASCENT_NAMES[Math.floor(Math.random() * ASCENT_NAMES.length)];
+            setupClient();
+        });
+
+        document.body.addEventListener('click', (e) => {
+            if (isStarted && controls && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+                controls.lock();
+            }
+        });
+
+        document.getElementById('home-button').addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetToHome();
+        });
+
+        // ═══════════════════════════════════════════════════════
+        //  SOFT RESET
+        // ═══════════════════════════════════════════════════════
+        function resetToHome() {
+            isStarted = false;
+            mapInitialized = false;
+
+            if (controls) controls.unlock();
+
+            // Cancel Animation
+            if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+
+            // UI Reset
+            document.getElementById('entity-list').innerHTML = '';
+            document.getElementById('height-display').innerText = '0m';
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('home-button').classList.add('hidden');
+            document.getElementById('tutorial-ui').classList.add('hidden');
+            document.getElementById('multiplayer-ui').classList.remove('hidden');
+
+            // 隠したボタン類を元に戻す
+            document.getElementById('btn-main').style.display = 'block';
+            document.getElementById('btn-tutorial').style.display = 'block';
+
+            // Clear physics
+            if (world) {
+                world.clear();
+            }
+
+            // Clear rendering
+            if (scene) {
+                while (scene.children.length > 0) {
+                    scene.remove(scene.children[0]);
+                }
+            }
+            if (renderer) {
+                renderer.dispose();
+                if (renderer.domElement.parentNode) {
+                    document.body.removeChild(renderer.domElement);
+                }
+                renderer = null;
+            }
+
+            const guiEl = document.querySelector('.dg.ac');
+            if (guiEl) guiEl.remove();
+
+            // Clear tracking arrays & maps
+            entities.length = 0;
+            mapObjects.length = 0;
+            mapGrid.clear();       // これが抜けていたため、前のゲームのブロックが「見えない足場」として残っていた
+            pendingBlocks.length = 0;
+            membranes.length = 0;
+            walls.length = 0;
+            warningTapes.length = 0;
+            hitboxHelpers.length = 0;
+
+            // projectiles cleanup
+            projectiles.forEach(p => {
+                scene.remove(p.mesh);
+                world.removeRigidBody(p.body);
+            });
+            projectiles.length = 0;
+
+            bubbles.length = 0;
+            explosions.forEach(exp => {
+                scene.remove(exp.mesh);
+            });
+            explosions.length = 0;
+
+            netObjects.forEach((mesh, id) => {
+                scene.remove(mesh);
+            });
+            netObjects.clear();
+            netIdCounter = 0;
+
+            if (mapInstancedMesh) {
+                scene.remove(mapInstancedMesh);
+                mapInstancedMesh = null;
+            }
+            freeInstanceIndices = [];
+            for (let i = MAX_BLOCKS - 1; i >= 0; i--) freeInstanceIndices.push(i);
+
+            if (typeof initWorker === 'function') initWorker();
+
+            jumpCount = 0;
+            nextChunkY = 0;
+            highestY = 0;
+            startTime = 0;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  INIT
+        // ═══════════════════════════════════════════════════════
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 400);
+
+            // Camera (start-screen is hidden after init)
+            camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 5000);
+
+            // Renderer (Performance tuned for maximum speed)
+            renderer = new THREE.WebGLRenderer({ antialias: false });
+            renderer.setSize(innerWidth, innerHeight);
+            renderer.setPixelRatio(1); // 処理落ち対策にピクセル比を1に固定
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Lights
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4)); // さらに抑えて反射を抑える
+
+            // 4方向からのDirectionalLight (強度0.2, Y=3000)
+            const d1 = new THREE.DirectionalLight(0xffffff, 0.2); d1.position.set(2000, 3000, 2000); scene.add(d1);
+            const d2 = new THREE.DirectionalLight(0xffffff, 0.2); d2.position.set(-2000, 3000, 2000); scene.add(d2);
+            const d3 = new THREE.DirectionalLight(0xffffff, 0.2); d3.position.set(2000, 3000, -2000); scene.add(d3);
+            const d4 = new THREE.DirectionalLight(0xffffff, 0.2); d4.position.set(-2000, 3000, -2000); scene.add(d4);
+
+            // 影は1つのライトだけ落とす（パフォーマンス対策）
+            d1.castShadow = true;
+            d1.shadow.camera.left = d1.shadow.camera.bottom = -15;
+            d1.shadow.camera.right = d1.shadow.camera.top = 15;
+            d1.shadow.camera.far = 4000;
+            d1.shadow.mapSize.set(512, 512); // シャドウマップ抑制
+
+            // ── 環境演出 ──
+            // 海面
+            const seaGeo = new THREE.PlaneGeometry(2000, 2000);
+            const seaMat = new THREE.MeshStandardMaterial({
+                color: 0x0077be,
+                transparent: true,
+                opacity: 0.6,
+                metalness: 0.4,
+                roughness: 0.1,
+                side: THREE.DoubleSide
+            });
+            const seaMesh = new THREE.Mesh(seaGeo, seaMat);
+            seaMesh.rotation.x = -Math.PI / 2;
+            seaMesh.position.set(config.areaSize / 2, -0.51, config.areaSize / 2);
+            seaMesh.receiveShadow = true;
+            scene.add(seaMesh);
+
+            // ── 環境演出 (スカイドーム) ──
+            const domeCanvas = document.createElement('canvas');
+            domeCanvas.width = 512; domeCanvas.height = 512;
+            const domeCtx = domeCanvas.getContext('2d');
+            const dGrad = domeCtx.createLinearGradient(0, 0, 0, 512);
+            dGrad.addColorStop(0, '#87CEEB');   // 天井(水色)
+            dGrad.addColorStop(0.48, '#87CEEB'); // 地平線付近(水色)
+            dGrad.addColorStop(0.52, '#0055aa'); // 地平線直下(濃い青)
+            dGrad.addColorStop(1, '#002244');   // 深海(もっと濃い青)
+            domeCtx.fillStyle = dGrad;
+            domeCtx.fillRect(0, 0, 512, 512);
+
+            const domeTex = new THREE.CanvasTexture(domeCanvas);
+            const domeGeo = new THREE.SphereGeometry(4000, 32, 32);
+            const domeMat = new THREE.MeshBasicMaterial({
+                map: domeTex, side: THREE.BackSide, fog: false
+            });
+            const domeMesh = new THREE.Mesh(domeGeo, domeMat);
+            scene.add(domeMesh);
+
+            // 太陽（d1と同じ位置に白く光る丸）
+            const sunCanvas = document.createElement('canvas');
+            sunCanvas.width = 256;
+            sunCanvas.height = 256;
+            const sunCtx = sunCanvas.getContext('2d');
+            const sunGrad = sunCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
+            sunGrad.addColorStop(0, 'rgba(255,255,255,1)');
+            sunGrad.addColorStop(0.15, 'rgba(255,255,245,0.95)');
+            sunGrad.addColorStop(0.4, 'rgba(255,250,230,0.3)');
+            sunGrad.addColorStop(1, 'rgba(255,245,200,0)');
+            sunCtx.fillStyle = sunGrad;
+            sunCtx.fillRect(0, 0, 256, 256);
+            const sunTex = new THREE.CanvasTexture(sunCanvas);
+            const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: sunTex, transparent: true, depthWrite: false, fog: false
+            }));
+            sunSprite.scale.set(600, 600, 1);
+            sunSprite.position.set(2000, 3000, 2000); // d1と同じ位置
+            scene.add(sunSprite);
+
+            // 雲
+            const cloudCanvas = document.createElement('canvas');
+            cloudCanvas.width = 256;
+            cloudCanvas.height = 128;
+            const cloudCtx = cloudCanvas.getContext('2d');
+            const cGrad = cloudCtx.createRadialGradient(128, 64, 10, 128, 64, 110);
+            cGrad.addColorStop(0, 'rgba(255,255,255,0.95)');
+            cGrad.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+            cGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            cloudCtx.fillStyle = cGrad;
+            cloudCtx.fillRect(0, 0, 256, 128);
+            const cloudTex = new THREE.CanvasTexture(cloudCanvas);
+
+            for (let i = 0; i < 40; i++) {
+                const cMat = new THREE.SpriteMaterial({
+                    map: cloudTex, transparent: true,
+                    opacity: 0.5 + Math.random() * 0.3,
+                    depthWrite: false, fog: false
+                });
+                const cloud = new THREE.Sprite(cMat);
+                const s = 30 + Math.random() * 60;
+                cloud.scale.set(s * 2.5, s, 1);
+                cloud.position.set(
+                    (Math.random() - 0.5) * 600 + config.areaSize / 2,
+                    60 + Math.random() * 300,
+                    (Math.random() - 0.5) * 600 + config.areaSize / 2
+                );
+                scene.add(cloud);
+            }
+
+            // マップ用 InstancedMesh の初期化
+            mapInstancedMesh = new THREE.InstancedMesh(sharedBlockGeo, sharedBlockMat, MAX_BLOCKS);
+            mapInstancedMesh.castShadow = true;
+            mapInstancedMesh.receiveShadow = true;
+            // 全てのインスタンスを最初は見えない場所に飛ばしておく
+            dummy.scale.set(0, 0, 0);
+            for (let i = 0; i < MAX_BLOCKS; i++) {
+                dummy.updateMatrix();
+                mapInstancedMesh.setMatrixAt(i, dummy.matrix);
+            }
+            mapInstancedMesh.instanceMatrix.needsUpdate = true;
+            scene.add(mapInstancedMesh);
+
+            // Physics world (OIMO v1.0.9)
+            // 当たり判定の精度を上げるため iterations を 24 に増加
+            world = new OIMO.World({
+                gravity: [0, config.gravity, 0],
+                iterations: 24,
+                info: false
+            });
+
+            createPlayer();
+            // オンラインのクライアント側ではAIを生成しない（ホストが同期する）
+            if (!isOnline || isHost) {
+                for (let i = 0; i < config.aiCount; i++) {
+                    createAI(`AI-${i + 1}`, i + 1);
+                }
+            }
+
+            if (currentMode === 'tutorial') {
+                document.getElementById('tutorial-ui').classList.remove('hidden');
+
+                createFloor(27, 50);
+                initTapes(27, 50);
+                buildTutorialMap();
+                createInvisibleWalls(27, 50);
+                // チュートリアルではチャンク自動生成を停止するため generateChunk(0) は呼ばない
+
+                // 最初のスポーン位置へ強制移動（高さ4の台の上 = y=5.0）
+                setTimeout(() => {
+                    entities.forEach((ent, idx) => {
+                        ent.body.resetPosition(1.5 + idx * 0.5, 5.0, 1.5);
+                    });
+                }, 100);
+
+                document.getElementById('start-screen').style.display = 'none';
+            } else {
+                createFloor(config.areaSize, config.areaSize);
+                initTapes(config.areaSize, config.areaSize);
+                createInvisibleWalls(config.areaSize, config.areaSize);
+                highestY = 0;
+                generateChunk(0);
+                // オンラインクライアントの自動開始時は待機画面をスキップ
+                if (isOnline && !isHost) {
+                    document.getElementById('start-screen').style.display = 'none';
+                } else {
+                    document.getElementById('start-screen').style.display = 'flex';
+                }
+            }
+
+            setupControls();
+
+            controls.addEventListener('lock', () => {
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('home-button').classList.add('hidden');
+            });
+            controls.addEventListener('unlock', () => {
+                document.getElementById('home-button').classList.remove('hidden');
+            });
+
+            initGUI();
+            animate();
+        }
+
+        function initGUI() {
+            const gui = new dat.GUI();
+            gui.domElement.style.display = 'none';
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '\\') {
+                    gui.domElement.style.display = gui.domElement.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+
+            const fMove = gui.addFolder('Move');
+            fMove.add(config, 'playerSpeed', 1.0, 20.0).name('Speed');
+            fMove.open();
+
+            const fJump = gui.addFolder('Jump');
+            fJump.add(config, 'jumpVelocity', 1.0, 25.0).name('Power');
+            fJump.add(config, 'jumpMultiplier', 0.1, 1.5).name('Air Multi');
+            fJump.add(config, 'holdBoost', 0.0, 1.0).name('Hold Boost');
+            fJump.add(config, 'maxHoldTime', 0, 60).step(1).name('Max Hold');
+            fJump.open();
+
+            const fWorld = gui.addFolder('World');
+            fWorld.add(config, 'gravity', -50.0, -1.0).name('Gravity').onChange(v => {
+                if (world) world.gravity.set(0, v, 0);
+            });
+            fWorld.open();
+
+            const fDebug = gui.addFolder('Debug');
+            fDebug.add(config, 'showHitboxes').name('Show Hitboxes');
+            fDebug.open();
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  PLAYER
+        // ═══════════════════════════════════════════════════════
+        function createPlayer(entIndex = 0) {
+            const spawnX = config.areaSize / 2 + 0.5; // 直後にデータ受領で移動される
+            const spawnY = 0.25;
+            const spawnZ = config.areaSize / 2 + 0.5;
+
+            const belongsToLayer = 1 << (entIndex + 1);
+            const dedicatedFloorLayer = 1 << (entIndex + 17);
+            const collidesWithLayer = 1 | dedicatedFloorLayer | BUBBLE_LAYER | PROJECTILE_LAYER; // すべての主要オブジェクトと衝突
+
+            playerBody = world.add({
+                type: 'sphere',
+                size: [0.37],
+                pos: [spawnX, spawnY, spawnZ],
+                move: true,
+                belongsTo: belongsToLayer,
+                collidesWith: collidesWithLayer,
+                density: 1, friction: 0.7, restitution: 0
+            });
+            playerBody.allowSleep = false;
+
+            // ヒットボックス追加 (当たり判定用の不可視の球体)
+            addHitboxHelper(playerBody, [0.37], 'sphere');
+
+            // ── ビジュアルMesh作成 (当たり判定とは別に見た目用モデル/Boxを作成) ──
+            if (playerModel) {
+                playerMesh = playerModel.clone();
+            } else {
+                playerMesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                    new THREE.MeshStandardMaterial({ color: 0x64b4ff, emissive: 0x224488, metalness: 0.68, roughness: 0.3 })
+                );
+            }
+            playerMesh.castShadow = true;
+
+            // X-Ray: 障害物の後ろに隠れた時に見えるオレンジ色のシルエット
+            const xrayMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa33,
+                transparent: true,
+                opacity: 0.5,
+                depthFunc: THREE.GreaterDepth, // 他の物体より「奥」にあるピクセルのみ描画
+                depthWrite: false,
+                stencilWrite: true,            // ステンシルチェックを追加
+                stencilRef: 1,
+                stencilFunc: THREE.NotEqualStencilFunc // 自身がいる場所（1）以外を描画
+            });
+
+            let xrayMesh;
+            if (playerModel) {
+                xrayMesh = playerModel.clone();
+                xrayMesh.scale.set(1, 1, 1); // 親が0.125なので子は1にする（二重スケール防止）
+                xrayMesh.traverse((node) => {
+                    if (node.isMesh) {
+                        node.material = xrayMat;
+                    }
+                });
+            } else {
+                xrayMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), xrayMat);
+            }
+            playerMesh.add(xrayMesh);
+
+            scene.add(playerMesh);
+
+            // 統合管理配列に登録
+            entities.push({
+                name: 'Player',
+                body: playerBody,
+                mesh: playerMesh,
+                isAI: false,
+                entIndex: entIndex,
+                groundContactFrames: 0,
+                currentMembraneY: -Infinity,
+                dedicatedMembraneFloor: null
+            });
+        }
+
+        function createAI(name, entIndex = 1) {
+            const spawnX = config.areaSize / 2 + 0.5;
+            const spawnY = 0.25;
+            const spawnZ = config.areaSize / 2 + 0.5;
+
+            const belongsToLayer = 1 << (entIndex + 1);
+            const dedicatedFloorLayer = 1 << (entIndex + 17);
+            const collidesWithLayer = 1 | dedicatedFloorLayer | BUBBLE_LAYER | PROJECTILE_LAYER; // すべての主要オブジェクトと衝突
+
+            const body = world.add({
+                type: 'sphere',
+                size: [0.37],
+                pos: [spawnX, spawnY, spawnZ],
+                move: true,
+                belongsTo: belongsToLayer,
+                collidesWith: collidesWithLayer,
+                density: 1, friction: 0.7, restitution: 0
+            });
+            body.allowSleep = false;
+
+            addHitboxHelper(body, [0.37], 'sphere');
+
+            // AIの見た目: モデルがあればそれを使用、なければ箱
+            let mesh;
+            if (playerModel) {
+                mesh = playerModel.clone();
+                mesh.traverse(n => {
+                    if (n.isMesh) {
+                        n.material = n.material.clone();
+                        n.material.color.set(0x90ee90); // AIカラー
+                        n.material.emissive.set(0x225522);
+                    }
+                });
+            } else {
+                mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                    new THREE.MeshStandardMaterial({ color: 0x90ee90, emissive: 0x225522, metalness: 0.68, roughness: 0.3 })
+                );
+            }
+            mesh.castShadow = true;
+
+            // X-Ray: オレンジ色のシルエット
+            const xrayMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa33,
+                transparent: true,
+                opacity: 0.5,
+                depthFunc: THREE.GreaterDepth,
+                depthWrite: false,
+                stencilWrite: true,
+                stencilRef: 1,
+                stencilFunc: THREE.NotEqualStencilFunc
+            });
+
+            let xrayMesh;
+            if (playerModel) {
+                xrayMesh = playerModel.clone();
+                xrayMesh.scale.set(1, 1, 1); // 二重スケール防止
+                xrayMesh.traverse((node) => {
+                    if (node.isMesh) {
+                        node.material = xrayMat;
+                    }
+                });
+            } else {
+                xrayMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), xrayMat);
+            }
+            mesh.add(xrayMesh);
+
+            // 名前スプライト追加
+            const sprite = createNameSprite(name);
+            mesh.add(sprite);
+
+            scene.add(mesh);
+
+            // AIステート
+            const state = {
+                name: name,
+                body: body,
+                mesh: mesh,
+                sprite: sprite,
+                isAI: true,
+                entIndex: entIndex,
+                isGrounded: false,
+                groundContactFrames: 0,
+                currentMembraneY: -Infinity,
+                dedicatedMembraneFloor: null,
+                jumpTimer: 0,
+                isJumping: false,
+                jumpCount: 0,
+                targetPos: null,
+                jumpBlacklist: new Map(), // 失敗した足場の記憶
+                stuckTimer: 0,
+                neutralTimer: 0, // 静止用タイマー
+                forceRetreat: false,
+                lastFireTimeProjectile: 0,
+                lastFireTimeBubble: 0,
+                isDead: false,
+                deathTimer: 0,
+                projectileStock: 3.0,
+                bubbleStock: 1.0,
+                lastPos: null
+            };
+
+            entities.push(state);
+            return state;
+        }
+
+        // モデルロード完了後に、仮の箱をモデルに差し替える関数
+        function updateExistingEntitiesWithModel() {
+            if (!playerModel) return;
+            entities.forEach(ent => {
+                // モデルがまだ適用されていない（children[0]がBoxなどの）場合
+                // ※この判別は簡易的ですが、既にモデル適用済みの場合はスキップ
+                if (ent.mesh.geometry && ent.mesh.geometry.type === 'BoxGeometry') {
+                    const oldMesh = ent.mesh;
+                    const pos = oldMesh.position.clone();
+
+                    // 新しいメッシュの作成
+                    let newMesh = playerModel.clone();
+                    if (ent.isAI) {
+                        newMesh.traverse(n => {
+                            if (n.isMesh) {
+                                n.material = n.material.clone();
+                                n.material.color.set(0x90ee90);
+                            }
+                        });
+                    }
+                    newMesh.position.copy(pos);
+                    
+                    // 透かしの再追加
+                    const xrayMat = new THREE.MeshBasicMaterial({
+                        color: 0xffaa33, transparent: true, opacity: 0.5,
+                        depthFunc: THREE.GreaterDepth, depthWrite: false,
+                        stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
+                    });
+                    const xrayMesh = playerModel.clone();
+                    xrayMesh.scale.set(1, 1, 1);
+                    xrayMesh.traverse(n => { 
+                        if (n.isMesh) {
+                            n.material = xrayMat;
+                        }
+                    });
+                    newMesh.add(xrayMesh);
+
+                    // 名前タグなどの既存の子要素を移行
+                    const childrenToMove = [];
+                    oldMesh.children.forEach(c => {
+                        // 既に削除対象のxray(Box)や名前タグを判別
+                        if (c.type !== 'Mesh' || c.material.depthFunc !== THREE.GreaterDepth) {
+                            childrenToMove.push(c);
+                        }
+                    });
+                    childrenToMove.forEach(c => newMesh.add(c));
+
+                    // シーンから入れ替え
+                    scene.remove(oldMesh);
+                    scene.add(newMesh);
+                    ent.mesh = newMesh;
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  FLOOR
+        //  厚み 0.5、天面が Y=0 になるよう中心を Y=-0.25 に配置
+        // ═══════════════════════════════════════════════════════
+        function createFloor(w = config.areaSize, d = config.areaSize) {
+            const cx = w / 2, cz = d / 2;
+
+            // Visual
+            const m = new THREE.Mesh(
+                new THREE.BoxGeometry(w, 0.5, d),
+                new THREE.MeshStandardMaterial({ color: 0x1a2a3a })
+            );
+            m.position.set(cx, -0.25, cz);
+            m.receiveShadow = true;
+            scene.add(m);
+
+            // Physics：天面が Y=0 になる位置
+            const floorBody = world.add({ type: 'box', size: [w, 0.5, d], pos: [cx, -0.25, cz], move: false, restitution: 0 });
+            addHitboxHelper(floorBody, [w, 0.5, d]);
+
+            if (currentMode !== 'tutorial') {
+                const g = new THREE.GridHelper(Math.max(w, d), Math.max(w, d), 0x1e3044, 0x1e3044);
+                g.position.set(cx, 0.002, cz);
+                scene.add(g);
+            }
+        }
+
+        function createInvisibleWalls(customW = null, customD = null) {
+            const thickness = 2;
+            const height = 100000;
+            const centerY = height / 2 - 100;
+
+            const w = customW !== null ? customW : config.areaSize;
+            const d = customD !== null ? customD : config.areaSize;
+
+            const pad = 0;
+
+            const wallConfigs = [
+                { pos: [w / 2, centerY, -thickness / 2 - pad], size: [w + pad * 2, height, thickness] }, // N
+                { pos: [w / 2, centerY, d + thickness / 2 + pad], size: [w + pad * 2, height, thickness] }, // S
+                { pos: [-thickness / 2 - pad, centerY, d / 2], size: [thickness, height, d + pad * 2] }, // W
+                { pos: [w + thickness / 2 + pad, centerY, d / 2], size: [thickness, height, d + pad * 2] }  // E
+            ];
+
+            wallConfigs.forEach(c => {
+                const b = world.add({
+                    type: 'box', size: c.size, pos: c.pos, move: false, friction: 0, restitution: 0, belongsTo: 1
+                });
+                addHitboxHelper(b, c.size);
+                walls.push({ body: b });
+            });
+        }
+
+        function buildTutorialMap() {
+            const positions = [];
+            const addBlock = (x, y, z) => positions.push({ x, y, z });
+
+            for (let x = 0; x < 27; x++) {
+                for (let z = 0; z < 50; z++) addBlock(x, 0, z);
+            }
+
+            for (let x = 0; x <= 3; x++) {
+                for (let z = 0; z <= 15; z++) {
+                    for (let y = 1; y <= 3; y++) addBlock(x, y, z);
+                }
+            }
+
+            for (let x = 0; x <= 3; x++) {
+                for (let z = 16; z <= 18; z++) addBlock(x, 1, z);
+            }
+
+            for (let x = 0; x <= 8; x++) {
+                for (let z = 15; z < 50; z++) addBlock(x, 0, z);
+            }
+            for (let x = 8; x <= 26; x++) {
+                for (let z = 42; z <= 49; z++) addBlock(x, 0, z);
+            }
+
+            const pts = [[15, 18], [15, 21], [15, 24], [15, 27], [15, 30], [15, 33], [15, 36], [15, 39], [15, 41], [20, 18], [20, 21], [20, 24], [20, 27], [20, 30], [20, 33], [20, 36], [20, 39], [20, 41], [11, 27], [12, 27]];
+            pts.forEach(p => {
+                addBlock(p[0], 0, p[1]);
+                addBlock(p[0], 1, p[1]);
+            });
+
+
+            for (let i = 0; i < 8; i++) {
+                for (let y = 0; y <= i; y++) {
+                    addBlock(19 + i, y, 49);
+                }
+            }
+
+            for (let z = 30; z <= 48; z++) {
+                for (let y = 0; y <= 7; y++) addBlock(26, y, z);
+            }
+            for (let i = 0; i < 9; i++) {
+                for (let y = 0; y <= (7 + i); y++) {
+                    addBlock(26 - i, y, 29);
+                }
+            }
+
+            if (positions.length > 0) {
+                const instMesh = new THREE.InstancedMesh(sharedBlockGeo, sharedBlockMat, positions.length);
+                instMesh.castShadow = true;
+                instMesh.receiveShadow = true;
+                const dummy = new THREE.Object3D();
+
+                positions.forEach((p, idx) => {
+                    // Physics
+                    world.add({
+                        type: 'box', size: [1, 1, 1], pos: [p.x + 0.5, p.y + 0.5, p.z + 0.5], move: false, friction: 0.3, restitution: 0.0, belongsTo: 1, collidesWith: ~0
+                    });
+                    // Rendering
+                    dummy.position.set(p.x + 0.5, p.y + 0.5, p.z + 0.5);
+                    dummy.updateMatrix();
+                    instMesh.setMatrixAt(idx, dummy.matrix);
+
+                    let isTop = false;
+                    if (p.x === 26 && p.z >= 30 && p.z <= 48 && p.y === 7) isTop = true;
+                    if (p.z === 29 && p.x >= 18 && p.x <= 26 && p.y === (7 + (26 - p.x))) isTop = true;
+                    if (p.y === 0) isTop = true;
+
+                    if (isTop) {
+                        mapGrid.set(`${p.x},${p.y},${p.z}`, {
+                            mesh: { visible: true },
+                            position: new THREE.Vector3(p.x + 0.5, p.y + 0.5, p.z + 0.5)
+                        });
+                    }
+                });
+
+                scene.add(instMesh);
+            }
+
+            const goalHeight = 17.5;
+            const cw = 9;
+            const mesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(cw, cw),
+                new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false })
+            );
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(18 + cw / 2, goalHeight, 29 + cw / 2);
+            scene.add(mesh);
+            membranes.push({ mesh, y: goalHeight, w: cw });
+        }
+
+        function createBlockTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#7ba8c9';
+            ctx.fillRect(0, 0, 256, 256);
+
+            ctx.strokeStyle = '#e0f0fa';
+            ctx.lineWidth = 14;
+            ctx.strokeRect(7, 7, 242, 242);
+
+            const length = 32;
+            const offset = 28;
+
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(offset, offset + length); ctx.lineTo(offset, offset); ctx.lineTo(offset + length, offset);
+            ctx.moveTo(256 - offset - length, offset); ctx.lineTo(256 - offset, offset); ctx.lineTo(256 - offset, offset + length);
+            ctx.moveTo(256 - offset, 256 - offset - length); ctx.lineTo(256 - offset, 256 - offset); ctx.lineTo(256 - offset - length, 256 - offset);
+            ctx.moveTo(offset + length, 256 - offset); ctx.lineTo(offset, 256 - offset); ctx.lineTo(offset, 256 - offset - length);
+            ctx.stroke();
+
+
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createTapeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            const tbH = (0.06 / 0.4) * 128;
+            const msStart = ((0.06 + 0.015) / 0.4) * 128;
+            const msH = (0.25 / 0.4) * 128;
+
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 0, 512, tbH);
+            ctx.fillRect(0, 128 - tbH, 512, tbH);
+
+            const cycle = 64;
+            const stripeWidth = 32;
+            for (let x = -128; x < 512; x += cycle) {
+                ctx.beginPath();
+                ctx.moveTo(x, msStart);
+                ctx.lineTo(x + stripeWidth, msStart);
+                ctx.lineTo(x + stripeWidth + msH, msStart + msH);
+                ctx.lineTo(x + msH, msStart + msH);
+                ctx.fill();
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.repeat.set(4, 1);
+            return tex;
+        }
+
+        const tapeVertexShader = `
+uniform float repeatX;
+varying vec2 vUv;
+varying vec3 vWorldPosition;
+void main() {
+    vUv = vec2(uv.x * repeatX, uv.y);
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+}
+`;
+
+        const tapeFragmentShader = `
+uniform sampler2D map;
+uniform vec3 playerPos;
+
+varying vec2 vUv;
+varying vec3 vWorldPosition;
+
+void main() {
+    vec4 texColor = texture2D(map, vUv);
+    
+    float dist = distance(vWorldPosition.xz, playerPos.xz);
+    
+    float radius = 1.5;
+    float coreRadius = 0.25;
+    float maxOpacity = 0.85;
+    
+    float alpha = 1.0 - smoothstep(coreRadius, radius, dist);
+    
+    gl_FragColor = vec4(texColor.rgb, texColor.a * alpha * maxOpacity);
+}
+`;
+
+        function initTapes(w = config.areaSize, d = config.areaSize) {
+            const offset = 0.18;
+
+            const tapeWidthW = w + offset * 2;
+            const geoW = new THREE.PlaneGeometry(tapeWidthW, 0.4);
+            const tapeWidthD = d + offset * 2;
+            const geoD = new THREE.PlaneGeometry(tapeWidthD, 0.4);
+
+            const texW = createTapeTexture();
+            texW.wrapS = THREE.RepeatWrapping;
+            const texD = createTapeTexture();
+            texD.wrapS = THREE.RepeatWrapping;
+
+            const configs = [
+                { side: 'N', rot: 0, pos: [w / 2, 0, -offset], geo: geoW, tw: tapeWidthW, tex: texW },
+                { side: 'S', rot: Math.PI, pos: [w / 2, 0, d + offset], geo: geoW, tw: tapeWidthW, tex: texW },
+                { side: 'W', rot: Math.PI / 2, pos: [-offset, 0, d / 2], geo: geoD, tw: tapeWidthD, tex: texD },
+                { side: 'E', rot: -Math.PI / 2, pos: [w + offset, 0, d / 2], geo: geoD, tw: tapeWidthD, tex: texD }
+            ];
+
+            warningTapes.length = 0;
+
+            configs.forEach(c => {
+                const mat = new THREE.ShaderMaterial({
+                    uniforms: {
+                        map: { value: c.tex },
+                        repeatX: { value: c.tw },
+                        playerPos: { value: new THREE.Vector3() }
+                    },
+                    vertexShader: tapeVertexShader,
+                    fragmentShader: tapeFragmentShader,
+                    transparent: true,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                });
+
+                const mesh = new THREE.Mesh(c.geo, mat);
+                mesh.rotation.y = c.rot;
+                mesh.position.set(c.pos[0], 0, c.pos[2]);
+                scene.add(mesh);
+                warningTapes.push({ mesh, mat, side: c.side });
+            });
+        }
+
+        const sharedBlockGeo = new THREE.BoxGeometry(1, 1, 1);
+        const textureLoader = new THREE.TextureLoader();
+        const sharedBlockMat = new THREE.MeshLambertMaterial({
+            map: textureLoader.load('texture/block_mat.png'),
+            color: 0xffffff
+        });
+
+        function createBlock(gx, gy, gz) {
+            if (freeInstanceIndices.length === 0) return; // キャパオーバー
+
+            const wx = gx + 0.5;
+            const wy = gy + 0.5;
+            const wz = gz + 0.5;
+
+            const instIdx = freeInstanceIndices.pop();
+            dummy.position.set(wx, wy, wz);
+            dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix();
+            mapInstancedMesh.setMatrixAt(instIdx, dummy.matrix);
+            mapInstancedMesh.instanceMatrix.needsUpdate = true;
+
+            const body = world.add({ type: 'box', size: [1, 1, 1], pos: [wx, wy, wz], move: false, friction: 0.5, restitution: 0 });
+            addHitboxHelper(body, [1, 1, 1]);
+
+            const isOuter = (gx === 0 || gx === config.areaSize - 1 || gz === 0 || gz === config.areaSize - 1);
+
+            mapObjects.push({ instIdx, body, gy, isOuter, gx, gz });
+            mapGrid.set(`${gx},${gy},${gz}`, { instIdx, position: new THREE.Vector3(wx, wy, wz) });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  MEMBRANE (赤い膜：一方向プラットフォーム)
+        // ═══════════════════════════════════════════════════════
+        function createMembrane(worldY, customSize = null) {
+            const w = customSize !== null ? customSize : config.areaSize;
+            const cy = worldY;
+            const mesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(w, w),
+                new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+            );
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(config.areaSize / 2, cy, config.areaSize / 2);
+
+            // 初期状態では全球的な衝突判定は持たせず、ビジュアルのみ追加する
+            // プレイヤーが通過した後に、それぞれのプレイヤーに対して個別に衝突判定を生成する
+            scene.add(mesh);
+            membranes.push({ mesh, body: null, y: cy, w: w, passed: false });
+        }
+
+
+
+        function logStatus(msg) {
+            document.getElementById('mp-status').innerText = msg;
+        }
+
+        // データのパッキング (座標同期, 1m単位なので整数第2位まで送信)
+        // eventType, playerID, [posX, posY, posZ, jumpCount]
+        function packData(eventId, data) {
+            if (eventId === 1) { // 座標同期
+                const arr = [
+                    1, // EventID
+                    data.id,
+                    Math.round(data.x * 100) / 100,
+                    Math.round(data.y * 100) / 100,
+                    Math.round(data.z * 100) / 100,
+                    data.jumps
+                ];
+                return arr;
+            }
+            if (eventId === 0) { // 初期同期
+                // JSONで送るデータを送る準備
+                return { event: 0, seed: data.seed, hostId: data.hostId, hostName: data.name };
+            }
+            if (eventId === 5) { // 名前同期
+                return { event: 5, id: data.id, name: data.name };
+            }
+            if (eventId === 6) { // ゲーム開始同期
+                return { event: 6, seed: data.seed, mode: data.mode, areaSize: data.areaSize, density: data.density, goalHeight: data.goalHeight, maxLives: data.maxLives };
+            }
+            if (eventId === 10) { // 発射リクエスト (Client -> Host)
+                return [10, data.type, data.x, data.y, data.z, data.vx, data.vy, data.vz];
+            }
+            if (eventId === 11) { // 生成通知 (Host -> All)
+                return [11, data.netId, data.type, data.x, data.y, data.z, data.vx, data.vy, data.vz];
+            }
+            if (eventId === 12) { // 座標一括同期 (Host -> Client)
+                return { event: 12, list: data.list }; // [[id, x, y, z], ...]
+            }
+            if (eventId === 13) { // 削除/爆発通知 (Host -> All)
+                return [13, data.netId, data.type, data.x, data.y, data.z];
+            }
+        }
+
+        function unpackData(arr) {
+            if (arr.event === 0 || arr.event === 5 || arr.event === 6) return arr;
+            if (Array.isArray(arr)) {
+                const ev = arr[0];
+                if (ev === 1) {
+                    return { event: 1, id: arr[1], x: arr[2], y: arr[3], z: arr[4], jumps: arr[5] };
+                }
+                if (ev === 10) return { event: 10, type: arr[1], x: arr[2], y: arr[3], z: arr[4], vx: arr[5], vy: arr[6], vz: arr[7] };
+                if (ev === 11) return { event: 11, netId: arr[1], type: arr[2], x: arr[3], y: arr[4], z: arr[5], vx: arr[6], vy: arr[7], vz: arr[8] };
+                if (ev === 13) return { event: 13, netId: arr[1], type: arr[2], x: arr[3], y: arr[4], z: arr[5] };
+            }
+            if (arr.event === 12) return arr;
+            return arr;
+        }
+
+        function broadcastEvent(eventId, rawData) {
+            if (!isOnline) return;
+            const packed = packData(eventId, rawData);
+            if (isHost) {
+                connections.forEach(c => {
+                    if (c.open) c.send(packed);
+                });
+            } else if (hostConn && hostConn.open) {
+                hostConn.send(packed);
+            }
+        }
+
+        // Hostの設定：ascent-room-1 ～ 10 を順に試す (ID入力不要同期)
+        function setupHost() {
+            logStatus("Creating room...");
+            let attempt = 1;
+            function tryBind() {
+                if (attempt > 10) {
+                    logStatus("Failed to create room. (Servers full)");
+                    return;
+                }
+                const tryId = ROOM_PREFIX + attempt;
+                peer = new Peer(tryId);
+
+                peer.on('open', (id) => {
+                    logStatus(`Room Hosted! Waiting for players... (Room ID: ${attempt})`);
+                    myPeerId = id;
+                    isHost = true;
+                    isOnline = true;
+                    randomSeed = Math.random(); // ホストがシードを決定
+                });
+
+                peer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        attempt++;
+                        peer.destroy();
+                        tryBind(); // Retry next ID
+                    } else {
+                        logStatus("PeerJS Error: " + err.type);
+                    }
+                });
+
+                peer.on('connection', (conn) => {
+                    console.log("Client connected:", conn.peer);
+                    connections.push(conn);
+                    conn.on('open', () => {
+                        // 送信初期データ：乱数シード、ホスト名
+                        conn.send(packData(0, { seed: randomSeed, hostId: myPeerId, name: myPlayerName }));
+                    });
+                    conn.on('data', (data) => {
+                        handleNetworkData(data, conn);
+                    });
+                    conn.on('close', () => {
+                        logStatus('プレイヤーが離脱しました: ' + conn.peer);
+                        const ent = networkEntities.get(conn.peer);
+                        if (ent) {
+                            scene.remove(ent.mesh);
+                            if (isHost && ent.body) world.removeRigidBody(ent.body); // 物理実体も消去
+                            networkEntities.delete(conn.peer);
+                        }
+                        connections = connections.filter(c => c !== conn);
+                    });
+                });
+            }
+            tryBind();
+        }
+
+        // Clientの設定：空いているホストの部屋へ順にアタック
+        function setupClient() {
+            logStatus("Searching for room...");
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                let attempt = 1;
+
+                function tryConnect() {
+                    if (attempt > 10) {
+                        logStatus("No hosted rooms found.");
+                        peer.destroy();
+                        return;
+                    }
+                    logStatus(`Connecting to room ${attempt}...`);
+                    const tryId = ROOM_PREFIX + attempt;
+                    const conn = peer.connect(tryId);
+
+                    conn.on('open', () => {
+                        hostConn = conn;
+                        isOnline = true;
+                        logStatus("Connected to Room " + attempt + "!");
+
+                        conn.on('data', (data) => {
+                            handleNetworkData(data, conn);
+                        });
+                    });
+
+                    peer.on('error', (err) => {
+                        if (err.type === 'peer-unavailable') {
+                            attempt++;
+                            tryConnect();
+                        }
+                    });
+                }
+                tryConnect();
+            });
+        }
+
+        // 名前解決用マップ
+        const peerNames = new Map();
+
+        function createNameSprite(nameText) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // 名前スプライト作成 (背景なし、枠線なし)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.font = 'bold 54px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#ffffff'; 
+            ctx.fillText(nameText, 1024, 128);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+
+            const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(45.0, 5.625, 1); // サイズ調整 (前回から1.25倍)
+            sprite.position.y = 6.0; // 球体の上に配置 (+1.0m)
+            sprite.renderOrder = 999;
+            return sprite;
+        }
+
+        function handleNetworkData(rawData, sourceConn) {
+            const data = unpackData(rawData);
+            if (!data) return;
+
+            if (data.event === 0) { // Initial sync (Client receives from Host)
+                if (!isHost) {
+                    randomSeed = data.seed;
+                    console.log("Received Seed:", randomSeed);
+                    peerNames.set(data.hostId, data.hostName);
+                    // 自分の名前をホストへ送信
+                    broadcastEvent(5, { id: myPeerId, name: myPlayerName });
+                }
+            } else if (data.event === 1) { // 座標同期
+                if (isHost) {
+                    // ホストは受け取ったデータを他のクライアントにばら撒く(中継)
+                    updateNetworkEntity(data, sourceConn);
+                } else {
+                    // クライアントは受信したデータを反映
+                    updateNetworkEntity(data, sourceConn);
+                }
+            } else if (data.event === 5) { // 名前同期
+                peerNames.set(data.id, data.name);
+                if (networkEntities.has(data.id)) {
+                    const ent = networkEntities.get(data.id);
+                    if (ent.sprite) ent.mesh.remove(ent.sprite); // ent.mesh is now the Group container
+                    ent.sprite = createNameSprite(data.name);
+                    ent.mesh.add(ent.sprite);
+                }
+                if (isHost) { // ホストは全クライアントへ名前を中継
+                    broadcastEvent(5, data);
+                    
+                    // 新規プレイヤー(data.id)に対して、現在出現中の弾丸とシャボン玉の情報を送る
+                    // ※本来は個別送信が望ましいが、簡易化のため生成通知を再送する
+                    projectiles.forEach(p => {
+                        if (p.netId) broadcastEvent(11, { netId: p.netId, type: 0, x: p.body.position.x, y: p.body.position.y, z: p.body.position.z });
+                    });
+                    bubbles.forEach(b => {
+                        if (b.netId) broadcastEvent(11, { netId: b.netId, type: 1, x: b.body.position.x, y: b.body.position.y, z: b.body.position.z });
+                    });
+                }
+            } else if (data.event === 6) { // ゲーム開始同期
+                if (!isHost && !isStarted) {
+                    // ホストが送ってきたシードを使って同じマップを生成する
+                    if (data.seed !== undefined) randomSeed = data.seed;
+                    if (data.areaSize !== undefined) config.areaSize = data.areaSize;
+                    if (data.density !== undefined) config.density = data.density;
+                    if (data.goalHeight !== undefined) config.goalHeight = data.goalHeight;
+                    if (data.maxLives !== undefined) config.maxLives = data.maxLives;
+                    if (data.aiCount !== undefined) config.aiCount = data.aiCount;
+                    
+                    isStarted = true;
+                    currentMode = data.mode || 'main'; // ホストから送られたモードを使用
+                    playerLives = config.maxLives;
+                    updateLifeHUD();
+                    if (currentMode === 'tutorial') {
+                        document.getElementById('tutorial-ui').classList.remove('hidden');
+                    } else {
+                        document.getElementById('tutorial-ui').classList.add('hidden');
+                    }
+                    document.getElementById('multiplayer-ui').classList.add('hidden');
+                    // スタート画面を非表示にしてゲームワールドを表示
+                    document.getElementById('start-screen').style.display = 'none';
+                    init();
+                    startTime = Date.now();
+                    // ブラウザの仕様上、ユーザークリックなしでPointerLockは掛けられないため
+                    // ゲーム開始後にクリックを促すメッセージを表示
+                    logStatus('ゲーム開始！画面をクリックして操作を開始してください');
+                    if (controls) {
+                        // クリックイベントで自動ロックされるので、ここでは試みるだけ
+                        try { controls.lock(); } catch(e) {}
+                    }
+                }
+            } else if (data.event === 10) { // ホストへの発射リクエスト
+                if (isHost) {
+                    // 発射元プレイヤーのボディを特定（自機への当たり判定除外用）
+                    let reqOwnerBody = null;
+                    if (sourceConn) {
+                        const ent = networkEntities.get(sourceConn.peer);
+                        if (ent) reqOwnerBody = ent.body;
+                    }
+                    if (data.type === 0) fireProjectile(data.x, data.y, data.z, data.vx, data.vy, data.vz, reqOwnerBody);
+                    else createBubble(data.x, data.y, data.z, data.vx, data.vy, data.vz, reqOwnerBody);
+                }
+            } else if (data.event === 11) { // 全体への生成通知
+                if (!isHost) {
+                    // クライアント側でも projectiles/bubbles 配列に追加して当たり判定を行えるようにする
+                    if (data.type === 0) {
+                        fireProjectile(data.x, data.y, data.z, data.vx, data.vy, data.vz, resolveBody(data.ownerName), data.netId);
+                    } else {
+                        createBubble(data.x, data.y, data.z, data.vx, data.vy, data.vz, resolveBody(data.ownerName), data.netId, data.ownerName);
+                    }
+                }
+            } else if (data.event === 12) { // 座標一括同期
+                if (!isHost) {
+                    data.list.forEach(obj => {
+                        // Projectiles
+                        const proj = projectiles.find(p => p.netId === obj.id);
+                        if (proj) {
+                            proj.position.set(obj.x, obj.y, obj.z);
+                            proj.mesh.position.copy(proj.position);
+                        }
+                        // Bubbles
+                        const bub = bubbles.find(b => b.netId === obj.id);
+                        if (bub && bub.body) {
+                            bub.body.resetPosition(obj.x, obj.y, obj.z);
+                            bub.mesh.position.set(obj.x, obj.y, obj.z);
+                        }
+                    });
+                }
+            } else if (data.event === 13) { // 削除/爆発通知
+                if (!isHost) {
+                    const netObj = netObjects.get(data.netId);
+                    if (netObj) {
+                        if (data.type === 1) createExplosion(data.x, data.y, data.z); // シャボン玉なら爆発
+                        scene.remove(netObj);
+                        netObjects.delete(data.netId);
+                    }
+                }
+            }
+        }
+
+        // ネットワーク越しの他のプレイヤーステート保存用
+        const networkEntities = new Map();
+
+        function updateNetworkEntity(data, conn = null) {
+            if (data.id === myPeerId) return; // 自分の同期データは無視 (Client-Auth Prediction)
+
+            // ホストは受け取ったデータを他のクライアントにばら撒く(中継)
+            if (isHost && conn) {
+                const rawData = packData(1, data);
+                connections.forEach(c => {
+                    if (c !== conn && c.open) c.send(rawData);
+                });
+            }
+
+            if (!networkEntities.has(data.id)) { // 新規プレイヤー参戦
+                const ent = createNetworkPlayer(data.id);
+                networkEntities.set(data.id, ent);
+            }
+
+            const ent = networkEntities.get(data.id);
+            if (!ent) return;
+
+            // 補間(Lerp)のために目標位置を更新する
+            ent.targetNetPos = new THREE.Vector3(data.x, data.y, data.z);
+            ent.jumpCount = data.jumps;
+
+            // ホスト側では、受信した座標に従って物理ダミーボディを移動させる
+            if (isHost && ent.body && world) {
+                ent.body.position.set(data.x, data.y, data.z);
+                // キネマティック的に扱うので速度は0にしておく（衝突反発を弱めるため）
+                ent.body.linearVelocity.set(0, 0, 0); 
+            }
+        }
+
+        // 他のプレイヤーの生成処理（見た目と当たり判定を分離）
+        function createNetworkPlayer(id) {
+            const isAINet = id.startsWith("AI_");
+            let mesh;
+
+            // 見た目：3Dモデルがあればそれを使い、なければBoxを使う
+            if (playerModel) {
+                 mesh = playerModel.clone();
+                 if (isAINet) {
+                     mesh.traverse(n => {
+                         if (n.isMesh) {
+                             n.material = n.material.clone();
+                             n.material.color.set(0x90ee90); // AIカラー
+                             n.material.emissive.set(0x225522);
+                         }
+                     });
+                 }
+            } else {
+                const matColor = isAINet ? 0x90ee90 : 0x4488ff;
+                mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                    new THREE.MeshStandardMaterial({ color: matColor })
+                );
+            }
+
+            // コンテナ化（スケール継承の回避：メッシュ自体のスケールが0.175のため、子にすると名前の高さも圧縮される）
+            const container = new THREE.Group();
+            container.add(mesh);
+
+            // スプライト追加
+            const pName = peerNames.get(id) || (isAINet ? "RIVAL AI" : "Player");
+            const sprite = createNameSprite(pName);
+            container.add(sprite); // メッシュではなくコンテナに追加
+            scene.add(container);
+
+            let body = null;
+            if (isHost && world) {
+                // ホスト側では、この他プレイヤーに弾や泡が当たるよう「実体」を作る
+                body = world.add({
+                    type: 'sphere',
+                    size: [0.37], // プレイヤーと同じサイズ
+                    pos: [0, -100, 0], // 最初は圏外
+                    move: true,
+                    belongsTo: 1 << 1, // PLAYER_LAYER
+                    collidesWith: 1 | BUBBLE_LAYER | PROJECTILE_LAYER, 
+                    density: 1, friction: 0.2, restitution: 0.1
+                });
+            }
+
+            return { id: id, mesh: container, body: body, targetNetPos: container.position.clone(), sprite: sprite, name: pName, rawMesh: mesh };
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  GENERATION
+        // ═══════════════════════════════════════════════════════
+
+        const workerSrc = `
+self.onmessage = function(e) {
+    const { base, area, density, len, chunkSeed } = e.data;
+    
+    // Mulberry32 PRNG
+    let a = chunkSeed;
+    function random() {
+      var t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+
+    const blocks   = [];
+    const occupied = new Set();
+    const key      = (x,y,z) => x+','+y+','+z;
+
+    // 保証パス (必ず登れる踏み台)
+    let cx = Math.floor(area/2), cz = Math.floor(area/2), cy = base;
+    const endY = base + len;
+    while (cy < endY - 2) {
+        const dx = Math.round((random()*2-1)*3);
+        const dz = Math.round((random()*2-1)*3);
+        const dy = 1 + Math.floor(random() * 3);
+        cx = Math.max(0, Math.min(area-1, cx+dx));
+        cz = Math.max(0, Math.min(area-1, cz+dz));
+        cy = Math.min(endY-1, cy+dy);
+        blocks.push({ x:cx, y:cy, z:cz });
+        occupied.add(key(cx,cy,cz));
+        occupied.add(key(cx,cy+1,cz));
+        occupied.add(key(cx,cy+2,cz));
+    }
+
+    const target = Math.floor(area * area * len * density);
+    let tries = 0;
+    while (blocks.length < target && tries++ < target * 8) {
+        const rx = Math.floor(random()*area);
+        const ry = base + Math.floor(random()*len);
+        const rz = Math.floor(random()*area);
+                    if (!occupied.has(key(rx,ry,rz))) {
+            occupied.add(key(rx,ry,rz));
+            blocks.push({ x:rx, y:ry, z:rz });
+        }
+    }
+    self.postMessage({ blocks, base });
+};
+`;
+        let worker;
+        function initWorker() {
+            if (worker) worker.terminate();
+            worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: 'application/javascript' })));
+            worker.onmessage = (e) => {
+                e.data.blocks.forEach(b => pendingBlocks.push(b));
+
+                if (!mapInitialized && e.data.base === 0) {
+                    mapInitialized = true;
+                    const occupiedGrid = new Set();
+                    e.data.blocks.forEach(b => {
+                        if (b.y === 0 || b.y === 1) occupiedGrid.add(b.x + "," + b.z);
+                    });
+
+                    let vacantSpots = [];
+                    for (let gx = 1; gx < config.areaSize - 1; gx++) {
+                        for (let gz = 1; gz < config.areaSize - 1; gz++) {
+                            if (!occupiedGrid.has(gx + "," + gz)) {
+                                vacantSpots.push({ x: gx + 0.5, z: gz + 0.5 });
+                            }
+                        }
+                    }
+
+                    let prngState = randomSeed * 4294967296;
+                    function nextRandom() {
+                        prngState += 0x6D2B79F5;
+                        let t = Math.imul(prngState ^ (prngState >>> 15), prngState | 1);
+                        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                        return (((t ^ (t >>> 14)) >>> 0) / 4294967296);
+                    }
+
+                    vacantSpots.sort(() => nextRandom() - 0.5);
+
+                    entities.forEach((ent, idx) => {
+                        if (vacantSpots[idx]) {
+                            ent.body.resetPosition(vacantSpots[idx].x, 0.25, vacantSpots[idx].z);
+                        }
+                    });
+                }
+            };
+        }
+        initWorker();
+
+        function generateChunk(startY) {
+            if (startY > 0) createMembrane(startY);
+            // ゴール高さに達した、あるいは超えた場合は、ブロック（足場）の生成を停止する
+            if (startY >= config.goalHeight) return;
+
+            worker.postMessage({
+                base: startY,
+                area: config.areaSize,
+                density: config.density,
+                len: CHUNK,
+                chunkSeed: randomSeed + startY
+            });
+        }
+
+        function updateLifeHUD() {
+            const lifeEl = document.getElementById('life-display');
+            if (!lifeEl) return;
+            if (playerLives <= 0) {
+                lifeEl.textContent = '💀';
+            } else {
+                lifeEl.textContent = '♥'.repeat(Math.max(0, playerLives));
+            }
+            updateAmmoHUD();
+        }
+
+        function updateAmmoHUD() {
+            for (let i = 0; i < 3; i++) {
+                const seg = document.getElementById(`shot-seg-${i}`);
+                if (seg) {
+                    const fill = Math.min(1.0, Math.max(0, playerProjectileStock - i));
+                    seg.style.width = (fill * 100) + '%';
+                }
+            }
+            const bSeg = document.getElementById('bubble-seg');
+            if (bSeg) bSeg.style.width = (playerBubbleStock * 100) + '%';
+        }
+
+        function takeDamage(amount) {
+            if (isDead) return;
+            playerLives -= amount;
+            updateLifeHUD();
+            
+            const flash = document.createElement('div');
+            flash.style.position = 'absolute';
+            flash.style.inset = '0';
+            flash.style.backgroundColor = 'rgba(255,0,0,0.4)';
+            flash.style.pointerEvents = 'none';
+            flash.style.zIndex = '9999';
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 100);
+
+            if (playerLives <= 0) {
+                startDeathSequence();
+            }
+        }
+
+        function startDeathSequence() {
+            isDead = true;
+            deathTimer = 3.0;
+            playerLives = 0;
+            updateLifeHUD();
+
+            if (!deathTextEl) {
+                deathTextEl = document.createElement('div');
+                deathTextEl.style.position = 'absolute';
+                deathTextEl.style.top = '50%';
+                deathTextEl.style.left = '50%';
+                deathTextEl.style.transform = 'translate(-50%, -50%)';
+                deathTextEl.style.color = '#ff3333';
+                deathTextEl.style.fontSize = '80px';
+                deathTextEl.style.fontWeight = '800';
+                deathTextEl.style.textShadow = '0 0 20px rgba(255,0,0,0.5)';
+                deathTextEl.style.zIndex = '1000';
+                deathTextEl.style.pointerEvents = 'none';
+                document.body.appendChild(deathTextEl);
+            }
+            deathTextEl.innerText = 'YOU DIED';
+            deathTextEl.style.display = 'block';
+
+            // 物理挙動を一時停止（重力を無視して滞留させるか、落下させるかは好みだが、一旦その場に止める）
+            playerBody.linearVelocity.set(0, 0, 0);
+        }
+
+        function respawnPlayer() {
+            isDead = false;
+            if (deathTextEl) deathTextEl.style.display = 'none';
+
+            const currentY = playerBody.position.y;
+            // 最大100m下の赤い膜を探す
+            let spawnY = 0;
+            let bestDist = 100;
+
+            membranes.forEach(m => {
+                const dist = currentY - m.y;
+                if (dist > 0 && dist <= 100) {
+                    if (dist < bestDist) {
+                        spawnY = m.y;
+                    }
+                }
+            });
+
+            const spawnX = config.areaSize / 2 + (Math.random() - 0.5) * 2;
+            const spawnZ = config.areaSize / 2 + (Math.random() - 0.5) * 2;
+            
+            // 赤い壁の判定をリセット
+            entities.forEach(ent => {
+                ent.currentMembraneY = -Infinity;
+                if (ent.dedicatedMembraneFloor) {
+                    world.removeRigidBody(ent.dedicatedMembraneFloor);
+                    ent.dedicatedMembraneFloor = null;
+                }
+            });
+
+            playerBody.resetPosition(spawnX, spawnY + 2.0, spawnZ);
+            playerBody.linearVelocity.set(0, 0, 0);
+            playerLives = config.maxLives;
+            updateLifeHUD();
+            logStatus(`リスポーンしました (${Math.floor(spawnY)}m地点)`);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  FIRING LOGIC
+        // ═══════════════════════════════════════════════════════
+
+        function requestFire(type) {
+            if (!isStarted || isDead) return;
+
+            const startPos = playerBody.position.clone();
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            const dir = camDir.normalize();
+
+            if (type === 0) { // Projectile
+                const spawnX = startPos.x + dir.x * 0.6;
+                const spawnY = startPos.y + 0.75; 
+                const spawnZ = startPos.z + dir.z * 0.6;
+                const vx = dir.x * 60;
+                const vy = dir.y * 60;
+                const vz = dir.z * 60;
+
+                const ownerName = resolveName(playerBody);
+                if (isHost || !isOnline) {
+                    fireProjectile(spawnX, spawnY, spawnZ, vx, vy, vz, playerBody);
+                } else {
+                    broadcastEvent(10, { type: 0, x: spawnX, y: spawnY, z: spawnZ, vx, vy, vz, ownerName });
+                }
+            } else { // Bubble
+                const bx = startPos.x;
+                const by = startPos.y + 1.5; 
+                const bz = startPos.z;
+                
+                const vx = dir.x * 12;
+                const vy = dir.y * 12 + 2; 
+                const vz = dir.z * 12;
+
+                const ownerName = resolveName(playerBody);
+                if (isHost || !isOnline) {
+                    createBubble(bx, by, bz, vx, vy, vz, playerBody);
+                } else {
+                    broadcastEvent(10, { type: 1, x: bx, y: by, z: bz, vx, vy, vz, ownerName });
+                }
+            }
+        }
+
+        function fireProjectile(startX, startY, startZ, velX, velY, velZ, owner = null, remoteNetId = null) {
+            const netId = isHost ? "proj-" + (netIdCounter++) : remoteNetId;
+            const p = {
+                mesh: spawnProjectileMesh(netId, startX, startY, startZ),
+                position: new THREE.Vector3(startX, startY, startZ),
+                velocity: new THREE.Vector3(velX, velY, velZ),
+                spawnTime: Date.now(),
+                ownerBody: owner,
+                netId: netId,
+                _hitFlag: false,
+                _hitBody: null
+            };
+            projectiles.push(p);
+            
+            if (isHost) {
+                const ownerName = resolveName(owner);
+                broadcastEvent(11, { netId, type: 0, x: startX, y: startY, z: startZ, vx: velX, vy: velY, vz: velZ, ownerName });
+            }
+        }
+
+        function resolveName(body) {
+            if (body === playerBody) return myPeerId;
+            const ent = entities.find(e => e.body === body);
+            if (ent) return ent.name;
+            // ネットワークプレイヤーの場合
+            for (const [id, netEnt] of networkEntities) {
+                if (netEnt.body === body) return id;
+            }
+            return null;
+        }
+
+        function resolveBody(name) {
+            if (!name) return null;
+            const strName = String(name).trim();
+            const myIdStr = myPeerId ? String(myPeerId).trim() : "";
+            // "PLAYER" または 自身のIDに一致する場合は playerBody を返す
+            if (strName === "PLAYER" || (myIdStr && strName === myIdStr)) return playerBody;
+            const ent = entities.find(e => e.name === strName);
+            if (ent) return ent.body;
+            const netEnt = networkEntities.get(strName);
+            return netEnt ? netEnt.body : null;
+        }
+
+        function createBubble(startX, startY, startZ, velX, velY, velZ, owner = null, remoteNetId = null, ownerNameFromEvent = null) {
+            const netId = isHost ? "bub-" + (netIdCounter++) : remoteNetId;
+            const mesh = spawnBubbleMesh(netId, startX, startY, startZ);
+            
+            // 自身への当たり判定を除外
+            let ownerLayer = 0;
+            const ownerEnt = entities.find(e => e.body === owner);
+            if (ownerEnt) {
+                ownerLayer = (1 << (ownerEnt.entIndex + 1));
+            } else {
+                // networkEntities から検索
+                for (const [id, netEnt] of networkEntities) {
+                    if (netEnt.body === owner) {
+                        ownerLayer = (1 << (netEnt.entIndex + 1));
+                        break;
+                    }
+                }
+            }
+
+            const body = world.add({
+                type: 'sphere', size: [2.5], pos: [startX, startY, startZ], move: true,
+                belongsTo: BUBBLE_LAYER,
+                collidesWith: 0x1FFFE ^ ownerLayer, // オーナー自身のレイヤーとは衝突しない
+                density: 0.1, friction: 0.1, restitution: 0.5
+            });
+            body.linearVelocity.set(velX, velY, velZ);
+            
+            // クライアント側でもオーナーIDを保持（自傷防止用）
+            const finalOwnerId = ownerNameFromEvent || resolveName(owner);
+            bubbles.push({ 
+                body, 
+                mesh, 
+                spawnY: startY, 
+                netId, 
+                ownerBody: owner, 
+                ownerId: finalOwnerId, 
+                spawnTime: Date.now() 
+            });
+
+            if (isHost) {
+                const ownerName = finalOwnerId;
+                broadcastEvent(11, { netId, type: 1, x: startX, y: startY, z: startZ, vx: velX, vy: velY, vz: velZ, ownerName });
+            }
+        }
+
+        function spawnProjectileMesh(netId, x, y, z) {
+            const mesh = new THREE.Mesh(sharedProjectileGeo, sharedProjectileMat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            if (netId) netObjects.set(netId, mesh);
+            return mesh;
+        }
+
+        function spawnBubbleMesh(netId, x, y, z) {
+            const mat = new THREE.MeshPhysicalMaterial({ 
+                color: 0xff0000, transparent: true, opacity: 0.3,
+                metalness: 0, roughness: 0, transmission: 0.9, thickness: 0.5, ior: 1.1, side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(sharedBubbleGeo, mat);
+            const xrayMat = new THREE.MeshBasicMaterial({
+                color: 0xff0000, transparent: true, opacity: 0.4,
+                depthFunc: THREE.GreaterDepth, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
+            });
+            const xray = new THREE.Mesh(sharedBubbleGeo, xrayMat);
+            mesh.add(xray);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            if (netId) netObjects.set(netId, mesh);
+            return mesh;
+        }
+
+        function getCameraTargetPoint(maxDist = 100) {
+            const raycaster = new THREE.Raycaster();
+            // 照準の座標ずれ（左10px, 下25px付近）を補正
+            const ndcX = -20 / window.innerWidth;
+            const ndcY = 0; // レティクルは上下中央なので0
+            raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
+            
+            const targetObjects = [];
+            scene.traverse(obj => {
+                if (obj.isMesh && obj !== playerMesh && !obj.name.startsWith("XRAY")) {
+                    let isOwnXray = false;
+                    playerMesh.traverse(child => { if(child === obj) isOwnXray = true; });
+                    if (!isOwnXray) targetObjects.push(obj);
+                }
+            });
+
+            const intersects = raycaster.intersectObjects(targetObjects, true);
+            if (intersects.length > 0) return intersects[0].point;
+            return new THREE.Vector3().copy(camera.position).addScaledVector(raycaster.ray.direction, maxDist);
+        }
+
+        function setupControls() {
+            controls = new THREE.PointerLockControls(camera, document.body);
+
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'KeyW') keys.w = false;
+                if (e.code === 'KeyA') keys.a = false;
+                if (e.code === 'KeyS') keys.s = false;
+                if (e.code === 'KeyD') keys.d = false;
+                if (e.code === 'Space') keys.space = false;
+            });
+            window.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && controls.isLocked) keys.space = true;
+                if (e.button === 2 && controls.isLocked) {
+                    const now = Date.now();
+                    if (now - lastFireTimeProjectile >= 500 && playerProjectileStock >= 1.0) {
+                        lastFireTimeProjectile = now;
+                        playerProjectileStock -= 1.0;
+                        updateAmmoHUD();
+                        requestFire(0);
+                    }
+                }
+            });
+            window.addEventListener('mouseup', (e) => {
+                if (e.button === 0) keys.space = false;
+            });
+            window.addEventListener('contextmenu', (e) => {
+                if (controls.isLocked) e.preventDefault();
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'KeyW') keys.w = true;
+                if (e.code === 'KeyA') keys.a = true;
+                if (e.code === 'KeyS') keys.s = true;
+                if (e.code === 'KeyD') keys.d = true;
+                if (e.code === 'Space') { e.preventDefault(); keys.space = true; }
+                if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && controls.isLocked) {
+                    const now = Date.now();
+                    if (now - lastFireTimeProjectile >= 500 && playerProjectileStock >= 1.0) {
+                        lastFireTimeProjectile = now;
+                        playerProjectileStock -= 1.0;
+                        updateAmmoHUD();
+                        requestFire(0);
+                    }
+                }
+                if (e.code === 'KeyB' && controls.isLocked) {
+                    const now = Date.now();
+                    if (now - lastFireTimeBubble >= 10000 && playerBubbleStock >= 1.0) {
+                        lastFireTimeBubble = now;
+                        playerBubbleStock -= 1.0;
+                        updateAmmoHUD();
+                        requestFire(1);
+                    }
+                }
+            });
+
+            window.addEventListener('wheel', (e) => {
+                if (controls.isLocked) {
+                    camDist = Math.max(1.0, Math.min(5.0, camDist + e.deltaY * 0.005));
+                }
+            }, { passive: true });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                if (renderer) renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function createExplosion(x, y, z) {
+            const mat = sharedExplosionMat.clone();
+            const mesh = new THREE.Mesh(sharedExplosionGeo, mat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            explosions.push({ mesh, scale: 1, life: 1.0, driftY: -0.1 });
+        }
+
+
+        function updateSoapBubbles() {
+            // Bubbles update (衝突判定はサブステップループで完了済み)
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const b = bubbles[i];
+                const pos = b.body.position;
+                b.mesh.position.set(pos.x, pos.y, pos.z);
+
+                const exploded = b._hitFlag || false;
+
+                if (exploded || pos.y - b.spawnY > 100) {
+                    // 24倍の吹っ飛ばしインパクトを与える
+                    if (exploded && b._hitBody && (isHost || !isOnline)) {
+                        const dx = b._hitBody.position.x - pos.x;
+                        const dy = b._hitBody.position.y - pos.y;
+                        const dz = b._hitBody.position.z - pos.z;
+                        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+                        b._hitBody.linearVelocity.x += (dx/dist) * 22; // 横方向も強化
+                        b._hitBody.linearVelocity.y -= 20; // 下方向
+                        b._hitBody.linearVelocity.z += (dz/dist) * 22;
+                    }
+                    if (exploded) {
+                        createExplosion(pos.x, pos.y, pos.z);
+                    }
+                    if (isHost && b.netId) {
+                        broadcastEvent(13, { netId: b.netId, type: 1, x: pos.x, y: pos.y, z: pos.z });
+                    }
+                    scene.remove(b.mesh);
+                    if (b.netId) netObjects.delete(b.netId);
+                    world.removeRigidBody(b.body);
+                    
+                    // 完全な参照削除
+                    b.body = null;
+                    b.mesh = null;
+                    bubbles.splice(i, 1);
+                }
+            }
+
+            // Explosions update
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                exp.scale += 1.8;
+                exp.life -= 0.05;
+                exp.mesh.scale.set(exp.scale, exp.scale * 0.8, exp.scale); // 少し平たくして横への広がりを強調
+                if (exp.driftY) exp.mesh.position.y += exp.driftY;
+                exp.mesh.material.opacity = exp.life;
+                if (exp.life <= 0) {
+                    scene.remove(exp.mesh);
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
+        
+        //  JUMP LOGIC
+        //  minJumpInterval
+        function handleJump(isSpacePressed) {
+            const vel = playerBody.linearVelocity;
+
+            if (isSpacePressed && !lastSpaceState) {
+                if (isGrounded || jumpCount < maxJumps) {
+                    const force = isGrounded ? config.jumpVelocity : config.jumpVelocity * config.jumpMultiplier;
+                    vel.y = force;
+                    jumpCount++;
+                    isGrounded = false;
+                    isJumping = true;
+                    jumpTimer = 0;
+                    minJumpInterval = 0;
+                }
+            }
+
+            if (isSpacePressed && isJumping && vel.y > 0) {
+                if (jumpTimer < config.maxHoldTime) {
+                    vel.y += config.holdBoost;
+                    jumpTimer++;
+                }
+            } else {
+                isJumping = false;
+            }
+
+            lastSpaceState = isSpacePressed;
+        }
+
+        function animate() {
+            if (!isStarted) return;
+            animFrameId = requestAnimationFrame(animate);
+
+            // Calculate Delta Time for Raycast
+            const now = performance.now();
+            let dt = (now - lastAnimTime) / 1000;
+            if (dt > 0.1 || lastAnimTime === 0) dt = 1/60; 
+            lastAnimTime = now;
+
+            // 衝突フラグをリセット(シャボン玉のみ、弾丸は独自)
+            bubbles.forEach(b => { b._hitFlag = false; b._hitBody = null; });
+            
+            // 反重力を毎フレーム維持
+            bubbles.forEach(b => {
+                b.body.linearVelocity.y = 8.0;
+                b.body.linearVelocity.x *= 0.987;
+                b.body.linearVelocity.z *= 0.987;
+            });
+
+            world.step();
+
+            if (isHost || !isOnline) {
+                bubbles.forEach(b => {
+                    if (b._hitFlag) return;
+                    let link = b.body.contactLink;
+                    while (link) {
+                        if (link.contact && link.contact.touching) {
+                            const other = (link.contact.body1 === b.body) ? link.contact.body2 : link.contact.body1;
+                            // 環境(bit0)はすり抜け、自機(ownerBody)は無視
+                            if (!(other.belongsTo & 1) && other !== b.ownerBody) {
+                                b._hitFlag = true;
+                                b._hitBody = other;
+                                entities.forEach(ent => {
+                                    if (ent.isAI && ent.body === other) {
+                                        ent.lives = (ent.lives === undefined ? config.maxLives : ent.lives) - config.damageBubble;
+                                        if (ent.lives <= 0) {
+                                            ent.isDead = true;
+                                            ent.deathTimer = 3.0;
+                                            const currentHeight = ent.body.position.y;
+                                            const newHeight = Math.max(0, Math.floor((currentHeight - 1) / 100) * 100);
+                                            ent.body.resetPosition(config.areaSize/2, newHeight + 2.0, config.areaSize/2);
+                                            ent.body.linearVelocity.set(0, 0, 0);
+                                            ent.lives = config.maxLives;
+                                        }
+                                    } else if (other === playerBody) {
+                                        takeDamage(config.damageBubble);
+                                    }
+                                });
+                                break;
+                            }
+                        }
+                        link = link.next;
+                    }
+                });
+            }
+
+            const pos = playerBody.position;
+            const vel = playerBody.linearVelocity;
+
+            if (playerBody.quaternion) playerBody.quaternion.set(0, 0, 0, 1);
+            if (playerBody.angularVelocity) {
+                playerBody.angularVelocity.x = 0;
+                playerBody.angularVelocity.y = 0;
+                playerBody.angularVelocity.z = 0;
+            }
+
+            playerMesh.position.set(pos.x, pos.y - 0.37, pos.z);
+            
+            // 進行方向に向きを滑らかに変える (slerp)
+            if (Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1) {
+                const targetAngle = Math.atan2(vel.x, vel.z);
+                const targetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), targetAngle);
+                playerMesh.quaternion.slerp(targetQuat, 0.15);
+            }
+
+            let contactFloor = false;
+            let link = playerBody.contactLink;
+            while (link != null) {
+                if (link.contact && link.contact.touching) {
+                    let otherBody = link.body;
+                    let isWall = walls.some(w => w.body === otherBody);
+                    if (!isWall) {
+                        if (pos.y - otherBody.position.y > 0.43) {
+                            contactFloor = true;
+                        }
+                    }
+                }
+                link = link.next;
+            }
+
+            const wasGrounded = isGrounded;
+            isGrounded = (contactFloor && Math.abs(vel.y) < 0.1);
+
+            if (isGrounded && !wasGrounded) {
+                minJumpInterval = 0;
+            }
+
+            handleJump(keys.space);
+
+            if (isGrounded) {
+                jumpCount = 0;
+                isJumping = false;
+            }
+
+            const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            fwd.y = 0; fwd.normalize();
+            const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+
+            let mx = 0, mz = 0;
+            if (!isDead) {
+                if (keys.w) { mx += fwd.x; mz += fwd.z; }
+                if (keys.s) { mx -= fwd.x; mz -= fwd.z; }
+                if (keys.d) { mx += right.x; mz += right.z; }
+                if (keys.a) { mx -= right.x; mz -= right.z; }
+            }
+
+            const mag = Math.sqrt(mx * mx + mz * mz);
+            if (mag > 0) {
+                const targetVelX = (mx / mag) * config.playerSpeed;
+                const targetVelZ = (mz / mag) * config.playerSpeed;
+                vel.x += (targetVelX - vel.x) * 0.14;
+                vel.z += (targetVelZ - vel.z) * 0.14;
+            } else {
+                vel.x *= 0.8;
+                vel.z *= 0.8;
+            }
+
+            const offset = new THREE.Vector3(0, 0.97, camDist);
+            offset.applyQuaternion(camera.quaternion);
+            camera.position.set(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
+            warningTapes.forEach(t => {
+                t.mesh.position.y = pos.y;
+                t.mat.uniforms.playerPos.value.copy(pos);
+            });
+
+            hitboxHelpers.forEach(h => {
+                h.mesh.visible = config.showHitboxes;
+                if (config.showHitboxes) {
+                    h.mesh.position.set(h.body.position.x, h.body.position.y, h.body.position.z);
+                    if (h.body.quaternion) {
+                        h.mesh.quaternion.set(h.body.quaternion.x, h.body.quaternion.y, h.body.quaternion.z, h.body.quaternion.w);
+                    }
+                }
+            });
+
+            let highestY = -Infinity;
+            let lowestY = Infinity;
+
+            entities.forEach(ent => {
+                const body = ent.body;
+                const pos = body.position;
+                const vel = body.linearVelocity;
+
+                if (pos.y > highestY) highestY = pos.y;
+                if (pos.y < lowestY) lowestY = pos.y;
+
+                if (body.quaternion) body.quaternion.set(0, 0, 0, 1);
+                if (body.angularVelocity) {
+                    body.angularVelocity.x = 0;
+                    body.angularVelocity.y = 0;
+                    body.angularVelocity.z = 0;
+                }
+
+                let isEntGrounded = false;
+                const pyBottom = pos.y - 0.37;
+
+                const blockY = Math.floor(pyBottom - 0.01); 
+                const blockTop = blockY + 1.0;               
+
+                if (Math.abs(pyBottom - blockTop) < 0.12) {
+                    const gx = Math.floor(pos.x);
+                    const gz = Math.floor(pos.z);
+                    if (mapGrid.has(`${gx},${blockY},${gz}`)) {
+                        isEntGrounded = true;
+                    }
+                }
+
+                if (!isEntGrounded) {
+                    membranes.forEach(m => {
+                        if (Math.abs(pyBottom - m.y) < 0.12) {
+                            const mw = m.w || config.areaSize;
+                            const dx = Math.abs(pos.x - m.mesh.position.x);
+                            const dz = Math.abs(pos.z - m.mesh.position.z);
+                            if (dx <= mw / 2 && dz <= mw / 2) {
+                                isEntGrounded = true;
+                            }
+                        }
+                    });
+                }
+
+                if (isEntGrounded) {
+                    ent.groundContactFrames++;
+                } else {
+                    ent.groundContactFrames = 0;
+                }
+                isEntGrounded = (ent.groundContactFrames >= 3);
+
+                if (ent.maxMembraneY === undefined) ent.maxMembraneY = -Infinity;
+                const entBot = pos.y - 0.37;
+
+                membranes.forEach(m => {
+                    // 足が膜より上にあるかどうかの判定 (死亡中は判定を消す)
+                    const isAbove = (entBot >= m.y - 0.05 && vel.y <= 0.1);
+                    const shouldHaveFloor = isAbove && !isDead;
+
+                    if (shouldHaveFloor) {
+                        // すでにこの膜のフロアがあるかチェック
+                        if (ent.currentMembraneY !== m.y) {
+                            if (ent.dedicatedMembraneFloor) {
+                                world.removeRigidBody(ent.dedicatedMembraneFloor);
+                            }
+                            const mw = m.w || config.areaSize;
+                            const mPos = m.mesh.position;
+                            ent.dedicatedMembraneFloor = world.add({
+                                type: 'box', size: [mw, 1.0, mw], pos: [mPos.x, m.y - 0.5, mPos.z], move: false,
+                                belongsTo: 1 << (ent.entIndex + 17),
+                                collidesWith: 1 << (ent.entIndex + 1),
+                                restitution: 0, friction: 0.5
+                            });
+                            ent.currentMembraneY = m.y;
+                        }
+                    } else {
+                        // 下に落ちた場合、または死亡中の場合は、その膜のフロアを消去する
+                        if (ent.currentMembraneY === m.y) {
+                            if (ent.dedicatedMembraneFloor) {
+                                world.removeRigidBody(ent.dedicatedMembraneFloor);
+                                ent.dedicatedMembraneFloor = null;
+                            }
+                            ent.currentMembraneY = -Infinity;
+                        }
+                    }
+                });
+
+                if (ent.isAI) {
+                    ent.isGrounded = isEntGrounded;
+                } else {
+                    const wasGrounded = isGrounded;
+                    isGrounded = isEntGrounded;
+                    if (isGrounded && !wasGrounded) minJumpInterval = 0;
+                }
+            });
+
+            // ── UI更新: ローカルプレイヤー・AI + ネットワークプレイヤーの高さ表示 ──
+            let listHtml = entities.map(e =>
+                `<span style="color:${e.isAI ? '#90ee90' : '#64b4ff'}">${e.name}</span>: ${Math.max(0, Math.floor(e.body.position.y))}m`
+            ).join('<br>');
+
+            // ネットワーク越しの他プレイヤーも表示に追加
+            networkEntities.forEach(ent => {
+                const name = ent.name || (ent.id.startsWith('AI_') ? 'RIVAL AI' : 'Player');
+                const h = Math.max(0, Math.floor(ent.mesh.position.y));
+                const isAI = ent.id.startsWith('AI_');
+                listHtml += `<br><span style="color:${isAI ? '#90ee90' : '#ffaa33'}">${name}</span>: ${h}m`;
+            });
+            entityListEl.innerHTML = listHtml;
+
+            // ── AIの移動と状態更新 ──
+            entities.forEach(ent => {
+                if (ent.isAI) {
+                    const body = ent.body;
+                    const pos = body.position;
+                    const vel = body.linearVelocity;
+
+                    if (ent.isDead) {
+                        ent.deathTimer -= dt;
+                        if (ent.deathTimer <= 0) {
+                            ent.isDead = false;
+                        }
+                        // 死亡中は物理停止と描画更新のみ
+                        ent.mesh.position.set(pos.x, pos.y - 0.37, pos.z);
+                        body.linearVelocity.set(0, 0, 0);
+                        return;
+                    }
+
+                    ent.mesh.position.set(pos.x, pos.y - 0.37, pos.z);
+                    
+                    // 進行方向に滑らかに向きを変える
+                    if (Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1) {
+                        const targetAngle = Math.atan2(vel.x, vel.z);
+                        const targetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), targetAngle);
+                        ent.mesh.quaternion.slerp(targetQuat, 0.15);
+                    }
+
+                    if (!ent.lastPos) ent.lastPos = pos.clone();
+                    const distMoved = Math.sqrt(Math.pow(pos.x - ent.lastPos.x, 2) + Math.pow(pos.z - ent.lastPos.z, 2) + Math.pow(pos.y - ent.lastPos.y, 2));
+                    if (distMoved < 0.5) {
+                        ent.stuckTimer++;
+                    } else {
+                        ent.stuckTimer = 0;
+                        ent.lastPos.copy(pos);
+                    }
+
+                    // 3.5秒以上動かない場合、強制的に後退させる
+                    ent.forceRetreat = (ent.stuckTimer > 210);
+                    
+                    if (ent.stuckTimer > 60 && !ent.neutralTimer) {
+                        ent.neutralTimer = 18;
+                        if (ent.targetPos) {
+                            const blockKey = `${ent.targetPos.x},${ent.targetPos.y},${ent.targetPos.z}`;
+                            ent.jumpBlacklist.set(blockKey, Date.now());
+                        }
+                        ent.targetPos = null; 
+                        ent.stuckTimer = 0;
+                    }
+
+                    if (ent.neutralTimer > 0) ent.neutralTimer--;
+                    
+                    let hasOverhead = false;
+                    const px = Math.floor(pos.x);
+                    const py = Math.floor(pos.y);
+                    const pz = Math.floor(pos.z);
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dz = -1; dz <= 1; dz++) {
+                            const b = mapGrid.get(`${px + dx},${py + 1},${pz + dz}`) || mapGrid.get(`${px + dx},${py + 2},${pz + dz}`);
+                            if (b) {
+                                const distH = Math.max(Math.abs(b.position.x - pos.x), Math.abs(b.position.z - pos.z));
+                                const dy = b.position.y - pos.y;
+                                if (dy > 0 && dy < 1.3 && distH < 0.5) hasOverhead = true;
+                            }
+                        }
+                    }
+
+                    if (ent.isGrounded) {
+                        ent.jumpCount = 0;
+                        ent.isJumping = false;
+                    } else if (ent.isJumping && ent.jumpTimer < config.maxHoldTime && vel.y > 0 && !hasOverhead) {
+                        vel.y += config.holdBoost;
+                        ent.jumpTimer++;
+                    } else {
+                        ent.isJumping = false;
+                    }
+
+                    if (!ent.targetPos || Math.random() < 0.04 || (ent.targetPos.y <= pos.y - 0.2) || ent.forceRetreat) {
+                        let bestTarget = null;
+                        let maxScore = -Infinity;
+
+                        const JUMP_LIMIT_Y = 5.2; // 少し高く飛べる可能性を考慮
+                        const nextMembrane = membranes.find(m => m.y > pos.y) || { y: pos.y + 100, mesh: { position: { x: pos.x, z: pos.z } } };
+                        const goalPos = nextMembrane.mesh ? nextMembrane.mesh.position : new THREE.Vector3(config.areaSize / 2, nextMembrane.y, config.areaSize / 2);
+
+                        // 探索範囲を広げ、垂直方向の走査を深める
+                        let minX = px - 10, maxX = px + 10;
+                        let minZ = pz - 10, maxZ = pz + 10;
+                        let minY = Math.max(0, py - 5), maxY = py + 7;
+
+                        for (let gx = minX; gx <= maxX; gx++) {
+                            for (let gz = minZ; gz <= maxZ; gz++) {
+                                for (let gy = minY; gy <= maxY; gy++) {
+                                    const b = mapGrid.get(`${gx},${gy},${gz}`);
+                                    if (!b) continue;
+
+                                    const dy = b.position.y - pos.y;
+                                    const dx = b.position.x - pos.x;
+                                    const dz = b.position.z - pos.z;
+                                    const distSq = dx * dx + dz * dz;
+
+                                    if (distSq > 100 || distSq < 0.05) continue;
+
+                                    const blockKey = `${b.position.x},${b.position.y},${b.position.z}`;
+                                    if (ent.jumpBlacklist.has(blockKey)) {
+                                        const elapsed = Date.now() - ent.jumpBlacklist.get(blockKey);
+                                        if (elapsed > 10000) {
+                                            ent.jumpBlacklist.delete(blockKey);
+                                        } else {
+                                            if (!ent.forceRetreat) continue;
+                                        }
+                                    }
+
+                                    if (ent.forceRetreat) {
+                                        if (dy > -4.0 && dy <= 0.2) {
+                                            const score = -dy - distSq * 0.05;
+                                            if (score > maxScore) { maxScore = score; bestTarget = b.position; }
+                                        }
+                                    } else {
+                                        const distToGoalSq = Math.pow(b.position.x - goalPos.x, 2) + Math.pow(b.position.z - goalPos.z, 2);
+
+                                        if (dy > 0.1 && dy < JUMP_LIMIT_Y) {
+                                            // 上への移動を強烈に優先
+                                            const score = (dy * 150) - distSq * 1.5 - (distToGoalSq * 0.05);
+                                            if (score > maxScore) { maxScore = score; bestTarget = b.position; }
+                                        } else if (dy <= 0.1 && dy > -2.0) {
+                                            // 同じ高さや少し低い場所: ゴールへの接近を優先
+                                            const score = (dy * 20) - distSq * 1.0 - (distToGoalSq * 0.3);
+                                            if (score > maxScore) { maxScore = score; bestTarget = b.position; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bestTarget) {
+                            ent.targetPos = bestTarget.clone();
+                            if (ent.forceRetreat && ent.isGrounded) ent.stuckTimer = 0;
+                        } else {
+                            // 足場がない場合は次の膜の方向へ、かつ少し上向きにターゲットを設定してジャンプを誘発
+                            ent.targetPos = new THREE.Vector3(goalPos.x, pos.y + 1.5, goalPos.z);
+                        }
+                    }
+
+                    let mx = 0, mz = 0;
+                    if (ent.targetPos && ent.neutralTimer === 0) {
+                        const dx = ent.targetPos.x - pos.x;
+                        const dz = ent.targetPos.z - pos.z;
+                        const distH = Math.sqrt(dx * dx + dz * dz);
+                        
+                        let wallAhead = false;
+                        let gapAhead = false;
+
+                        if (distH > 0.15) {
+                            mx = dx / distH;
+                            mz = dz / distH;
+                            
+                            // 前方センサー
+                            if (ent.isGrounded) {
+                                const nx = Math.floor(pos.x + mx * 0.9);
+                                const nz = Math.floor(pos.z + mz * 0.9);
+                                const ny = Math.floor(pos.y);
+                                
+                                let foundGround = false;
+                                for (let depth = 0; depth <= 4; depth++) {
+                                    if (mapGrid.has(`${nx},${ny - depth},${nz}`)) { foundGround = true; break; }
+                                }
+                                if (!foundGround) gapAhead = true;
+
+                                for (let height = 1; height <= 2; height++) {
+                                    if (mapGrid.has(`${nx},${ny + height},${nz}`)) { wallAhead = true; break; }
+                                }
+                            }
+                        }
+
+                        if (wallAhead && !ent.isJumping) {
+                            // 壁がある場合はランダムに少し逸れる
+                            const angle = (Math.random() - 0.5) * 0.8;
+                            const ctx = mx * Math.cos(angle) - mz * Math.sin(angle);
+                            const ctz = mx * Math.sin(angle) + mz * Math.cos(angle);
+                            mx = ctx; mz = ctz;
+                        }
+
+                        // ジャンプ判定: ターゲットが上にある、または壁/穴がある場合
+                        const jumpTriggerDist = (ent.targetPos && ent.targetPos.y > pos.y + 0.1) 
+                            ? Math.max(1.5, Math.min(4.5, (ent.targetPos.y - pos.y) * 2.0)) 
+                            : 1.5;
+                        
+                        const shouldJump = (distH < jumpTriggerDist && ent.targetPos && ent.targetPos.y > pos.y + 0.15 && !ent.forceRetreat) 
+                                        || wallAhead || gapAhead 
+                                        || (ent.stuckTimer > 30 && ent.targetPos && ent.targetPos.y > pos.y);
+
+                        if (shouldJump && !hasOverhead) {
+                            if (ent.isGrounded || (ent.jumpCount < maxJumps && vel.y < 4 && Math.random() < 0.2)) {
+                                const jv = config.jumpVelocity * (ent.isGrounded ? 1.0 : config.jumpMultiplier * 1.1);
+                                vel.y = jv;
+                                ent.jumpCount++;
+                                ent.isJumping = true;
+                                ent.jumpTimer = 0;
+                            }
+                        }
+                    }
+
+                    // パニックルーチン
+                    if (ent.forceRetreat && ent.stuckTimer % 12 === 0 && !hasOverhead) {
+                        vel.y = config.jumpVelocity * 1.2;
+                        mx = (Math.random() - 0.5) * 4;
+                        mz = (Math.random() - 0.5) * 4;
+                    }
+
+                    const mag = Math.sqrt(mx * mx + mz * mz);
+                    if (mag > 0) {
+                        // 移動速度の適用 (AIは少し加速しやすくする)
+                        const speed = config.playerSpeed * (ent.isJumping ? 1.1 : 1.0);
+                        vel.x += ((mx / mag) * speed - vel.x) * 0.18;
+                        vel.z += ((mz / mag) * speed - vel.z) * 0.18;
+                    } else {
+                        vel.x *= 0.82;
+                        vel.z *= 0.82;
+                    }
+                    
+                    // --- AI 攻撃ルーチン ---
+                    const fireNow = Date.now();
+                    const aiCanFireBubble = (fireNow - (ent.lastFireTimeBubble || 0) >= 10000 && (ent.bubbleStock || 0) >= 1.0);
+                    const aiCanFireProjectile = (fireNow - (ent.lastFireTimeProjectile || 0) >= 500 && (ent.projectileStock || 0) >= 1.0);
+
+                    if (ent.stuckTimer < 60 && (aiCanFireBubble || aiCanFireProjectile)) {
+                        let closestEnemy = null;
+                        let minDistSq = Infinity;
+                        
+                        const checkEnemy = (enemyPos, enemyBody) => {
+                            if (enemyBody === ent.body) return;
+                            const dx = enemyPos.x - pos.x;
+                            const dy = enemyPos.y - pos.y;
+                            const dz = enemyPos.z - pos.z;
+                            const distSq = dx*dx + dy*dy + dz*dz;
+                            if (distSq < 400 && distSq < minDistSq) { // 20m以内
+                                minDistSq = distSq;
+                                closestEnemy = { pos: enemyPos, distSq };
+                            }
+                        };
+                        
+                        checkEnemy(playerBody.position, playerBody);
+                        networkEntities.forEach(netEnt => {
+                            if (netEnt.body) checkEnemy(netEnt.mesh.position, netEnt.body);
+                        });
+                        
+                        if (closestEnemy) {
+                            const targetPos = closestEnemy.pos;
+                            const dx = targetPos.x - pos.x;
+                            const dy = targetPos.y - pos.y;
+                            const dz = targetPos.z - pos.z;
+                            const dist = Math.sqrt(minDistSq);
+                            
+                            if (aiCanFireBubble && Math.random() < 0.2) { 
+                                ent.lastFireTimeBubble = fireNow;
+                                ent.bubbleStock -= 1.0;
+                                createBubble(pos.x, pos.y, pos.z, (dx/dist)*3, (dy/dist)*3, (dz/dist)*3, ent.body);
+                            } else if (aiCanFireProjectile) {
+                                ent.lastFireTimeProjectile = fireNow;
+                                ent.projectileStock -= 1.0;
+                                const vx = (dx / dist) * 60;
+                                const vy = (dy / dist) * 60;
+                                const vz = (dz / dist) * 60;
+                                fireProjectile(pos.x, pos.y, pos.z, vx, vy, vz, ent.body);
+                            }
+                        }
+                    }
+
+/*
+                                            ent.jumpBlacklist.delete(blockKey); // 繝悶Λ繝�け繝ｪ繧ｹ繝医�10遘偵〒蠢倥ｌ繧�
+*/
+
+                    if (isOnline && isHost) {
+                        broadcastEvent(1, {
+                            id: "AI_" + ent.entIndex,
+                            x: pos.x,
+                            y: pos.y,
+                            z: pos.z,
+                            jumps: ent.jumpCount
+                        });
+                    }
+                }
+            });
+
+            
+            while (nextChunkY < highestY + 150) {
+                if (currentMode === 'tutorial') break; 
+                if (nextChunkY >= config.goalHeight) break;
+                nextChunkY += CHUNK;
+                // goalHeightを超えて生成しないようにする
+                if (nextChunkY <= config.goalHeight) {
+                    generateChunk(nextChunkY);
+                }
+            }
+
+            
+            for (let i = pendingBlocks.length - 1; i >= 0; i--) {
+                if (pendingBlocks[i].y < highestY + 100) {
+                    const b = pendingBlocks.splice(i, 1)[0];
+                    createBlock(b.x, b.y, b.z);
+                }
+            }
+
+            
+            for (let i = mapObjects.length - 1; i >= 0; i--) {
+                const obj = mapObjects[i];
+
+                if (obj.gy < lowestY - 70) {
+                    
+                    
+                    mapGrid.delete(`${obj.gx},${obj.gy},${obj.gz}`);
+                    mapObjects.splice(i, 1);
+
+                    // InstancedMesh のインスタンスを非表示にしてプールに戻す
+                    dummy.scale.set(0, 0, 0);
+                    dummy.updateMatrix();
+                    mapInstancedMesh.setMatrixAt(obj.instIdx, dummy.matrix);
+                    mapInstancedMesh.instanceMatrix.needsUpdate = true;
+                    freeInstanceIndices.push(obj.instIdx);
+
+                    const hIdx = hitboxHelpers.findIndex(h => h.body === obj.body);
+                    if (hIdx !== -1) {
+                        scene.remove(hitboxHelpers[hIdx].mesh);
+                        hitboxHelpers.splice(hIdx, 1);
+                    }
+
+                    world.removeRigidBody(obj.body);
+                    
+
+                    // InstancedMesh の場合、個別の可視性制御は難しい（または効率が悪い）ため、
+                    // ここでは一括描画を優先。必要であればカラーの変更などで対応可能。
+                }
+            }
+
+            
+            if (camera.position.y < -0.51) {
+                // 水中モード
+                scene.fog.color.set(0x0055aa);
+                scene.fog.near = 0;
+                scene.fog.far = 40;
+            } else {
+                // 通常モード
+                scene.fog.color.set(0x87CEEB);
+                scene.fog.near = Math.max(1, pos.y + 20);
+                scene.fog.far = pos.y + 400;
+            }
+
+            // HUD
+            heightEl.textContent = Math.max(0, Math.floor(pos.y)) + 'm';
+
+            
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const s = (elapsed % 60).toString().padStart(2, '0');
+            timeEl.textContent = `${m}:${s}`;
+
+            airEl.classList.toggle('hidden', isGrounded || jumpCount >= maxJumps);
+
+            
+            if (pos.y < -10) {
+                let sx, sz, sy;
+                if (currentMode === 'tutorial') {
+                    
+                    sx = 1.5; sz = 1.5; sy = 5.0;
+                } else {
+                    sx = config.areaSize / 2 + 0.5; sz = config.areaSize / 2 + 0.5; sy = 0.25;
+                }
+                playerBody.resetPosition(sx, sy, sz);
+                vel.x = vel.y = vel.z = 0;
+            }
+
+            
+            networkEntities.forEach(ent => {
+                if (ent.targetNetPos) {
+                    const displayPos = ent.targetNetPos.clone();
+                    displayPos.y -= 0.37; // 物理ボディからのオフセットを適用
+                    
+                    // 進行方向への滑らかな回転（Slerp）
+                    const dx = displayPos.x - ent.mesh.position.x;
+                    const dz = displayPos.z - ent.mesh.position.z;
+                    if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+                        const targetAngle = Math.atan2(dx, dz);
+                        const targetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), targetAngle);
+                        ent.mesh.quaternion.slerp(targetQuat, 0.15);
+                    }
+
+                    ent.mesh.position.lerp(displayPos, 0.2);
+                }
+            });
+
+            
+            // Projectiles update & cleanup
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                const age = Date.now() - p.spawnTime;
+                
+                let exploded = p._hitFlag || false;
+
+                if (!exploded && (isHost || !isOnline)) {
+                    const stepDist = p.velocity.length() * dt;
+                    const steps = Math.max(1, Math.ceil(stepDist / 0.25)); // 0.25m間隔で判定
+                    const dir = p.velocity.clone().normalize();
+                    const currentPos = p.position.clone();
+                    
+                    for (let s = 1; s <= steps; s++) {
+                        currentPos.addScaledVector(dir, stepDist / steps);
+                        
+                        // Check environment (mapGrid)
+                        const gx = Math.floor(currentPos.x);
+                        const gy = Math.floor(currentPos.y); 
+                        const gz = Math.floor(currentPos.z);
+                        if (mapGrid && mapGrid.has(`${gx},${gy},${gz}`)) {
+                            p._hitFlag = true;
+                            exploded = true;
+                            break;
+                        }
+                        
+                        // Check entities (players/AI)
+                        const checkHitRadius = 0.52; // 0.37 (player) + 0.15 (bullet)
+                        const radiusSq = checkHitRadius * checkHitRadius;
+                        let hitEntityBody = null;
+                        
+                        // 距離計算用ヘルパー: OIMOボディのpositionはTHREE.Vector3ではないため手動計算
+                        const getDistSq = (b, p) => {
+                            const dx = b.position.x - p.x;
+                            const dy = b.position.y - p.y;
+                            const dz = b.position.z - p.z;
+                            return dx*dx + dy*dy + dz*dz;
+                        };
+
+                        if (p.ownerBody && playerBody !== p.ownerBody && getDistSq(playerBody, currentPos) < radiusSq) {
+                            hitEntityBody = playerBody;
+                        } 
+                        if (!hitEntityBody) {
+                            networkEntities.forEach(ent => {
+                                if (ent.body && ent.body !== p.ownerBody && getDistSq(ent.body, currentPos) < radiusSq) {
+                                    hitEntityBody = ent.body;
+                                }
+                            });
+                        }
+                        if (!hitEntityBody) {
+                            entities.forEach(ent => {
+                                if (ent.body && ent.body !== p.ownerBody && getDistSq(ent.body, currentPos) < radiusSq) {
+                                    hitEntityBody = ent.body;
+                                }
+                            });
+                        }
+
+                        // Check bubbles (シャボン玉を撃ち落とせるように追加)
+                        if (!hitEntityBody) {
+                            const bubbleHitRadiusSq = (2.5 + 0.15) ** 2; // シャボン玉半径2.5 + 弾丸半径0.15
+                            bubbles.forEach(b => {
+                                if (b.body && getDistSq(b.body, currentPos) < bubbleHitRadiusSq) {
+                                    b._hitFlag = true; // シャボン玉を爆発させる
+                                    p._hitFlag = true; // 弾丸も爆発させる
+                                    exploded = true;
+                                }
+                            });
+                        }
+                        
+                        if (hitEntityBody) {
+                            p._hitFlag = true;
+                            p._hitBody = hitEntityBody;
+                            exploded = true;
+                            break;
+                        }
+                    }
+                    if (!exploded) {
+                        p.position.addScaledVector(p.velocity, dt);
+                    } else {
+                        p.position.copy(currentPos);
+                    }
+                } else if (!exploded && !isHost && isOnline) {
+                    // Client doesn't calculate hit, just moves it
+                    p.position.addScaledVector(p.velocity, dt);
+                }
+
+                if (exploded || age > 6000 || p.position.y < -20) {
+                    // 16倍の衝撃をターゲットに与える
+                    if (exploded && p._hitBody && (isHost || !isOnline)) {
+                        if (p._hitBody === playerBody) {
+                            takeDamage(config.damageProjectile);
+                        }
+
+                        const dx = p._hitBody.position.x - p.position.x;
+                        const dy = p._hitBody.position.y - p.position.y;
+                        const dz = p._hitBody.position.z - p.position.z;
+                        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+                        p._hitBody.linearVelocity.x += (dx/dist) * 15; // 横方向
+                        p._hitBody.linearVelocity.y -= 12; // 下方向
+                        p._hitBody.linearVelocity.z += (dz/dist) * 15;
+                        
+                        entities.forEach(ent => {
+                            if (ent.isAI && ent.body === p._hitBody) {
+                                ent.lives = (ent.lives === undefined ? config.maxLives : ent.lives) - config.damageProjectile;
+                                if (ent.lives <= 0) {
+                                    ent.isDead = true;
+                                    ent.deathTimer = 3.0;
+                                    const currentHeight = ent.body.position.y;
+                                    const newHeight = Math.max(0, Math.floor((currentHeight - 1) / 100) * 100);
+                                    ent.body.resetPosition(config.areaSize/2, newHeight + 2.0, config.areaSize/2);
+                                    ent.body.linearVelocity.set(0, 0, 0);
+                                    ent.lives = config.maxLives;
+                                }
+                            }
+                        });
+                    }
+                    if (exploded) {
+                        createExplosion(p.position.x, p.position.y, p.position.z);
+                    }
+                    if (isHost && p.netId) {
+                        broadcastEvent(13, { netId: p.netId, type: 0, x: p.position.x, y: p.position.y, z: p.position.z });
+                    }
+                    scene.remove(p.mesh);
+                    if (p.netId) netObjects.delete(p.netId);
+                    
+                    projectiles.splice(i, 1);
+                } else {
+                    p.mesh.position.copy(p.position);
+                }
+            }
+
+
+            // --- ローカルプレイヤーのダメージ判定 ---
+            if (isStarted && playerLives > 0) {
+                projectiles.forEach(p => {
+                    if (p.ownerBody !== playerBody && !p._hitFlag) {
+                        const dx = p.position.x - playerBody.position.x;
+                        const dy = p.position.y - playerBody.position.y;
+                        const dz = p.position.z - playerBody.position.z;
+                        if (dx*dx + dy*dy + dz*dz < 0.35) { // 少し判定を広げ安定化
+                            p._hitFlag = true;
+                            takeDamage(config.damageProjectile);
+                        }
+                    }
+                });
+                bubbles.forEach(b => {
+                    // オーナー判定の強化: body参照だけでなく ID でもチェック
+                    const isMyBubble = (b.ownerBody === playerBody) || (b.ownerId && b.ownerId === myPeerId);
+                    const age = Date.now() - (b.spawnTime || 0);
+                    
+                    if (!isMyBubble && !b._hitFlag && age > 100) {
+                        const dx = b.body.position.x - playerBody.position.x;
+                        const dy = b.body.position.y - playerBody.position.y;
+                        const dz = b.body.position.z - playerBody.position.z;
+                        if (dx*dx + dy*dy + dz*dz < 8.2) { // (2.5+0.37)^2
+                            b._hitFlag = true;
+                            takeDamage(config.damageBubble);
+                        }
+                    }
+                });
+            }
+
+            updateSoapBubbles();
+
+            // ホストからクライアントへ座標一括同期 (2フレームに1回)
+            if (isHost && isStarted) {
+                if (!window.syncCounter) window.syncCounter = 0;
+                window.syncCounter++;
+                if (window.syncCounter % 2 === 0) {
+                    const syncList = [];
+                    projectiles.forEach(p => {
+                        if (p.netId) syncList.push({ id: p.netId, x: p.position.x, y: p.position.y, z: p.position.z });
+                    });
+                    bubbles.forEach(b => {
+                        if (b.netId) syncList.push({ id: b.netId, x: b.body.position.x, y: b.body.position.y, z: b.body.position.z });
+                    });
+                    if (syncList.length > 0) {
+                        broadcastEvent(12, { list: syncList });
+                    }
+                }
+            }
+
+            if (isOnline) {
+                broadcastEvent(1, {
+                    id: myPeerId,
+                    x: playerBody.position.x,
+                    y: playerBody.position.y,
+                    z: playerBody.position.z,
+                    jumps: jumpCount
+                });
+            }
+
+            if (isDead) {
+                deathTimer -= dt;
+                if (deathTimer <= 0) {
+                    respawnPlayer();
+                } else {
+                    deathTextEl.innerText = 'YOU DIED\n' + Math.ceil(deathTimer);
+                }
+                // 死亡中は強制的に停止
+                playerBody.linearVelocity.set(0, 0, 0);
+            }
+
+            // ストック回復処理
+            const playerIsMoving = (Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1);
+            const pRegenRate = playerIsMoving ? (1.0 / 24.0) : (1.0 / 3.0);
+            playerProjectileStock = Math.min(3.0, playerProjectileStock + pRegenRate * dt);
+            playerBubbleStock = Math.min(1.0, playerBubbleStock + (1.0 / 10.0) * dt);
+            updateAmmoHUD();
+
+            entities.forEach(ent => {
+                if (ent.isAI && !ent.isDead) {
+                    const aiVel = ent.body.linearVelocity;
+                    const aiIsMoving = (Math.abs(aiVel.x) > 0.1 || Math.abs(aiVel.z) > 0.1);
+                    const aiPRegenRate = aiIsMoving ? (1.0 / 24.0) : (1.0 / 3.0);
+                    ent.projectileStock = Math.min(3.0, (ent.projectileStock || 0) + aiPRegenRate * dt);
+                    ent.bubbleStock = Math.min(1.0, (ent.bubbleStock || 0) + (1.0 / 10.0) * dt);
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+
+</html>
