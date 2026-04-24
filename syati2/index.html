@@ -474,7 +474,7 @@
         let myPlayerName = "Guest";
         let myPeerId = null;
         let randomSeed = Math.random(); 
-        const ROOM_PREFIX = "ascent-room-";
+        const ROOM_PREFIX = "raziarta-ascent-room-"; // 他のゲームと衝突しないようにユニークな名称に変更
 
 
         const ASCENT_NAMES = [
@@ -1611,24 +1611,31 @@ void main() {
                     logStatus("Failed to create room. (Servers full)");
                     return;
                 }
-                const tryId = ROOM_PREFIX + attempt;
-                peer = new Peer(tryId);
+                // PeerJSクラウドサーバーの設定 (GitHub Pages/HTTPS対応)
+                peer = new Peer(tryId, {
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
+                    secure: true,
+                    debug: 1 // 必要に応じて 2 や 3 に上げると詳細なログが出ます
+                });
 
                 peer.on('open', (id) => {
-                    logStatus(`Room Hosted! Waiting for players... (Room ID: ${attempt})`);
+                    logStatus(`Room Hosted! (Room ID: ${attempt})`);
                     myPeerId = id;
                     isHost = true;
                     isOnline = true;
-                    randomSeed = Math.random(); // ホストがシードを決定
+                    randomSeed = Math.random(); 
                 });
 
                 peer.on('error', (err) => {
                     if (err.type === 'unavailable-id') {
                         attempt++;
                         peer.destroy();
-                        tryBind(); // Retry next ID
+                        tryBind(); 
                     } else {
                         logStatus("PeerJS Error: " + err.type);
+                        console.error("PeerJS Error Details:", err);
                     }
                 });
 
@@ -1659,8 +1666,14 @@ void main() {
 
         // Clientの設定：空いているホストの部屋へ順にアタック
         function setupClient() {
-            logStatus("Searching for room...");
-            peer = new Peer();
+            // PeerJSクラウドサーバーの設定 (GitHub Pages/HTTPS対応)
+            peer = new Peer({
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true,
+                debug: 1
+            });
 
             peer.on('open', (id) => {
                 myPeerId = id;
@@ -1672,7 +1685,7 @@ void main() {
                         peer.destroy();
                         return;
                     }
-                    logStatus(`Connecting to room ${attempt}...`);
+                    logStatus(`Searching room ${attempt}...`);
                     const tryId = ROOM_PREFIX + attempt;
                     const conn = peer.connect(tryId);
 
@@ -1686,13 +1699,20 @@ void main() {
                         });
                     });
 
-                    peer.on('error', (err) => {
-                        if (err.type === 'peer-unavailable') {
-                            attempt++;
-                            tryConnect();
-                        }
-                    });
+                    // 接続失敗(peer-unavailable)などは peer オブジェクトの方でハンドルする
                 }
+
+                // エラーリスナーは一度だけ設定する
+                peer.on('error', (err) => {
+                    if (err.type === 'peer-unavailable') {
+                        attempt++;
+                        tryConnect();
+                    } else {
+                        logStatus("PeerJS Error: " + err.type);
+                        console.error("PeerJS Client Error:", err);
+                    }
+                });
+
                 tryConnect();
             });
         }
