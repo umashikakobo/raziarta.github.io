@@ -211,6 +211,9 @@
     <!-- マルチプレイ用ライブラリ -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+    <!-- AI 学習用ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="ai_core.js"></script>
 </head>
 
 <body>
@@ -268,6 +271,21 @@
             </div>
         </div>
 
+        <!-- AI 学習 UI -->
+        <div id="ai-training-ui"
+            style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 100, 100, 0.3); text-align: center;">
+            <div style="color: #faa; font-size: 11px; margin-bottom: 10px; letter-spacing: 2px;">AI MACHINE LEARNING</div>
+            <div style="display:flex; flex-wrap: wrap; gap: 8px; justify-content: center; font-size: 12px;">
+                <label style="color:white;"><input type="checkbox" id="ai-nn-mode"> NN駆動モード</label>
+                <label style="color:white;"><input type="checkbox" id="ai-collect-data" checked> 学習データ収集</label>
+                <button onclick="trainAIModel()" style="padding: 4px 8px; font-size: 11px; background:#422; color:white; border:1px solid #f66; cursor:pointer;">学習実行</button>
+                <button onclick="saveAIModelLocally()" style="padding: 4px 8px; font-size: 11px;">保存(Local)</button>
+                <button onclick="loadAIModelLocally()" style="padding: 4px 8px; font-size: 11px;">読込(Local)</button>
+                <button onclick="downloadAIModel()" style="padding: 4px 8px; font-size: 11px;">DL</button>
+            </div>
+            <div id="ai-train-status" style="font-size:11px; color:#aaa; margin-top:5px;">モデル未学習</div>
+        </div>
+
         <!-- マルチプレイ UI -->
         <div id="multiplayer-ui"
             style="margin-top: 30px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; border: 1px solid rgba(100, 180, 255, 0.3); text-align: center;">
@@ -318,7 +336,8 @@
             damageProjectile: 1,
             damageBubble: 1,
             aiDamageFactor: 1.0,
-            aiCount: 1
+            aiCount: 1,
+            birdSpawnInterval: 30000 // 20秒ごとに設定（テスト用。後で 120000 に戻せます）
         };
         let playerLives = 3;
         let isDead = false;
@@ -350,6 +369,7 @@
         let animFrameId = null;
         let highestY = 0;
         let playerModel = null;
+        let birdModel = null;
 
         // --- マップ用 InstancedMesh 管理 ---
         const MAX_BLOCKS = 15000;
@@ -396,6 +416,19 @@
         }, undefined, (error) => {
             console.error("Model load error at asyu.glb. (Note: Loading local files via file:// protocol is often blocked by modern browsers for security. Try using a local server like Live Server.)");
             console.error(error);
+        });
+
+        loader.load('model/bird.glb', (gltf) => {
+            birdModel = gltf.scene;
+            birdModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            console.log("Bird model loaded successfully from bird.glb");
+        }, undefined, (error) => {
+            console.warn("Bird model not found at model/bird.glb. Procedural birds will not be shown until the model is placed.");
         });
 
         const entities = [];   
@@ -649,6 +682,11 @@
         //  INIT
         // ═══════════════════════════════════════════════════════
         function init() {
+            // AI モデルの初期化 (非同期)
+            if (typeof initAIModel === 'function' && !window.aiModel) {
+                initAIModel();
+            }
+
             // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
@@ -836,6 +874,59 @@
             controls.addEventListener('unlock', () => {
                 document.getElementById('home-button').classList.remove('hidden');
             });
+
+            // --- 鳥システム ---
+            window.birds = [];
+            window.lastBirdSpawnTime = 0;
+            
+            window.createBirdMesh = function() {
+                if (!birdModel) return null;
+                const group = birdModel.clone();
+                const wingL = group.getObjectByName("WingL");
+                const wingR = group.getObjectByName("WingR");
+                return { group, wingL, wingR };
+            };
+
+            window.spawnBirds = function() {
+                const count = 10 + Math.floor(Math.random() * 10); // 3〜5羽
+                const angle = Math.random() * Math.PI * 2;
+                const spawnDist = 50; // 100m外
+                const center = new THREE.Vector3(config.areaSize/2, 0, config.areaSize/2);
+                const startX = center.x + Math.cos(angle) * spawnDist;
+                const startZ = center.z + Math.sin(angle) * spawnDist;
+                
+                // プレイヤーからかなり高い位置
+                const pY = playerBody ? playerBody.position.y : 0;
+                const startY = pY + 5 + Math.random() * 10;
+                
+                // 反対方向付近へ飛ぶ
+                const targetAngle = angle + Math.PI + (Math.random() * 0.4 - 0.2);
+                const dirX = Math.cos(targetAngle);
+                const dirZ = Math.sin(targetAngle);
+                
+                for (let i=0; i<count; i++) {
+                    const b = window.createBirdMesh();
+                    if (!b) continue; // モデル未ロード時はスキップ
+                    const offsetX = (Math.random() - 0.5) * 15;
+                    const offsetZ = (Math.random() - 0.5) * 15;
+                    const offsetY = (Math.random() - 0.5) * 10;
+                    b.group.position.set(startX + offsetX, startY + offsetY, startZ + offsetZ);
+                    
+                    b.group.lookAt(b.group.position.x + dirX, b.group.position.y, b.group.position.z + dirZ);
+                    
+                    scene.add(b.group);
+                    window.birds.push({
+                        mesh: b.group,
+                        wingL: b.wingL,
+                        wingR: b.wingR,
+                        dir: new THREE.Vector3(dirX, 0, dirZ).normalize(),
+                        speed: 12 + Math.random() * 4,
+                        wingPhase: Math.random() * Math.PI * 2,
+                        distance: 0
+                    });
+                }
+            };
+
 
             initGUI();
             animate();
@@ -1139,7 +1230,7 @@
         }
 
         function createInvisibleWalls(customW = null, customD = null) {
-            const thickness = 2;
+            const thickness = 20;
             const height = 100000;
             const centerY = height / 2 - 100;
 
@@ -1711,12 +1802,13 @@ void main() {
                 if (isHost) {
                     // 発射元プレイヤーのボディを特定（自機への当たり判定除外用）
                     let reqOwnerBody = null;
+                    const reqOwnerPeerId = sourceConn ? sourceConn.peer : null;
                     if (sourceConn) {
                         const ent = networkEntities.get(sourceConn.peer);
                         if (ent) reqOwnerBody = ent.body;
                     }
                     if (data.type === 0) fireProjectile(data.x, data.y, data.z, data.vx, data.vy, data.vz, reqOwnerBody);
-                    else createBubble(data.x, data.y, data.z, data.vx, data.vy, data.vz, reqOwnerBody);
+                    else createBubble(data.x, data.y, data.z, data.vx, data.vy, data.vz, reqOwnerBody, null, reqOwnerPeerId);
                 }
             } else if (data.event === 11) { // 全体への生成通知
                 if (!isHost) {
@@ -2598,7 +2690,8 @@ self.onmessage = function(e) {
 
                 membranes.forEach(m => {
                     // 足が膜より上にあるかどうかの判定 (死亡中は判定を消す)
-                    const isAbove = (entBot >= m.y - 0.05 && vel.y <= 0.1);
+                    // しきい値を少し余裕持たせる (-0.8) ことで、高速落下時の判定抜けを防止
+                    const isAbove = (entBot >= m.y - 0.8 && vel.y <= 0.1);
                     const shouldHaveFloor = isAbove && !isDead;
 
                     if (shouldHaveFloor) {
@@ -2610,7 +2703,7 @@ self.onmessage = function(e) {
                             const mw = m.w || config.areaSize;
                             const mPos = m.mesh.position;
                             ent.dedicatedMembraneFloor = world.add({
-                                type: 'box', size: [mw, 1.0, mw], pos: [mPos.x, m.y - 0.5, mPos.z], move: false,
+                                type: 'box', size: [mw, 5.0, mw], pos: [mPos.x, m.y - 2.5, mPos.z], move: false,
                                 belongsTo: 1 << (ent.entIndex + 17),
                                 collidesWith: 1 << (ent.entIndex + 1),
                                 restitution: 0, friction: 0.5
@@ -2728,142 +2821,179 @@ self.onmessage = function(e) {
                         ent.isJumping = false;
                     }
 
-                    if (!ent.targetPos || Math.random() < 0.04 || (ent.targetPos.y <= pos.y - 0.2) || ent.forceRetreat) {
-                        let bestTarget = null;
-                        let maxScore = -Infinity;
+                    // --- AI 学習データの取得 ---
+                    const useNN = document.getElementById('ai-nn-mode') && document.getElementById('ai-nn-mode').checked;
+                    const collectData = document.getElementById('ai-collect-data') && document.getElementById('ai-collect-data').checked;
+                    let currentState = null;
+                    let nnAction = null;
+                    let isJumpTriggered = false;
+                    let isShootProjectileTriggered = false;
+                    let isShootBubbleTriggered = false;
+                    let mx = 0, mz = 0;
 
-                        const JUMP_LIMIT_Y = 5.2; // 少し高く飛べる可能性を考慮
-                        const nextMembrane = membranes.find(m => m.y > pos.y) || { y: pos.y + 100, mesh: { position: { x: pos.x, z: pos.z } } };
-                        const goalPos = nextMembrane.mesh ? nextMembrane.mesh.position : new THREE.Vector3(config.areaSize / 2, nextMembrane.y, config.areaSize / 2);
-
-                        // 探索範囲を広げ、垂直方向の走査を深める
-                        let minX = px - 10, maxX = px + 10;
-                        let minZ = pz - 10, maxZ = pz + 10;
-                        let minY = Math.max(0, py - 5), maxY = py + 7;
-
-                        for (let gx = minX; gx <= maxX; gx++) {
-                            for (let gz = minZ; gz <= maxZ; gz++) {
-                                for (let gy = minY; gy <= maxY; gy++) {
-                                    const b = mapGrid.get(`${gx},${gy},${gz}`);
-                                    if (!b) continue;
-
-                                    const dy = b.position.y - pos.y;
-                                    const dx = b.position.x - pos.x;
-                                    const dz = b.position.z - pos.z;
-                                    const distSq = dx * dx + dz * dz;
-
-                                    if (distSq > 100 || distSq < 0.05) continue;
-
-                                    const blockKey = `${b.position.x},${b.position.y},${b.position.z}`;
-                                    if (ent.jumpBlacklist.has(blockKey)) {
-                                        const elapsed = Date.now() - ent.jumpBlacklist.get(blockKey);
-                                        if (elapsed > 10000) {
-                                            ent.jumpBlacklist.delete(blockKey);
-                                        } else {
-                                            if (!ent.forceRetreat) continue;
-                                        }
-                                    }
-
-                                    if (ent.forceRetreat) {
-                                        if (dy > -4.0 && dy <= 0.2) {
-                                            const score = -dy - distSq * 0.05;
-                                            if (score > maxScore) { maxScore = score; bestTarget = b.position; }
-                                        }
-                                    } else {
-                                        const distToGoalSq = Math.pow(b.position.x - goalPos.x, 2) + Math.pow(b.position.z - goalPos.z, 2);
-
-                                        if (dy > 0.1 && dy < JUMP_LIMIT_Y) {
-                                            // 上への移動を強烈に優先
-                                            const score = (dy * 150) - distSq * 1.5 - (distToGoalSq * 0.05);
-                                            if (score > maxScore) { maxScore = score; bestTarget = b.position; }
-                                        } else if (dy <= 0.1 && dy > -2.0) {
-                                            // 同じ高さや少し低い場所: ゴールへの接近を優先
-                                            const score = (dy * 20) - distSq * 1.0 - (distToGoalSq * 0.3);
-                                            if (score > maxScore) { maxScore = score; bestTarget = b.position; }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (bestTarget) {
-                            ent.targetPos = bestTarget.clone();
-                            if (ent.forceRetreat && ent.isGrounded) ent.stuckTimer = 0;
-                        } else {
-                            // 足場がない場合は次の膜の方向へ、かつ少し上向きにターゲットを設定してジャンプを誘発
-                            ent.targetPos = new THREE.Vector3(goalPos.x, pos.y + 1.5, goalPos.z);
+                    if (typeof getAIObservation === 'function') {
+                        currentState = getAIObservation(ent, playerBody);
+                        if (useNN) {
+                            nnAction = predictAIAction(currentState);
+                            mx = nnAction[0] * 5;
+                            mz = nnAction[1] * 5;
+                            if (nnAction[2] > 0.5) isJumpTriggered = true;
+                            if (nnAction[3] > 0.5) isShootProjectileTriggered = true;
+                            if (nnAction[4] > 0.5) isShootBubbleTriggered = true;
                         }
                     }
+                    // --------------------------
 
-                    let mx = 0, mz = 0;
-                    if (ent.targetPos && ent.neutralTimer === 0) {
-                        const dx = ent.targetPos.x - pos.x;
-                        const dz = ent.targetPos.z - pos.z;
-                        const distH = Math.sqrt(dx * dx + dz * dz);
-                        
-                        let wallAhead = false;
-                        let gapAhead = false;
+                    if (!useNN) {
+                        if (!ent.targetPos || Math.random() < 0.04 || (ent.targetPos.y <= pos.y - 0.2) || ent.forceRetreat) {
+                            let bestTarget = null;
+                            let maxScore = -Infinity;
 
-                        if (distH > 0.15) {
-                            mx = dx / distH;
-                            mz = dz / distH;
+                            const JUMP_LIMIT_Y = 3.8; 
+                            const nextMembrane = membranes.find(m => m.y > pos.y) || { y: pos.y + 100, mesh: { position: { x: pos.x, z: pos.z } } };
+                            const goalPos = nextMembrane.mesh ? nextMembrane.mesh.position : new THREE.Vector3(config.areaSize / 2, nextMembrane.y, config.areaSize / 2);
+
+                            let minX = px - 10, maxX = px + 10;
+                            let minZ = pz - 10, maxZ = pz + 10;
+                            let minY = Math.max(0, py - 3), maxY = py + 6;
+
+                            for (let gx = minX; gx <= maxX; gx++) {
+                                for (let gz = minZ; gz <= maxZ; gz++) {
+                                    for (let gy = minY; gy <= maxY; gy++) {
+                                        const b = mapGrid.get(`${gx},${gy},${gz}`);
+                                        if (!b) continue;
+
+                                        if (mapGrid.has(`${gx},${gy+1},${gz}`) || mapGrid.has(`${gx},${gy+2},${gz}`)) continue;
+
+                                        const dy = b.position.y - pos.y;
+                                        const dx = b.position.x - pos.x;
+                                        const dz = b.position.z - pos.z;
+                                        const distSq = dx * dx + dz * dz;
+
+                                        if (distSq > 100 || distSq < 0.05) continue;
+
+                                        const blockKey = `${b.position.x},${b.position.y},${b.position.z}`;
+                                        if (ent.jumpBlacklist.has(blockKey)) {
+                                            const elapsed = Date.now() - ent.jumpBlacklist.get(blockKey);
+                                            if (elapsed > 10000) {
+                                                ent.jumpBlacklist.delete(blockKey);
+                                            } else {
+                                                if (!ent.forceRetreat) continue;
+                                            }
+                                        }
+
+                                        if (ent.forceRetreat) {
+                                            if (dy > -4.0 && dy <= 0.2) {
+                                                const score = -dy - distSq * 0.05;
+                                                if (score > maxScore) { maxScore = score; bestTarget = b.position; }
+                                            }
+                                        } else {
+                                            const distToGoalSq = Math.pow(b.position.x - goalPos.x, 2) + Math.pow(b.position.z - goalPos.z, 2);
+
+                                            if (dy > 0.1 && dy <= JUMP_LIMIT_Y) {
+                                                const score = (dy * 300) - (distSq * 15.0) - (distToGoalSq * 0.1);
+                                                if (score > maxScore) { maxScore = score; bestTarget = b.position; }
+                                            } else if (dy <= 0.1 && dy > -1.5) {
+                                                const score = (dy * 20) - (distSq * 3.0) - (distToGoalSq * 0.5);
+                                                if (score > maxScore) { maxScore = score; bestTarget = b.position; }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (bestTarget) {
+                                ent.targetPos = bestTarget.clone();
+                                if (ent.forceRetreat && ent.isGrounded) ent.stuckTimer = 0;
+                            } else {
+                                ent.targetPos = new THREE.Vector3(goalPos.x, pos.y + 1.5, goalPos.z);
+                            }
+                        }
+
+                        if (ent.targetPos && ent.neutralTimer === 0) {
+                            const dx = ent.targetPos.x - pos.x;
+                            const dz = ent.targetPos.z - pos.z;
+                            const distH = Math.sqrt(dx * dx + dz * dz);
                             
-                            // 前方センサー
-                            if (ent.isGrounded) {
-                                const nx = Math.floor(pos.x + mx * 0.9);
-                                const nz = Math.floor(pos.z + mz * 0.9);
-                                const ny = Math.floor(pos.y);
+                            let wallAhead = false;
+                            let gapAhead = false;
+
+                            if (distH > 0.15) {
+                                mx = dx / distH;
+                                mz = dz / distH;
                                 
-                                let foundGround = false;
-                                for (let depth = 0; depth <= 4; depth++) {
-                                    if (mapGrid.has(`${nx},${ny - depth},${nz}`)) { foundGround = true; break; }
-                                }
-                                if (!foundGround) gapAhead = true;
+                                if (ent.isGrounded) {
+                                    const nx = Math.floor(pos.x + mx * 1.5);
+                                    const nz = Math.floor(pos.z + mz * 1.5);
+                                    const ny = Math.floor(pos.y);
+                                    
+                                    let foundGround = false;
+                                    for (let depth = 0; depth <= 4; depth++) {
+                                        if (mapGrid.has(`${nx},${ny - depth},${nz}`)) { foundGround = true; break; }
+                                    }
+                                    if (!foundGround) gapAhead = true;
 
-                                for (let height = 1; height <= 2; height++) {
-                                    if (mapGrid.has(`${nx},${ny + height},${nz}`)) { wallAhead = true; break; }
+                                    const nxClose = Math.floor(pos.x + mx * 0.8);
+                                    const nzClose = Math.floor(pos.z + mz * 0.8);
+                                    for (let height = 1; height <= 3; height++) {
+                                        if (mapGrid.has(`${nxClose},${ny + height},${nzClose}`)) { wallAhead = true; break; }
+                                    }
+                                }
+                            }
+
+                            const targetIsUp = ent.targetPos && ent.targetPos.y > pos.y + 0.1;
+
+                            if (wallAhead && (!targetIsUp || distH >= 2.0) && !ent.isJumping) {
+                                if (ent.targetPos) {
+                                    const blockKey = `${ent.targetPos.x},${ent.targetPos.y},${ent.targetPos.z}`;
+                                    ent.jumpBlacklist.set(blockKey, Date.now()); 
+                                    ent.targetPos = null;
+                                }
+                                mx = 0; mz = 0;
+                            }
+
+                            if (gapAhead && distH >= 2.0 && !ent.isJumping) {
+                                if (ent.targetPos) {
+                                    const blockKey = `${ent.targetPos.x},${ent.targetPos.y},${ent.targetPos.z}`;
+                                    ent.jumpBlacklist.set(blockKey, Date.now()); 
+                                    ent.targetPos = null;
+                                }
+                                mx = 0; mz = 0;
+                            }
+
+                            const jumpTriggerDist = targetIsUp ? Math.max(1.0, Math.min(3.5, (ent.targetPos.y - pos.y) * 1.5)) : 1.2;
+                            const shouldJump = (distH < jumpTriggerDist && targetIsUp && !ent.forceRetreat) 
+                                            || (wallAhead && targetIsUp && distH < 2.0) 
+                                            || (gapAhead && distH < 2.5) 
+                                            || (ent.stuckTimer > 20 && targetIsUp);
+
+                            if (shouldJump && !hasOverhead) {
+                                if (ent.isGrounded || (ent.jumpCount < 2 && vel.y < 4 && Math.random() < 0.3)) {
+                                    isJumpTriggered = true;
                                 }
                             }
                         }
+                    } // End of if (!useNN)
 
-                        if (wallAhead && !ent.isJumping) {
-                            // 壁がある場合はランダムに少し逸れる
-                            const angle = (Math.random() - 0.5) * 0.8;
-                            const ctx = mx * Math.cos(angle) - mz * Math.sin(angle);
-                            const ctz = mx * Math.sin(angle) + mz * Math.cos(angle);
-                            mx = ctx; mz = ctz;
-                        }
-
-                        // ジャンプ判定: ターゲットが上にある、または壁/穴がある場合
-                        const jumpTriggerDist = (ent.targetPos && ent.targetPos.y > pos.y + 0.1) 
-                            ? Math.max(1.5, Math.min(4.5, (ent.targetPos.y - pos.y) * 2.0)) 
-                            : 1.5;
-                        
-                        const shouldJump = (distH < jumpTriggerDist && ent.targetPos && ent.targetPos.y > pos.y + 0.15 && !ent.forceRetreat) 
-                                        || wallAhead || gapAhead 
-                                        || (ent.stuckTimer > 30 && ent.targetPos && ent.targetPos.y > pos.y);
-
-                        if (shouldJump && !hasOverhead) {
-                            if (ent.isGrounded || (ent.jumpCount < maxJumps && vel.y < 4 && Math.random() < 0.2)) {
-                                const jv = config.jumpVelocity * (ent.isGrounded ? 1.0 : config.jumpMultiplier * 1.1);
-                                vel.y = jv;
-                                ent.jumpCount++;
-                                ent.isJumping = true;
-                                ent.jumpTimer = 0;
-                            }
-                        }
+                    // 実際のジャンプ処理（NNとヒューリスティック共通）
+                    if (isJumpTriggered && !hasOverhead) {
+                        const jv = config.jumpVelocity * (ent.isGrounded ? 1.0 : config.jumpMultiplier * 1.15);
+                        vel.y = jv;
+                        ent.jumpCount++;
+                        ent.isJumping = true;
+                        ent.jumpTimer = 0;
                     }
 
                     // パニックルーチン
-                    if (ent.forceRetreat && ent.stuckTimer % 12 === 0 && !hasOverhead) {
-                        vel.y = config.jumpVelocity * 1.2;
-                        mx = (Math.random() - 0.5) * 4;
-                        mz = (Math.random() - 0.5) * 4;
+                    if (ent.forceRetreat && ent.stuckTimer % 10 === 0 && !hasOverhead) {
+                        vel.y = config.jumpVelocity * 1.3;
+                        mx = (Math.random() - 0.5) * 5;
+                        mz = (Math.random() - 0.5) * 5;
                     }
 
                     const mag = Math.sqrt(mx * mx + mz * mz);
                     if (mag > 0) {
-                        // 移動速度の適用 (AIは少し加速しやすくする)
+                        // 移動速度の適用
                         const speed = config.playerSpeed * (ent.isJumping ? 1.1 : 1.0);
                         vel.x += ((mx / mag) * speed - vel.x) * 0.18;
                         vel.z += ((mz / mag) * speed - vel.z) * 0.18;
@@ -2872,12 +3002,32 @@ self.onmessage = function(e) {
                         vel.z *= 0.82;
                     }
                     
+                    // --- AI 学習データの記録 ---
+                    if (collectData && currentState && typeof collectAIExperience === 'function') {
+                        // 報酬は上に登ったか、ダメージを与えたか等で計算
+                        let reward = (pos.y - (ent.lastFrameY || pos.y)) * 10;
+                        if (ent.isDead) reward -= 50;
+                        ent.lastFrameY = pos.y;
+
+                        // 行動ベクトルを作成し、経験として蓄積
+                        const magForRec = mag > 0 ? mag : 1;
+                        const actionVec = [
+                            mx / magForRec, // 正規化
+                            mz / magForRec,
+                            isJumpTriggered ? 1.0 : 0.0,
+                            isShootProjectileTriggered ? 1.0 : 0.0,
+                            isShootBubbleTriggered ? 1.0 : 0.0
+                        ];
+                        collectAIExperience(currentState, actionVec, reward, null);
+                    }
+                    // -------------------------
+
                     // --- AI 攻撃ルーチン ---
                     const fireNow = Date.now();
                     const aiCanFireBubble = (fireNow - (ent.lastFireTimeBubble || 0) >= 10000 && (ent.bubbleStock || 0) >= 1.0);
                     const aiCanFireProjectile = (fireNow - (ent.lastFireTimeProjectile || 0) >= 500 && (ent.projectileStock || 0) >= 1.0);
 
-                    if (ent.stuckTimer < 60 && (aiCanFireBubble || aiCanFireProjectile)) {
+                    if (ent.stuckTimer < 60) {
                         let closestEnemy = null;
                         let minDistSq = Infinity;
                         
@@ -2905,11 +3055,16 @@ self.onmessage = function(e) {
                             const dz = targetPos.z - pos.z;
                             const dist = Math.sqrt(minDistSq);
                             
-                            if (aiCanFireBubble && Math.random() < 0.2) { 
+                            // 弾を撃つ判断
+                            const fireProjectileDecision = (useNN && isShootProjectileTriggered) || (!useNN && aiCanFireProjectile && Math.random() < 0.03);
+                            // 泡を撃つ判断
+                            const fireBubbleDecision = (useNN && isShootBubbleTriggered) || (!useNN && aiCanFireBubble && Math.random() < 0.2);
+
+                            if (fireBubbleDecision && aiCanFireBubble) { 
                                 ent.lastFireTimeBubble = fireNow;
                                 ent.bubbleStock -= 1.0;
                                 createBubble(pos.x, pos.y, pos.z, (dx/dist)*3, (dy/dist)*3, (dz/dist)*3, ent.body);
-                            } else if (aiCanFireProjectile) {
+                            } else if (fireProjectileDecision && aiCanFireProjectile) {
                                 ent.lastFireTimeProjectile = fireNow;
                                 ent.projectileStock -= 1.0;
                                 const vx = (dx / dist) * 60;
@@ -3189,11 +3344,14 @@ self.onmessage = function(e) {
                     }
                 });
                 bubbles.forEach(b => {
-                    // オーナー判定の強化: body参照だけでなく ID でもチェック
-                    const isMyBubble = (b.ownerBody === playerBody) || (b.ownerId && b.ownerId === myPeerId);
+                    if (!b.body) return; // 既に削除済み
+                    // オーナー判定: body参照・ID・PeerID すべてでチェック
+                    const myId = myPeerId ? String(myPeerId).trim() : "";
+                    const bOwnerId = b.ownerId ? String(b.ownerId).trim() : "";
+                    const isMyBubble = (b.ownerBody === playerBody) || (myId && bOwnerId === myId);
                     const age = Date.now() - (b.spawnTime || 0);
                     
-                    if (!isMyBubble && !b._hitFlag && age > 100) {
+                    if (!isMyBubble && !b._hitFlag && age > 300) {
                         const dx = b.body.position.x - playerBody.position.x;
                         const dy = b.body.position.y - playerBody.position.y;
                         const dz = b.body.position.z - playerBody.position.z;
@@ -3262,6 +3420,30 @@ self.onmessage = function(e) {
                     ent.bubbleStock = Math.min(1.0, (ent.bubbleStock || 0) + (1.0 / 10.0) * dt);
                 }
             });
+
+            // --- 鳥システムの更新 ---
+            if (isStarted && window.birds) {
+                if (now - window.lastBirdSpawnTime > config.birdSpawnInterval) {
+                    window.lastBirdSpawnTime = now;
+                    if (window.spawnBirds) window.spawnBirds();
+                }
+
+                for (let i = window.birds.length - 1; i >= 0; i--) {
+                    const b = window.birds[i];
+                    b.mesh.position.addScaledVector(b.dir, b.speed * dt);
+                    b.distance += b.speed * dt;
+                    
+                    // 羽ばたきアニメーション
+                    b.wingPhase += 15 * dt;
+                    b.wingL.rotation.y = Math.sin(b.wingPhase) * 0.5;
+                    b.wingR.rotation.y = -Math.sin(b.wingPhase) * 0.5;
+
+                    if (b.distance > 250) { // 250m飛んだら消去
+                        scene.remove(b.mesh);
+                        window.birds.splice(i, 1);
+                    }
+                }
+            }
 
             renderer.render(scene, camera);
         }
