@@ -1611,16 +1611,16 @@ void main() {
                     logStatus("Failed to create room. (Servers full)");
                     return;
                 }
-                // PeerJSクラウドサーバーの設定 (GitHub Pages/HTTPS対応)
+                const tryId = ROOM_PREFIX + attempt;
+                console.log(`[Multiplayer] Attempting to host room: ${tryId}`);
+                // PeerJSクラウドサーバーの設定 (HTTPS環境向け)
                 peer = new Peer(tryId, {
-                    host: '0.peerjs.com',
-                    port: 443,
-                    path: '/',
-                    secure: true,
-                    debug: 1 // 必要に応じて 2 や 3 に上げると詳細なログが出ます
+                    debug: 3, // 詳細ログをコンソールに出力
+                    secure: true
                 });
 
                 peer.on('open', (id) => {
+                    console.log(`[Multiplayer] Successfully opened peer with ID: ${id}`);
                     logStatus(`Room Hosted! (Room ID: ${attempt})`);
                     myPeerId = id;
                     isHost = true;
@@ -1629,18 +1629,29 @@ void main() {
                 });
 
                 peer.on('error', (err) => {
+                    console.error(`[Multiplayer] PeerJS Host Error: ${err.type}`, err);
                     if (err.type === 'unavailable-id') {
+                        console.warn(`[Multiplayer] ID ${tryId} is already taken, trying next...`);
                         attempt++;
                         peer.destroy();
                         tryBind(); 
                     } else {
                         logStatus("PeerJS Error: " + err.type);
-                        console.error("PeerJS Error Details:", err);
                     }
                 });
 
+                peer.on('disconnected', () => {
+                    console.warn("[Multiplayer] Peer disconnected from server. Attempting to reconnect...");
+                    peer.reconnect();
+                });
+
+                peer.on('close', () => {
+                    console.error("[Multiplayer] Peer connection closed.");
+                    isOnline = false;
+                });
+
                 peer.on('connection', (conn) => {
-                    console.log("Client connected:", conn.peer);
+                    console.log("[Multiplayer] New client connection request from:", conn.peer);
                     connections.push(conn);
                     conn.on('open', () => {
                         // 送信初期データ：乱数シード、ホスト名
@@ -1666,30 +1677,34 @@ void main() {
 
         // Clientの設定：空いているホストの部屋へ順にアタック
         function setupClient() {
-            // PeerJSクラウドサーバーの設定 (GitHub Pages/HTTPS対応)
+            console.log("[Multiplayer] Initializing Peer for Client...");
+            // PeerJSクラウドサーバーの設定 (HTTPS環境向け)
             peer = new Peer({
-                host: '0.peerjs.com',
-                port: 443,
-                path: '/',
-                secure: true,
-                debug: 1
+                debug: 3,
+                secure: true
             });
 
             peer.on('open', (id) => {
+                console.log(`[Multiplayer] Client Peer opened with ID: ${id}`);
                 myPeerId = id;
                 let attempt = 1;
 
                 function tryConnect() {
                     if (attempt > 10) {
+                        console.error("[Multiplayer] Could not find any hosted rooms after 10 attempts.");
                         logStatus("No hosted rooms found.");
                         peer.destroy();
                         return;
                     }
-                    logStatus(`Searching room ${attempt}...`);
                     const tryId = ROOM_PREFIX + attempt;
-                    const conn = peer.connect(tryId);
+                    console.log(`[Multiplayer] Trying to connect to Room ID: ${tryId}...`);
+                    logStatus(`Searching room ${attempt}...`);
+                    const conn = peer.connect(tryId, {
+                        reliable: true
+                    });
 
                     conn.on('open', () => {
+                        console.log(`[Multiplayer] Connected to host: ${conn.peer}`);
                         hostConn = conn;
                         isOnline = true;
                         logStatus("Connected to Room " + attempt + "!");
@@ -1699,18 +1714,32 @@ void main() {
                         });
                     });
 
-                    // 接続失敗(peer-unavailable)などは peer オブジェクトの方でハンドルする
+                    conn.on('error', (err) => {
+                        console.error(`[Multiplayer] Connection error for ${tryId}:`, err);
+                    });
+
+                    conn.on('close', () => {
+                        console.warn(`[Multiplayer] Connection to host ${conn.peer} closed.`);
+                        isOnline = false;
+                        logStatus("Connection closed.");
+                    });
                 }
 
                 // エラーリスナーは一度だけ設定する
                 peer.on('error', (err) => {
+                    console.error(`[Multiplayer] PeerJS Client Error: ${err.type}`, err);
                     if (err.type === 'peer-unavailable') {
+                        console.warn(`[Multiplayer] Room ${attempt} not found, checking next...`);
                         attempt++;
                         tryConnect();
                     } else {
                         logStatus("PeerJS Error: " + err.type);
-                        console.error("PeerJS Client Error:", err);
                     }
+                });
+
+                peer.on('disconnected', () => {
+                    console.warn("[Multiplayer] Client Peer disconnected. Reconnecting...");
+                    peer.reconnect();
                 });
 
                 tryConnect();
@@ -3022,11 +3051,29 @@ self.onmessage = function(e) {
                         vel.z *= 0.82;
                     }
                     
+                    // 次のフレームのための状態記憶
+                    ent.lastMx = mx;
+                    ent.lastMz = mz;
+
                     // --- AI 学習データの記録 ---
                     if (collectData && currentState && typeof collectAIExperience === 'function') {
-                        // 報酬は上に登ったか、ダメージを与えたか等で計算
-                        let reward = (pos.y - (ent.lastFrameY || pos.y)) * 10;
-                        if (ent.isDead) reward -= 50;
+                        // 上昇に対する強力な報酬
+                        let dy = pos.y - (ent.lastFrameY || pos.y);
+                        let reward = 0;
+                        if (dy > 0) reward += dy * 100; // 上昇を強く報酬
+                        else if (dy < 0) reward += dy * 10; // 落下は軽くペナルティ
+
+                        // ターゲットへ近づくことへの報酬
+                        if (ent.targetPos) {
+                            const distToTarget = Math.sqrt(Math.pow(ent.targetPos.x - pos.x, 2) + Math.pow(ent.targetPos.z - pos.z, 2));
+                            if (ent.lastDistToTarget !== undefined) {
+                                const distDiff = ent.lastDistToTarget - distToTarget;
+                                if (distDiff > 0) reward += distDiff * 30; // 近づけば報酬
+                            }
+                            ent.lastDistToTarget = distToTarget;
+                        }
+
+                        if (ent.isDead) reward -= 200; // 死亡は重いペナルティ
                         ent.lastFrameY = pos.y;
 
                         // 行動ベクトルを作成し、経験として蓄積
