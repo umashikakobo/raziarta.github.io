@@ -227,39 +227,32 @@ body {
 
 /* About Section */
 .about-section {
-    background: #000;
-    border: 2px solid var(--accent-gold);
-    border-radius: 16px;
     padding: 5rem;
-    min-height: 60vh;
+    min-height: 40vh;
     position: relative;
-    box-shadow: inset 0 0 100px rgba(212, 175, 55, 0.1), 0 0 30px rgba(0,0,0,0.5);
-}
-
-.about-section::before {
-    content: "SOURCE_OVERRIDE_ENABLED";
-    position: absolute;
-    top: 20px; right: 30px;
-    font-size: 0.7rem;
-    color: var(--accent-gold);
-    opacity: 0.6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .about-text {
-    font-family: 'Courier New', Courier, monospace;
-    color: var(--accent-gold);
-    font-size: 2.5rem;
+    font-family: var(--font-jp);
+    color: var(--text-primary);
+    font-size: 2rem;
     text-align: center;
+    line-height: 1.5;
 }
 
 /* Mobile Adjustments */
 @media (max-width: 900px) {
-    .sidebar { width: 90px; }
-    .favicon-container { padding: 0 15px; }
+    :root {
+        --sidebar-width: 100px;
+    }
+    .favicon-container { padding: 0 10px; }
     .top-left-favicon { width: 60px; height: 60px; }
-    .nav-item { font-size: 0; padding: 2rem; text-align: center; }
-    .nav-item::after { content: "●"; font-size: 1.5rem; }
-    .main-content { margin-left: 90px; padding: 3rem 2rem; }
-    .kanji { font-size: 3.5rem; }
+    .nav-item { font-size: 0.7rem; padding: 1.5rem 0.5rem; text-align: center; letter-spacing: 1px; }
+    .main-content { margin-left: var(--sidebar-width); padding: 3rem 1.5rem; }
+    .kanji { font-size: 3rem; }
     .logo-section { margin-bottom: 4rem; }
+    .games-section { grid-template-columns: 1fr; }
 }
