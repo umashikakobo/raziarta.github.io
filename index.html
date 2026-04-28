@@ -3,108 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEOメタタグ (検索エンジン対策) -->
     <title>馬鹿工房 (UMA SHIKA KOBO) | オリジナルWebゲーム＆アプリ</title>
-    <link rel="icon" href="favicon.png" type="image/png">
-    <style>
-        /* 阿部寛さんのサイトのようなシンプルなレイアウト設定 */
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            font-family: "MS PGothic", sans-serif;
-            background-color: #ffffff;
-        }
+    <link rel="icon" href="favicon.jpg" type="image/jpg">
+    <meta name="description" content="馬鹿工房 (UMA SHIKA KOBO) は、サイバーパンク風3D迷路など、オリジナルブラウザゲームやWebアプリを公開しているポータルサイトです。">
+    <meta name="keywords" content="馬鹿工房, 馬鹿工房, UMA SHIKA KOBO, ブラウザゲーム, 3Dゲーム, Webアプリ, インディーズゲーム">
+    <meta name="author" content="馬鹿工房">
+    
+    <!-- OGP (SNSでシェアされた時の表示用設定) -->
+    <meta property="og:title" content="馬鹿工房 (UMA SHIKA KOBO) 公式サイト">
+    <meta property="og:description" content="サイバーパンク風3D迷路など、オリジナルブラウザゲームやWebアプリを公開しているポータルサイトです。">
+    <meta property="og:type" content="website">
 
-        /* 左側の帯（サイドバー） */
-        #sidebar {
-            width: 200px;
-            height: 100vh;
-            border-right: 2px solid #000000;
-            padding: 10px;
-            box-sizing: border-box;
-            background-color: #f0f0f0; /* 帯としての色 */
-            position: fixed;
-        }
-
-        /* メインコンテンツエリア */
-        #main-content {
-            margin-left: 200px; /* サイドバーの幅分空ける */
-            padding: 20px;
-            flex: 1;
-        }
-
-        /* サイドバー内のfavicon表示 */
-        .sidebar-icon {
-            display: block;
-            margin-bottom: 20px;
-            width: 32px;
-            height: 32px;
-        }
-
-        .menu-item {
-            display: block;
-            margin: 10px 0;
-            color: #0000ff;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-
-        /* 元のサイトのスタイルを維持するための簡易設定 */
-        .game-card {
-            margin-bottom: 30px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 10px;
-        }
-        h1 { font-size: 24px; border-bottom: 3px double #000; }
-        h2 { font-size: 20px; }
-        .play-link { color: red; font-weight: bold; }
-    </style>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <script type="module" src="./main.js"></script>
 </head>
 <body>
+    <div class="urushi-bg"></div>
+    <div class="container">
+        <header class="logo-section">
+            <div class="romaji">UMA SHIKA KOBO</div>
+            <h1 class="kanji">馬鹿工房</h1>
+        </header>
 
-    <nav id="sidebar">
-        <img src="favicon.png" alt="icon" class="sidebar-icon">
-        
-        <div class="menu-list">
-            <span class="menu-item" onclick="showAbout()">about</span>
-            <br>
-            <a href="index.html" class="menu-item">トップへ戻る</a>
-        </div>
-    </nav>
+        <main class="games-section">
+            <a href="./3d-maze/index.html" class="game-card">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <span class="game-tag">3D GAME</span>
+                    </div>
+                    <div class="card-body">
+                        <h2>Cyberpunk Orca Maze</h2>
+                        <p>サイバーパンク風の3D迷路ゲーム。</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="play-text">PLAY NOW</span>
+                        <div class="arrow-icon">→</div>
+                    </div>
+                </div>
+            </a>
 
-    <main id="main-content">
-        <div id="content-body">
-            <h1>馬鹿工房 / UMA SHIKA KOBO</h1>
-            <p>オリジナルWebゲーム＆アプリを公開しています。</p>
-
-            <section class="game-card">
-                <h2>Cyberpunk Orca Maze</h2>
-                <p>サイバーパンク風の3D迷路ゲーム。</p>
-                <a href="./3d-maze/index.html" class="play-link">PLAY NOW →</a>
-            </section>
-
-            <section class="game-card">
-                <h2>Walking Orca</h2>
-                <p>元シャチ</p>
-                <a href="./syati2/index.html" class="play-link">PLAY NOW →</a>
-            </section>
-        </div>
-    </main>
-
-    <script>
-        /**
-         * aboutがクリックされた際に、
-         * 別のサイトを開いたかのように中身を「テスト」に書き換える関数
-         */
-        function showAbout() {
-            const contentBody = document.getElementById('content-body');
-            // コンテンツをクリアして「テスト」という文字を表示
-            contentBody.innerHTML = `
-                <h1>about</h1>
-                <p>テスト</p>
-            `;
-        }
-    </script>
-
+ <a href="./syati2/index.html" class="game-card">
+                <div class="card-inner">
+                    <div class="card-header">
+                        <span class="game-tag">3D GAME</span>
+                    </div>
+                    <div class="card-body">
+                        <h2>Walking Orca</h2>
+                        <p>元シャチ</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="play-text">PLAY NOW</span>
+                        <div class="arrow-icon">→</div>
+                    </div>
+                </div>
+            </a>
+            
+        </main>
+    </div>
 </body>
 </html>
