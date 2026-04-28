@@ -37,11 +37,4 @@ document.addEventListener('DOMContentLoaded', () => {
             switchView(targetPage);
         });
     });
-
-    // Logo click returns to Home
-    if (siteLogo) {
-        siteLogo.addEventListener('click', () => {
-            switchView('home');
-        });
-    }
 });
