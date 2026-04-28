@@ -1,0 +1,9 @@
+{
+  "type": "leviathan",
+  "hp": 80, "maxHp": 80,
+  "hw": 70, "hh": 100,
+  "sprites": {
+    "idle": "assets/sprites/enemies/boss/leviathan_idle.png",
+    "width": 200, "height": 240, "originX": 100, "originY": 120
+  }
+}

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Sprite Baker</title></head>
+<body>
+<h2>Sprite Baker</h2>
+<div id="status">Initializing...</div>
+<div id="log" style="white-space:pre;font-size:11px;max-height:400px;overflow:auto"></div>
+<script src="../js/renderer.js"></script>
+<script src="../js/physics.js"></script>
+<script>
+const log = (t) => { document.getElementById('log').textContent += t+'\n'; };
+const status = (t) => { document.getElementById('status').textContent = t; };
+
+function renderToCanvas(w, h, drawFn) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  drawFn(ctx, w, h);
+  return c;
+}
+
+function spriteCanvas(w, h, drawFn) {
+  const c = renderToCanvas(w, h, (ctx) => {
+    ctx.clearRect(0,0,w,h);
+    drawFn(ctx);
+  });
+  return c.toDataURL('image/png').split(',')[1];
+}
+
+async function bakeAll() {
+  const sprites = [];
+  const add = (path, w, h, fn) => {
+    sprites.push({ path, data: spriteCanvas(w, h, fn) });
+    log('Generated: ' + path);
+  };
+
+  status('Generating player sprites...');
+  // Player standing
+  add('assets/sprites/player/orca_stand.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 0, false, false);
+  });
+  add('assets/sprites/player/orca_walk_1.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 5, false, false);
+  });
+  add('assets/sprites/player/orca_walk_2.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 15, false, false);
+  });
+  add('assets/sprites/player/orca_crouch.png', 120, 60, ctx => {
+    Renderer.drawOrca(ctx, 60, 30, 1.6, 1, 0, true, false);
+  });
+  add('assets/sprites/player/orca_damaged.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 0, false, true);
+  });
+
+  status('Generating weapon sprites...');
+  add('assets/sprites/weapons/penguin_bullet.png', 40, 30, ctx => {
+    Renderer.drawPenguin(ctx, 20, 15, 1.5, true);
+  });
+  add('assets/sprites/weapons/penguin_bomb.png', 40, 40, ctx => {
+    Renderer.drawPenguinBomb(ctx, 20, 20, 1.5, 0);
+  });
+  for (let i = 1; i <= 3; i++) {
+    const r = 15 + i * 10, a = 1 - (i-1)*0.3;
+    add(`assets/sprites/weapons/explosion/explosion_${i}.png`, 80, 80, ctx => {
+      Renderer.drawExplosion(ctx, 40, 40, r, a);
+    });
+  }
+
+  status('Generating enemy sprites...');
+  add('assets/sprites/enemies/tire_shark/tire_shark_1.png', 60, 70, ctx => {
+    Renderer.drawTireShark(ctx, 30, 35, 1.8, 0);
+  });
+  add('assets/sprites/enemies/tire_shark/tire_shark_2.png', 60, 70, ctx => {
+    Renderer.drawTireShark(ctx, 30, 35, 1.8, 10);
+  });
+  add('assets/sprites/enemies/vending_machine/vending_idle.png', 60, 80, ctx => {
+    Renderer.drawVendingMachine(ctx, 30, 40, 1.5, 0, false);
+  });
+  add('assets/sprites/enemies/vending_machine/vending_shoot.png', 60, 80, ctx => {
+    Renderer.drawVendingMachine(ctx, 30, 40, 1.5, 0, true);
+  });
+  add('assets/sprites/enemies/ac_hermit_crab/hermit_hover.png', 70, 70, ctx => {
+    Renderer.drawACHermitCrab(ctx, 35, 35, 1.5, 0, false);
+  });
+  add('assets/sprites/enemies/ac_hermit_crab/hermit_dive.png', 70, 70, ctx => {
+    Renderer.drawACHermitCrab(ctx, 35, 35, 1.5, 0, true);
+  });
+
+  // Items
+  status('Generating item sprites...');
+  add('assets/sprites/items/heal_small.png', 30, 30, ctx => {
+    Renderer.drawItem(ctx, 15, 15, 1.5, 'healS', 0);
+  });
+  add('assets/sprites/items/heal_medium.png', 30, 30, ctx => {
+    Renderer.drawItem(ctx, 15, 15, 1.5, 'healM', 0);
+  });
+  add('assets/sprites/items/atk_up.png', 30, 30, ctx => {
+    Renderer.drawItem(ctx, 15, 15, 1.5, 'atkUp', 0);
+  });
+
+  // Projectiles
+  add('assets/sprites/projectiles/can_bullet.png', 20, 16, ctx => {
+    Renderer.drawCan(ctx, 10, 8, 1.5);
+  });
+
+  // Mid-bosses (use inline drawing since no dedicated Renderer method)
+  status('Generating mid-boss sprites...');
+  // Cart Shark
+  add('assets/sprites/enemies/cart_shark/cart_shark_idle.png', 100, 100, ctx => {
+    ctx.save(); ctx.translate(50,50); const s=2.2,ol='#08081a';
+    ctx.fillStyle=ol;ctx.fillRect(-25*s/2,5*s/2,35*s/2,15*s/2);
+    ctx.fillStyle='#666';ctx.fillRect(-23*s/2,7*s/2,31*s/2,11*s/2);
+    ctx.fillStyle='#555';ctx.fillRect(-20*s/2,9*s/2,25*s/2,7*s/2);
+    ctx.fillStyle='#333';ctx.fillRect(-22*s/2,16*s/2,6*s/2,5*s/2);ctx.fillRect(8*s/2,16*s/2,6*s/2,5*s/2);
+    ctx.fillStyle='#888';ctx.fillRect(8*s/2,-2*s/2,3*s/2,12*s/2);
+    ctx.fillStyle='#5a6a80';ctx.fillRect(-18*s/2,-15*s/2,28*s/2,22*s/2);
+    ctx.fillRect(-30*s/2,-18*s/2,50*s/2,8*s/2);
+    ctx.fillStyle='#7a8a9a';ctx.fillRect(-28*s/2,-16*s/2,46*s/2,4*s/2);
+    ctx.fillStyle='#ffcc00';ctx.fillRect(-28*s/2,-16*s/2,4*s/2,3*s/2);ctx.fillRect(14*s/2,-16*s/2,4*s/2,3*s/2);
+    ctx.fillStyle='#111';ctx.fillRect(-27*s/2,-15*s/2,2*s/2,2*s/2);ctx.fillRect(15*s/2,-15*s/2,2*s/2,2*s/2);
+    ctx.fillStyle='#8a9ab0';ctx.fillRect(-14*s/2,-4*s/2,20*s/2,10*s/2);
+    ctx.fillStyle='#4a5a70';ctx.fillRect(-4*s/2,-22*s/2,6*s/2,7*s/2);
+    ctx.fillStyle='#aa8866';ctx.fillRect(-16*s/2,8*s/2,6*s/2,4*s/2);
+    ctx.fillStyle='#8899aa';ctx.fillRect(-8*s/2,7*s/2,5*s/2,5*s/2);
+    ctx.restore();
+  });
+
+  // Signal Jelly
+  add('assets/sprites/enemies/signal_jelly/jelly_red.png', 110, 140, ctx => {
+    ctx.save(); ctx.translate(55,70); const s=2.5;
+    ctx.fillStyle='#555';ctx.fillRect(-3*s,-40*s/2,6*s,12*s);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(-8*s,-52*s/2,16*s,22*s);
+    const colors=['#ff2222','#ffcc00','#22dd44'];
+    for(let i=0;i<3;i++){ctx.fillStyle=i===0?colors[i]:'#222';ctx.fillRect(-4*s,(-48+i*7)*s/2,8*s,5*s);}
+    ctx.fillStyle='rgba(150,180,220,0.7)';ctx.fillRect(-18*s,-8*s/2,36*s,20*s);ctx.fillRect(-14*s,-14*s/2,28*s,8*s);
+    ctx.fillStyle='rgba(130,160,200,0.6)';
+    for(let i=0;i<5;i++){ctx.fillRect(-14*s+i*7*s,10*s,2*s,15*s);}
+    ctx.fillStyle='#3a6a2a';ctx.fillRect(-9*s,-50*s/2,4*s,3*s);
+    ctx.restore();
+  });
+  add('assets/sprites/enemies/signal_jelly/jelly_yellow.png', 110, 140, ctx => {
+    ctx.save(); ctx.translate(55,70); const s=2.5;
+    ctx.fillStyle='#555';ctx.fillRect(-3*s,-40*s/2,6*s,12*s);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(-8*s,-52*s/2,16*s,22*s);
+    const colors=['#ff2222','#ffcc00','#22dd44'];
+    for(let i=0;i<3;i++){ctx.fillStyle=i===1?colors[i]:'#222';ctx.fillRect(-4*s,(-48+i*7)*s/2,8*s,5*s);}
+    ctx.fillStyle='rgba(150,180,220,0.7)';ctx.fillRect(-18*s,-8*s/2,36*s,20*s);ctx.fillRect(-14*s,-14*s/2,28*s,8*s);
+    ctx.fillStyle='rgba(130,160,200,0.6)';
+    for(let i=0;i<5;i++){ctx.fillRect(-14*s+i*7*s,10*s,2*s,15*s);}
+    ctx.restore();
+  });
+  add('assets/sprites/enemies/signal_jelly/jelly_green.png', 110, 140, ctx => {
+    ctx.save(); ctx.translate(55,70); const s=2.5;
+    ctx.fillStyle='#555';ctx.fillRect(-3*s,-40*s/2,6*s,12*s);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(-8*s,-52*s/2,16*s,22*s);
+    const colors=['#ff2222','#ffcc00','#22dd44'];
+    for(let i=0;i<3;i++){ctx.fillStyle=i===2?colors[i]:'#222';ctx.fillRect(-4*s,(-48+i*7)*s/2,8*s,5*s);}
+    ctx.fillStyle='rgba(150,180,220,0.7)';ctx.fillRect(-18*s,-8*s/2,36*s,20*s);ctx.fillRect(-14*s,-14*s/2,28*s,8*s);
+    ctx.fillStyle='rgba(130,160,200,0.6)';
+    for(let i=0;i<5;i++){ctx.fillRect(-14*s+i*7*s,10*s,2*s,15*s);}
+    ctx.restore();
+  });
+
+  // Boss - Leviathan (simplified)
+  status('Generating boss sprites...');
+  add('assets/sprites/enemies/boss/leviathan_idle.png', 200, 240, ctx => {
+    ctx.save(); ctx.translate(100,120); const s=1;
+    ctx.fillStyle='#08081a';ctx.fillRect(-70,-100,140,200);
+    ctx.fillStyle='#2a3a50';ctx.fillRect(-65,-95,130,190);
+    ctx.fillStyle='#3a4a60';ctx.fillRect(-50,-40,100,80);
+    ctx.fillStyle='#ff3333';ctx.fillRect(-30,-80,15,10);ctx.fillRect(15,-80,15,10);
+    ctx.fillStyle='#4a5a70';ctx.fillRect(-20,-110,40,20);
+    ctx.fillStyle='#666';ctx.fillRect(-60,60,30,40);ctx.fillRect(30,60,30,40);
+    ctx.fillStyle='#555';ctx.fillRect(-45,-95,10,30);ctx.fillRect(35,-95,10,30);
+    ctx.restore();
+  });
+
+  // Backgrounds
+  status('Generating background layers...');
+  // Stage 1
+  add('assets/backgrounds/stage1/sky.png', 960, 540, (ctx) => {
+    const g=ctx.createLinearGradient(0,0,0,540);
+    g.addColorStop(0,'#4477bb');g.addColorStop(0.4,'#77aadd');g.addColorStop(1,'#bbccdd');
+    ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+    ctx.fillStyle='#ffeeaa';ctx.fillRect(720,35,35,35);
+    ctx.fillStyle='rgba(255,238,170,0.25)';ctx.fillRect(710,25,55,55);
+    ctx.fillStyle='#dde8ff';
+    ctx.fillRect(80,55,90,22);ctx.fillRect(96,42,58,14);
+    ctx.fillRect(350,85,70,16);ctx.fillRect(362,75,46,12);
+    ctx.fillRect(650,45,75,20);ctx.fillRect(665,32,48,14);
+    ctx.fillRect(230,110,55,14);ctx.fillRect(242,100,31,12);
+  });
+  add('assets/backgrounds/stage1/buildings_far.png', 960, 540, (ctx) => {
+    const bs=[{x:10,bw:55,bh:200},{x:80,bw:40,bh:270},{x:140,bw:65,bh:220},{x:225,bw:50,bh:300},{x:300,bw:75,bh:180},{x:400,bw:45,bh:320},{x:460,bw:60,bh:240},{x:545,bw:55,bh:280},{x:625,bw:70,bh:210},{x:720,bw:50,bh:260},{x:790,bw:60,bh:230},{x:870,bw:45,bh:290}];
+    bs.forEach(b=>{
+      ctx.fillStyle='#6a7a90';ctx.fillRect(b.x,540-b.bh,b.bw,b.bh);
+      ctx.fillStyle='#7a8aa0';ctx.fillRect(b.x,540-b.bh,b.bw,6);
+      ctx.fillStyle='#8a9ab0';ctx.fillRect(b.x+b.bw*0.3,540-b.bh,b.bw*0.15,b.bh*0.12);
+    });
+  });
+  add('assets/backgrounds/stage1/buildings_mid.png', 960, 540, (ctx) => {
+    const h=540;
+    const bs=[{x:20,bw:85,bh:240},{x:130,bw:100,bh:300},{x:270,bw:70,bh:220},{x:380,bw:90,bh:340},{x:510,bw:75,bh:260},{x:620,bw:95,bh:280},{x:750,bw:80,bh:320},{x:860,bw:70,bh:250}];
+    bs.forEach(b=>{
+      const t=h-b.bh;
+      ctx.fillStyle='#556878';ctx.fillRect(b.x,t,b.bw,b.bh);
+      ctx.fillStyle='#3a4a5a';
+      for(let wy=t+18;wy<h-35;wy+=28)for(let wx=b.x+10;wx<b.x+b.bw-10;wx+=16){
+        if(Math.random()>0.3)ctx.fillRect(wx,wy,9,13);
+      }
+      ctx.fillStyle='#bbccdd';
+      for(let c=0;c<2;c++)ctx.fillRect(b.x+Math.random()*b.bw*0.5,t-3,12+Math.random()*18,8+Math.random()*20);
+    });
+    // Smog
+    ctx.fillStyle='rgba(200,210,220,0.1)';
+    ctx.beginPath();ctx.arc(100,h-80,150,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(400,h-60,200,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(750,h-100,180,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(180,190,200,0.15)';
+    ctx.beginPath();ctx.arc(250,h-40,120,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(600,h-20,160,0,Math.PI*2);ctx.fill();
+  });
+  add('assets/backgrounds/stage1/debris_near.png', 960, 540, (ctx) => {
+    ctx.fillStyle='#4a5060';
+    for(let i=0;i<25;i++)ctx.fillRect(Math.random()*960,440-Math.random()*35,5+Math.random()*14,4+Math.random()*10);
+  });
+
+  // Stage 2
+  add('assets/backgrounds/stage2/interior_sky.png', 960, 540, (ctx) => {
+    const g=ctx.createLinearGradient(0,0,0,540);
+    g.addColorStop(0,'#2a3a2a');g.addColorStop(0.5,'#3a4a3a');g.addColorStop(1,'#1a2a1a');
+    ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+  });
+  add('assets/backgrounds/stage2/walls.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#3a4a3a';ctx.fillRect(0,0,960,h);
+    for(let i=0;i<50;i++){ctx.fillStyle=`hsl(${110+Math.random()*25},${30+Math.random()*20}%,${22+Math.random()*12}%)`;ctx.fillRect(Math.random()*960,Math.random()*h,25+Math.random()*45,4+Math.random()*12);}
+    for(let i=0;i<4;i++){const wx=90+i*230;ctx.fillStyle='#2a3040';ctx.fillRect(wx,75,55,75);ctx.fillStyle='rgba(255,245,200,0.06)';ctx.beginPath();ctx.moveTo(wx,75);ctx.lineTo(wx+55,75);ctx.lineTo(wx+95,h);ctx.lineTo(wx-25,h);ctx.fill();}
+  });
+  add('assets/backgrounds/stage2/furniture.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#6a4a2a';ctx.fillRect(100,h-145,85,8);ctx.fillRect(100,h-145,6,42);ctx.fillRect(179,h-155,6,52);
+    ctx.fillStyle='#2a5a2a';ctx.fillRect(108,h-152,35,5);ctx.fillRect(118,h-160,4,18);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(400,h-155,55,42);ctx.fillStyle='#1a1a28';ctx.fillRect(405,h-150,45,32);
+    ctx.fillStyle='#2a5a2a';ctx.fillRect(395,h-168,22,16);
+    for(let i=0;i<10;i++){const fx=45+i*100;ctx.fillStyle='#2a6a2a';ctx.fillRect(fx,h-125,3,22+Math.random()*18);ctx.fillStyle=['#ee5577','#ffaa33','#ee77aa','#99bb33'][i%4];ctx.fillRect(fx-3,h-130-Math.random()*12,8,8);}
+  });
+  add('assets/backgrounds/stage2/vines.png', 960, 540, (ctx) => {
+    for(let i=0;i<14;i++){const vx=i*72;ctx.fillStyle=`hsl(${118+Math.random()*18},38%,${18+Math.random()*12}%)`;const len=55+Math.random()*220;ctx.fillRect(vx,0,3,len);for(let l=0;l<len;l+=16){ctx.fillRect(vx-5,l,5,7);ctx.fillRect(vx+3,l+9,5,7);}}
+  });
+
+  // Stage 3
+  add('assets/backgrounds/stage3/night_sky.png', 960, 540, (ctx) => {
+    const g=ctx.createLinearGradient(0,0,0,540);
+    g.addColorStop(0,'#12101a');g.addColorStop(0.5,'#221828');g.addColorStop(1,'#080510');
+    ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+    ctx.fillStyle='#fff';for(let i=0;i<35;i++){ctx.globalAlpha=0.25+Math.random()*0.6;ctx.fillRect(Math.random()*960,Math.random()*240,2,2);}ctx.globalAlpha=1;
+  });
+  add('assets/backgrounds/stage3/crater.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#22202e';ctx.fillRect(0,h*0.55,960,h*0.45);
+    ctx.fillStyle='#2e2a38';for(let x=0;x<960;x+=4)ctx.fillRect(x,h*0.53+Math.sin(x*0.02)*18,4,8);
+    ctx.fillStyle='rgba(180,80,40,0.04)';ctx.fillRect(0,h*0.65,960,h*0.35);
+  });
+  add('assets/backgrounds/stage3/edge.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#2e2838';ctx.fillRect(0,h-125,960,125);
+    ctx.fillStyle='#1a1020';for(let i=0;i<18;i++)ctx.fillRect(Math.random()*960,h-125,2,40+Math.random()*85);
+    ctx.fillStyle='#3e3848';for(let i=0;i<12;i++)ctx.fillRect(Math.random()*960,h-135-Math.random()*22,16+Math.random()*22,10+Math.random()*16);
+  });
+  add('assets/backgrounds/stage3/abyss.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='rgba(160,50,25,0.03)';ctx.fillRect(0,h-85,960,85);
+    ctx.fillStyle='#221828';for(let x=0;x<960;x+=9)ctx.fillRect(x,h-110+Math.random()*16,7,110);
+  });
+
+  // Send to server
+  status(`Sending ${sprites.length} sprites to server...`);
+  try {
+    const resp = await fetch('http://localhost:8090/save-sprites', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ sprites })
+    });
+    const result = await resp.json();
+    status(`Done! Saved ${result.saved} sprites.`);
+  } catch(e) {
+    status('Error: ' + e.message + '. Is generate_assets.py running?');
+  }
+}
+
+bakeAll();
+</script>
+</body></html>
