@@ -1,215 +1,265 @@
+/* =========================================
+   Design System: Cyber-Urushi Modern
+   ========================================= */
 :root {
-    --urushi-black: #050505;
-    --urushi-dark: #151515;
-    --urushi-red: #C22026; /* 朱色 */
-    --urushi-gold: #D4AF37; /* 金箔 */
-    --text-color: #F0F0F0;
-    --font-kanji: 'Noto Serif JP', serif;
-    --font-romaji: 'Outfit', sans-serif;
+    --bg-dark: #0a0a0b;
+    --accent-red: #e63946;
+    --accent-gold: #d4af37;
+    --glass-bg: rgba(20, 20, 25, 0.95);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --text-primary: #f0f0f0;
+    --text-secondary: #a0a0a0;
+    --sidebar-width: 260px;
+    --font-jp: 'Noto Serif JP', serif;
+    --font-en: 'Outfit', sans-serif;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-    background-color: var(--urushi-black);
-    color: var(--text-color);
-    font-family: var(--font-kanji);
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-en), var(--font-jp);
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     overflow-x: hidden;
 }
 
-/* 漆塗りの光沢をシミュレートする背景エフェクト */
+/* Background */
 .urushi-bg {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at 50% 0%, rgba(25,25,25,1) 0%, rgba(3,3,3,1) 70%);
-    pointer-events: none;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at 50% 50%, rgba(230, 57, 70, 0.05) 0%, transparent 80%),
+                linear-gradient(135deg, #0a0a0b 0%, #1a1a1d 100%);
     z-index: -1;
 }
-.urushi-bg::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 40%, rgba(255,255,255,0.01) 80%);
+
+/* Layout */
+.app-wrapper {
+    display: flex;
+    min-height: 100vh;
 }
 
-.container {
+/* Sidebar (Abe Hiroshi Inspired) */
+.sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    position: fixed;
+    left: 0; top: 0;
+    background: var(--glass-bg);
+    border-right: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    padding: 3rem 0;
+}
+
+.favicon-container {
+    padding: 0 3rem;
+    margin-bottom: 4rem;
+}
+
+.top-left-favicon {
+    width: 75px;
+    height: 75px;
+    border-radius: 14px;
+    border: 2px solid var(--accent-red);
+    box-shadow: 0 0 25px rgba(230, 57, 70, 0.35);
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.top-left-favicon:hover { transform: scale(1.1) rotate(5deg); }
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nav-item {
+    padding: 1.2rem 3rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 3px;
+    transition: all 0.3s ease;
+    border-left: 5px solid transparent;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.nav-item:hover, .nav-item.active {
+    color: var(--accent-red);
+    background: rgba(230, 57, 70, 0.1);
+    border-left-color: var(--accent-red);
+    padding-left: 3.5rem;
+}
+
+/* Main Content */
+.main-content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    padding: 6rem 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center horizontally */
+}
+
+.page-view {
     width: 100%;
     max-width: 1200px;
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: none;
+    animation: fadeIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
 
+.page-view.active { display: block; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Centered Logo Section */
 .logo-section {
     text-align: center;
-    margin-top: 5rem;
-    margin-bottom: 7rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-}
-
-/* ロゴ下部の朱色の装飾線 */
-.logo-section::after {
-    content: '';
-    position: absolute;
-    bottom: -25px;
-    width: 80px;
-    height: 3px;
-    background-color: var(--urushi-red);
-    box-shadow: 0 0 15px rgba(194,32,38,0.4);
-    border-radius: 2px;
+    margin-bottom: 6rem;
+    padding-top: 2rem;
 }
 
 .romaji {
-    font-family: var(--font-romaji);
-    font-size: 1.1rem;
-    font-weight: 300;
-    letter-spacing: 0.6em;
-    margin-right: -0.6em; /* letter-spacingの調整 */
-    color: var(--urushi-gold);
-    opacity: 0.85;
-    margin-bottom: 0.8rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    font-size: 0.9rem;
+    letter-spacing: 0.8rem;
+    color: var(--accent-red);
+    margin-bottom: 1rem;
+    opacity: 0.9;
+    text-transform: uppercase;
 }
 
 .kanji {
-    font-family: var(--font-kanji);
-    font-size: 4.5rem;
+    font-size: 6rem;
+    font-family: var(--font-jp);
     font-weight: 700;
-    letter-spacing: 0.15em;
-    margin-right: -0.15em;
-    color: #F8F8F8;
-    text-shadow: 2px 2px 8px rgba(0,0,0,0.9), 0 0 1px rgba(255,255,255,0.2);
+    background: linear-gradient(to bottom, #ffffff 40%, #777777 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(255,255,255,0.1));
 }
 
-/* ゲームセクション */
+/* Game Cards */
 .games-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 3rem;
     width: 100%;
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 2.5rem;
 }
 
 .game-card {
     text-decoration: none;
     color: inherit;
     display: block;
-    width: 100%;
-    max-width: 380px;
-    perspective: 1000px;
 }
 
 .card-inner {
-    background-color: var(--urushi-dark);
-    border: 1px solid rgba(255,255,255,0.03);
-    border-left: 4px solid var(--urushi-red);
-    border-radius: 4px;
-    padding: 2.5rem;
-    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 3rem;
+    height: 100%;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
     overflow: hidden;
-    transform: translateZ(0); /* ハードウェアアクセラレーション */
-}
-
-/* ホバー時の漆光沢エフェクト */
-.card-inner::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -100%;
-    width: 60%;
-    height: 200%;
-    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0) 100%);
-    transform: rotate(30deg);
-    transition: all 0.7s ease;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(5px);
 }
 
 .game-card:hover .card-inner {
-    transform: translateY(-8px);
-    border-left: 4px solid var(--urushi-gold);
-    border-color: rgba(255,255,255,0.06);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.08);
-}
-
-.game-card:hover .card-inner::before {
-    left: 200%;
-}
-
-.card-header {
-    margin-bottom: 1.5rem;
+    transform: translateY(-15px) scale(1.02);
+    border-color: var(--accent-red);
+    background: rgba(230, 57, 70, 0.08);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
 
 .game-tag {
-    font-family: var(--font-romaji);
     font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.15em;
-    color: var(--urushi-black);
-    background-color: var(--urushi-gold);
-    padding: 0.3rem 0.8rem;
-    border-radius: 2px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    color: var(--accent-red);
+    border: 1px solid var(--accent-red);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: 800;
+    display: inline-block;
+    margin-bottom: 2rem;
+    letter-spacing: 1px;
 }
 
 .card-body h2 {
-    font-family: var(--font-romaji);
-    font-size: 1.7rem;
-    margin-bottom: 0.8rem;
-    color: #fff;
-    font-weight: 500;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    font-size: 2.2rem;
+    margin-bottom: 1.2rem;
+    line-height: 1.2;
 }
 
 .card-body p {
-    font-size: 0.95rem;
-    color: #aaa;
-    line-height: 1.7;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.8;
 }
 
 .card-footer {
-    margin-top: 2.5rem;
+    margin-top: auto;
+    padding-top: 3rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-family: var(--font-romaji);
-    color: var(--urushi-red);
-    transition: color 0.3s ease;
-}
-
-.game-card:hover .card-footer {
-    color: var(--urushi-gold);
-}
-
-.play-text {
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.15em;
+    font-weight: 900;
+    font-size: 0.8rem;
+    letter-spacing: 3px;
 }
 
 .arrow-icon {
-    font-size: 1.2rem;
-    transition: transform 0.3s ease;
+    font-size: 1.5rem;
+    transition: transform 0.4s ease;
 }
 
-.game-card:hover .arrow-icon {
-    transform: translateX(8px);
+.game-card:hover .arrow-icon { transform: translateX(12px); }
+
+/* About Section */
+.about-section {
+    background: #000;
+    border: 2px solid var(--accent-gold);
+    border-radius: 16px;
+    padding: 5rem;
+    min-height: 60vh;
+    position: relative;
+    box-shadow: inset 0 0 100px rgba(212, 175, 55, 0.1), 0 0 30px rgba(0,0,0,0.5);
+}
+
+.about-section::before {
+    content: "SOURCE_OVERRIDE_ENABLED";
+    position: absolute;
+    top: 20px; right: 30px;
+    font-size: 0.7rem;
+    color: var(--accent-gold);
+    opacity: 0.6;
+}
+
+.about-text {
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--accent-gold);
+    font-size: 2.5rem;
+    text-align: center;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 900px) {
+    .sidebar { width: 90px; }
+    .favicon-container { padding: 0 15px; }
+    .top-left-favicon { width: 60px; height: 60px; }
+    .nav-item { font-size: 0; padding: 2rem; text-align: center; }
+    .nav-item::after { content: "●"; font-size: 1.5rem; }
+    .main-content { margin-left: 90px; padding: 3rem 2rem; }
+    .kanji { font-size: 3.5rem; }
+    .logo-section { margin-bottom: 4rem; }
 }
