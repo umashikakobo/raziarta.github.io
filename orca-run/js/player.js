@@ -6,11 +6,15 @@ class Player {
     this.hw = 14; this.hh = 18;
     this.standHH = 18; this.crouchHH = 8;
     this.speed = 4.5;
-    this.jumpForce = -9.5; this.doubleJumpForce = -8;
+    // Jump State
+    this.jumpCount = 0;
+    this.maxJumps = 2;
+    this.jumpForce = -15.0208188858; // Increased for ~2.5x height
+    this.doubleJumpForce = -13.0;
+    
     this.hp = 100; this.maxHp = 100;
     this.alive = true;
     this.onGround = false;
-    this.canDoubleJump = true;
     this.facing = 1;
     this.frame = 0;
     this.crouching = false;
@@ -24,9 +28,12 @@ class Player {
     this.damaged = false; this.dmgFlash = 0;
     // Attack buff
     this.atkMultiplier = 1;
+    this.jumpTimer = 0;
+    this.isBoosting = false;
+    this.lastWDown = false;
   }
 
-  update(keys, mouseL, mouseR, platforms, camX) {
+  update(keys, mouseL, mouseR, platforms, camX, screenW, screenH) {
     this.frame++;
     if (this.invincible) { this.invTimer--; if (this.invTimer<=0) { this.invincible=false; this.damaged=false; } }
     if (this.knockback) { this.kbTimer--; if (this.kbTimer<=0) this.knockback=false; }
@@ -54,16 +61,36 @@ class Player {
       this.vx = 0;
     }
 
-    // Jump (disabled during crouch)
-    if ((keys['Space']||keys[' ']) && !this.crouching) {
+    // Jump Logic (W key)
+    const isWDown = keys['w'] || keys['W'];
+    const jumpJustPressed = isWDown && !this.lastWDown;
+    this.lastWDown = isWDown;
+
+    if (jumpJustPressed && !this.crouching) {
       if (this.onGround) {
-        this.vy = this.jumpForce; this.onGround = false; this.canDoubleJump = true;
+        // --- 1st Jump: Variable Height (Mario-style) ---
+        this.vy = -8; // Set to -8 as requested
+        this.onGround = false;
+        this.jumpCount = 1;
+        this.jumpTimer = 10;
+        this.isBoosting = true;
         if(typeof AudioManager!=='undefined') AudioManager.playSE('jump');
-      } else if (this.canDoubleJump) {
-        this.vy = this.doubleJumpForce; this.canDoubleJump = false;
+      } else if (this.jumpCount < this.maxJumps) {
+        // --- 2nd Jump: Fixed Height (Double Jump Spec) ---
+        this.vy = -7.0; // Updated to -7.0 as requested
+        this.jumpCount++;
+        this.isBoosting = false; // Cancel any boost from 1st jump
         if(typeof AudioManager!=='undefined') AudioManager.playSE('jump');
       }
-      keys['Space']=false; keys[' ']=false;
+    }
+    
+    // Hold W to boost (Only for the 1st jump)
+    if (isWDown && this.isBoosting && this.jumpTimer > 0) {
+      this.vy -= 0.8; // Set to 0.8 as requested
+      this.jumpTimer--;
+    } else {
+      this.isBoosting = false;
+      this.jumpTimer = 0;
     }
 
     // Shoot normal (left click or Z) - disabled during crouch
@@ -85,11 +112,14 @@ class Player {
     const wasOnGround = this.onGround;
     this.onGround = Physics.groundCheck(this);
     if (!this.onGround) this.onGround = Physics.platformCheck(this, platforms, camX);
-    if (this.onGround && !wasOnGround) {
-      if(typeof AudioManager!=='undefined') AudioManager.playSE('land');
+    if (this.onGround) {
+      this.jumpCount = 0;
+      if (!wasOnGround) {
+        if(typeof AudioManager!=='undefined') AudioManager.playSE('land');
+      }
     }
-    Physics.clampToScreen(this, 960);
-    if (Physics.pitCheck(this)) { this.hp=0; this.alive=false; }
+    Physics.clampToScreen(this, screenW);
+    if (Physics.pitCheck(this, screenH)) { this.hp=0; this.alive=false; }
     if (this.hp<=0) this.alive=false;
     if (this.dmgFlash>0) this.dmgFlash--;
 
@@ -103,13 +133,13 @@ class Player {
   }
 
   shootNormal() {
-    const bx=this.x+this.facing*40, by=this.y-2;
+    const bx=this.x+this.facing*40, by=this.y-27;
     ProjectileManager.addPlayerBullet(bx, by, this.facing, 'normal', this.atkMultiplier);
     if(typeof AudioManager!=='undefined') AudioManager.playSE('shoot');
   }
 
   shootBomb() {
-    const bx=this.x+this.facing*40, by=this.y-5;
+    const bx=this.x+this.facing*40, by=this.y-30;
     ProjectileManager.addPlayerBullet(bx, by, this.facing, 'bomb', this.atkMultiplier);
     if(typeof AudioManager!=='undefined') AudioManager.playSE('bombShoot');
   }
@@ -140,5 +170,6 @@ class Player {
     this.invincible=false;this.knockback=false;this.crouching=false;
     this.shotCooldown=0;this.bombCooldown=0;this.frame=0;this.facing=1;
     this.canDoubleJump=true;this.atkMultiplier=1;this.hh=this.standHH;
+    this.isBoosting=false;this.jumpTimer=0;this.lastWDown=false;
   }
 }

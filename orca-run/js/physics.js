@@ -45,5 +45,5 @@ const Physics = {
     if (e.y - e.hh < 0) { e.y = e.hh; e.vy = 0; }
   },
 
-  pitCheck(e) { return e.y > 580; },
+  pitCheck(e, screenH) { return e.y > (screenH || 540) + 40; },
 };

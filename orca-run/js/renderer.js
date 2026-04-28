@@ -19,9 +19,17 @@ const Renderer = {
     }
 
     if (img) {
-      // The baked sprites had player origin at (60, 40) for standing/damaged/walk and (60, 30) for crouching
-      const ox = 60, oy = crouching ? 30 : 40;
-      ctx.drawImage(img, -ox * scale, -oy * scale, img.width * scale, img.height * scale);
+      // Use fixed drawing dimensions so high-res sprites are scaled correctly
+      const baseW = 70;
+      const baseH = crouching ? 40 : 70; // Crouch height updated to 40
+      const dw = baseW * scale;
+      const dh = baseH * scale;
+      
+      // Center horizontally, and set vertical origin to the feet
+      const ox = dw / 2;
+      const oy = crouching ? dh * 0.95 : dh * 0.82; // Adjusted oy for crouch alignment
+      
+      ctx.drawImage(img, -ox, -oy, dw, dh);
     }
     ctx.restore();
   },
@@ -147,7 +155,7 @@ const Renderer = {
 
   drawPlatform(ctx, plat, camX) {
     const px = plat.x - camX, py = plat.y;
-    if (px + plat.w < 0 || px > 960) return;
+    if (px + plat.w < 0 || px > Game.width) return;
     ctx.fillStyle = '#3a3a4a';
     ctx.fillRect(px, py, plat.w, plat.h);
     ctx.fillStyle = '#4a4a5a';

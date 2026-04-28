@@ -5,7 +5,7 @@ const Ending = {
   start(score,time){
     this.active=true;this.phase=0;this.timer=0;this.alpha=0;this.textAlpha=0;this.orcaX=-60;
     this.score=score;this.clearTime=time;
-    this.stars=[];for(let i=0;i<70;i++)this.stars.push({x:Math.random()*960,y:Math.random()*280,size:1+Math.random()*2,tw:Math.random()*6.28,sp:0.02+Math.random()*0.03});
+    this.stars=[];for(let i=0;i<70;i++)this.stars.push({x:Math.random()*Game.width,y:Math.random()*(Game.height*0.6),size:1+Math.random()*2,tw:Math.random()*6.28,sp:0.02+Math.random()*0.03});
     AudioManager.stopAll();
   },
   update(){
@@ -28,7 +28,8 @@ const Ending = {
     ctx.globalAlpha=1;
     // City silhouette
     ctx.fillStyle='#0a0818';
-    [0,55,140,195,300,370,440,530,610,690,770,850].forEach((bx,i)=>{const bh=75+((i*41+11)%130);ctx.fillRect(bx,h-95-bh,48+(i%3)*22,bh+95);});
+    const cityBaseX = (w - 960) / 2;
+    [0,55,140,195,300,370,440,530,610,690,770,850].forEach((bx,i)=>{const bh=75+((i*41+11)%130);ctx.fillRect(cityBaseX+bx,h-95-bh,48+(i%3)*22,bh+95);});
     ctx.fillRect(0,h-95,w,95);ctx.fillStyle='#1a1428';ctx.fillRect(0,h-95,w,3);
     if(this.phase===1){ctx.fillStyle=`rgba(255,255,255,${this.alpha})`;ctx.fillRect(0,0,w,h);}
     if(this.phase>=2){

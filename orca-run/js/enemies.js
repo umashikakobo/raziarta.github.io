@@ -4,7 +4,7 @@ class Enemy {
     const data = AssetLoader.getEnemy(type);
     this.type = type;
     this.x = x;
-    this.y = Physics.GROUND_Y - data.hh;
+    this.y = Physics.GROUND_Y - data.hh - 25;
     this.hw = data.hw;
     this.hh = data.hh;
     this.hp = data.hp;
@@ -35,7 +35,7 @@ class VendingMachine extends Enemy {
   update(ss, px, py) {
     this.frame++; this.x -= ss; if (this.x < -50) this.alive = false;
     this.shootTimer++; this.shooting = false;
-    if (this.shootTimer >= this.shootInterval && this.x > 0 && this.x < 960) {
+    if (this.shootTimer >= this.shootInterval && this.x > 0 && this.x < Game.width) {
       this.shooting = true;
       const dx = px - this.x, dy = py - this.y, dist = Math.sqrt(dx * dx + dy * dy) || 1;
       ProjectileManager.addEnemyBullet(this.x, this.y + 5, (dx / dist) * 6.5, (dy / dist) * 6.5, 'can');
@@ -50,7 +50,7 @@ class VendingMachine extends Enemy {
 class ACHermitCrab extends Enemy {
   constructor(x) {
     super(x, 'ac_hermit_crab');
-    this.y = 50;
+    this.y = 25;
     this.scrollWith = true;
     this.state = 'hover';
     this.hoverTimer = 60;
@@ -61,7 +61,7 @@ class ACHermitCrab extends Enemy {
   update(ss, px, py) {
     this.frame++; this.x -= ss * 0.5; if (this.x < -50) this.alive = false;
     if (this.state === 'hover') {
-      this.y = 50 + Math.sin(this.frame * 0.05) * 15; this.hoverTimer--;
+      this.y = 25 + Math.sin(this.frame * 0.05) * 15; this.hoverTimer--;
       if (this.hoverTimer <= 0) { this.state = 'dive'; this.targetX = px; this.targetY = py; this.diving = true; }
     } else if (this.state === 'dive') {
       const dx = this.targetX - this.x, dy = this.targetY - this.y;
@@ -79,7 +79,7 @@ class ACHermitCrab extends Enemy {
 
 class CartShark extends Enemy {
   constructor() {
-    super(960, 'cart_shark');
+    super(Game.width, 'cart_shark');
     const data = AssetLoader.getEnemy('cart_shark');
     this.maxHp = data.maxHp;
     this.state = 'enter';
@@ -110,10 +110,10 @@ class CartShark extends Enemy {
 
 class SignalJelly extends Enemy {
   constructor() {
-    super(960, 'signal_jelly');
+    super(Game.width, 'signal_jelly');
     const data = AssetLoader.getEnemy('signal_jelly');
     this.maxHp = data.maxHp;
-    this.y = 200;
+    this.y = 175 + Game.height * 0.15;
     this.state = 'enter';
     this.stateTimer = 120;
     this.signalColor = 0;
@@ -121,7 +121,8 @@ class SignalJelly extends Enemy {
   }
   update(player) {
     this.frame++; this.stateTimer--;
-    this.y = 180 + Math.sin(this.frame * 0.02) * 120;
+    const baseY = 155 + Game.height * 0.15;
+    this.y = baseY + Math.sin(this.frame * 0.02) * 120;
     switch (this.state) {
       case 'enter': this.x -= 2; if (this.x <= 650) { this.state = 'signal'; this.stateTimer = 120; this.signalColor = 0; this.signalTimer = 0; } break;
       case 'signal': this.signalTimer++;
@@ -153,9 +154,9 @@ const EnemyManager = {
   enemies: [], midBoss: null, enabled: true,
   init() { this.enemies = []; this.midBoss = null; this.enabled = true; },
   spawn(type) {
-    if (type === 'tireShark') this.enemies.push(new TireShark(980));
-    else if (type === 'vendingMachine') this.enemies.push(new VendingMachine(980));
-    else if (type === 'acHermitCrab') this.enemies.push(new ACHermitCrab(980));
+    if (type === 'tireShark') this.enemies.push(new TireShark(Game.width + 20));
+    else if (type === 'vendingMachine') this.enemies.push(new VendingMachine(Game.width + 20));
+    else if (type === 'acHermitCrab') this.enemies.push(new ACHermitCrab(Game.width + 20));
   },
   spawnMidBoss(type) {
     if (type === 'cartShark') this.midBoss = new CartShark();

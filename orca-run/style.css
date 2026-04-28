@@ -5,12 +5,11 @@ body {
   min-height:100vh; overflow:hidden; font-family:'Press Start 2P',monospace;
 }
 #game-container {
-  position:relative; width:960px; height:540px;
-  border:2px solid #1a1a2e;
-  box-shadow:0 0 60px rgba(80,120,255,0.1),inset 0 0 30px rgba(0,0,0,0.6);
+  position:relative; width:100vw; height:100vh;
+  overflow: hidden;
 }
 #gameCanvas {
-  display:block; width:960px; height:540px;
+  display:block; width:100%; height:100%;
   image-rendering:pixelated; image-rendering:crisp-edges; background:#0a0a15;
 }
 .overlay {
@@ -41,7 +40,23 @@ body {
 .start-prompt { font-size:11px; color:#7799cc; margin-top:24px; }
 .blink { animation:blink 1.4s ease-in-out infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
-.controls-hint { margin-top:20px; font-size:7px; color:#3a4a5a; line-height:2.2; }
+.controls-hint {
+  margin-top: 30px;
+  background: rgba(20, 40, 80, 0.7);
+  padding: 15px 30px;
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  display: inline-block;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.controls-hint p {
+  color: #a0c0f0;
+  font-size: 8px;
+  margin: 8px 0;
+  line-height: 1.8;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
 .gameover-title {
   font-size:32px; color:#ee5555; letter-spacing:6px;
   text-shadow:0 0 25px rgba(255,60,60,0.4),0 3px 0 #3a1515;

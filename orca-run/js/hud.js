@@ -4,44 +4,44 @@ const HUD = {
 
   draw(ctx, player, boss, midBoss, score, subtitle, subtitleTimer) {
     // HP Bar
-    this._hpBar(ctx, 20, 18, 200, 16, player.hp, player.maxHp, '#33cc55', 'HP');
+    this._hpBar(ctx, 32, 28, 320, 25, player.hp, player.maxHp, '#33cc55', 'HP');
     // ATK buff
     if (Inventory.atkUpActive) {
-      ctx.fillStyle = '#ff6633'; ctx.font = '9px "Press Start 2P"';
-      ctx.fillText(`ATK x2  ${Math.ceil(Inventory.atkUpTimer / 60)}s`, 20, 52);
+      ctx.fillStyle = '#ff6633'; ctx.font = '14px "Press Start 2P"';
+      ctx.fillText(`ATK x2  ${Math.ceil(Inventory.atkUpTimer / 60)}s`, 32, 80);
     }
     // Inventory
-    this._inventory(ctx, 20, 58);
+    this._inventory(ctx, 32, 90);
     // Score
     ctx.fillStyle = '#ccc'; ctx.font = '10px "Press Start 2P"'; ctx.textAlign = 'right';
-    ctx.fillText(`SCORE: ${score}`, 940, 28);
+    ctx.fillText(`SCORE: ${score}`, Game.width - 20, 28);
     ctx.textAlign = 'left';
 
     // === Reload UI (bottom-right) ===
-    const rlX = 850, rlY = 490;
+    const rlX = Game.width - 176, rlY = Game.height - 80;
     // Normal shot cooldown
     const shotRatio = 1 - player.shotCooldown / player.shotCooldownMax;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(rlX, rlY, 90, 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(rlX, rlY, 144, 19);
     ctx.fillStyle = shotRatio >= 1 ? '#44cc66' : '#446688';
-    ctx.fillRect(rlX, rlY, 90 * shotRatio, 12);
-    ctx.fillStyle = '#aaa'; ctx.font = '6px "Press Start 2P"';
-    ctx.fillText('SHOT', rlX + 2, rlY + 9);
+    ctx.fillRect(rlX, rlY, 144 * shotRatio, 19);
+    ctx.fillStyle = '#aaa'; ctx.font = '9px "Press Start 2P"';
+    ctx.fillText('SHOT', rlX + 3, rlY + 14);
     // Bomb cooldown
     const bombRatio = 1 - player.bombCooldown / player.bombCooldownMax;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(rlX, rlY + 16, 90, 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(rlX, rlY + 25, 144, 19);
     ctx.fillStyle = bombRatio >= 1 ? '#ff8833' : '#664422';
-    ctx.fillRect(rlX, rlY + 16, 90 * bombRatio, 12);
-    ctx.fillStyle = '#aaa'; ctx.font = '6px "Press Start 2P"';
-    ctx.fillText('BOMB', rlX + 2, rlY + 25);
+    ctx.fillRect(rlX, rlY + 25, 144 * bombRatio, 19);
+    ctx.fillStyle = '#aaa'; ctx.font = '9px "Press Start 2P"';
+    ctx.fillText('BOMB', rlX + 3, rlY + 39);
 
     // Boss HP
     if (boss && boss.alive) {
-      this._hpBar(ctx, 250, 12, 460, 14, boss.hp, boss.maxHp, '#ee3333', 'LEVIATHAN');
+      this._hpBar(ctx, Game.width / 2 - 368, 19, 736, 22, boss.hp, boss.maxHp, '#ee3333', 'LEVIATHAN');
     }
     // Mid-boss HP
     if (midBoss && midBoss.alive) {
       const name = midBoss.type === 'cartShark' ? 'CART SHARK' : 'SIGNAL JELLY';
-      this._hpBar(ctx, 300, 12, 360, 14, midBoss.hp, midBoss.maxHp, '#dd6633', name);
+      this._hpBar(ctx, Game.width / 2 - 288, 19, 576, 22, midBoss.hp, midBoss.maxHp, '#dd6633', name);
     }
 
     // === Damage Popups ===
@@ -60,12 +60,12 @@ const HUD = {
       ctx.globalAlpha = alpha;
       // Semi-transparent bar
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(0, 470, 960, 40);
+      ctx.fillRect(0, Game.height - 70, Game.width, 40);
       // Text
       ctx.fillStyle = '#d8d0c8';
       ctx.font = '13px "DotGothic16"';
       ctx.textAlign = 'center';
-      ctx.fillText(subtitle, 480, 496);
+      ctx.fillText(subtitle, Game.width / 2, Game.height - 44);
       ctx.textAlign = 'left';
       ctx.restore();
     }
@@ -73,24 +73,24 @@ const HUD = {
 
   _hpBar(ctx, x, y, w, h, cur, max, color, label) {
     const r = Math.max(0, cur / max);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
     ctx.fillStyle = '#222'; ctx.fillRect(x, y, w, h);
     ctx.fillStyle = color; ctx.fillRect(x, y, w * r, h);
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y, w * r, h / 3);
-    ctx.fillStyle = '#eee'; ctx.font = '7px "Press Start 2P"';
-    ctx.fillText(label, x + 3, y + h - 3);
+    ctx.fillStyle = '#eee'; ctx.font = '11px "Press Start 2P"';
+    ctx.fillText(label, x + 4, y + h - 4);
     ctx.textAlign = 'right';
-    ctx.fillText(`${Math.max(0, Math.ceil(cur))}/${max}`, x + w - 3, y + h - 3);
+    ctx.fillText(`${Math.max(0, Math.ceil(cur))}/${max}`, x + w - 4, y + h - 4);
     ctx.textAlign = 'left';
   },
 
   _inventory(ctx, x, y) {
     for (let i = 0; i < 3; i++) {
-      const sx = x + i * 38;
-      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(sx, y, 32, 32);
-      ctx.strokeStyle = '#445'; ctx.lineWidth = 1; ctx.strokeRect(sx, y, 32, 32);
-      ctx.fillStyle = '#666'; ctx.font = '6px "Press Start 2P"'; ctx.fillText(String(i + 1), sx + 2, y + 9);
-      if (Inventory.slots[i]) Renderer.drawItem(ctx, sx + 16, y + 19, 1.3, Inventory.slots[i], 0);
+      const sx = x + i * 60;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(sx, y, 51, 51);
+      ctx.strokeStyle = '#445'; ctx.lineWidth = 1.6; ctx.strokeRect(sx, y, 51, 51);
+      ctx.fillStyle = '#666'; ctx.font = '9px "Press Start 2P"'; ctx.fillText(String(i + 1), sx + 3, y + 14);
+      if (Inventory.slots[i]) Renderer.drawItem(ctx, sx + 25, y + 30, 2.0, Inventory.slots[i], 0);
     }
   },
 };

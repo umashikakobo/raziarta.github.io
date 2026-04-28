@@ -8,14 +8,14 @@ const ParticleSystem = {
 };
 
 const Game = {
-  canvas:null, ctx:null, width:960, height:540,
   state:'LOADING', keys:{}, mouseL:false, mouseR:false,
   player:null, boss:null, score:0, totalFrames:0,
 
   async init(){
     this.canvas=document.getElementById('gameCanvas');
-    this.canvas.width=this.width;this.canvas.height=this.height;
-    this.ctx=this.canvas.getContext('2d');this.ctx.imageSmoothingEnabled=false;
+    this.ctx=this.canvas.getContext('2d');
+    this.resize();
+    this.ctx.imageSmoothingEnabled=false;
 
     // Start rendering the loading screen (canvas just black, DOM overlay handles UI)
     this.loop();
@@ -38,6 +38,7 @@ const Game = {
       this.canvas.addEventListener('mousedown',e=>{if(e.button===0)this.mouseL=true;if(e.button===2)this.mouseR=true;});
       this.canvas.addEventListener('mouseup',e=>{if(e.button===0)this.mouseL=false;if(e.button===2)this.mouseR=false;});
       this.canvas.addEventListener('contextmenu',e=>e.preventDefault());
+      window.addEventListener('resize',()=>this.resize());
       
       // Overlay clicks
       document.getElementById('title-screen').addEventListener('click',()=>{if(this.state==='TITLE')this.startGame();});
@@ -74,6 +75,20 @@ const Game = {
     Ending.active=false;this.state='TITLE';this.boss=null;AudioManager.stopAll();
   },
 
+  resize(){
+    this.width=window.innerWidth;
+    this.height=window.innerHeight;
+    if(this.canvas){
+      this.canvas.width=this.width;
+      this.canvas.height=this.height;
+      if(this.ctx) this.ctx.imageSmoothingEnabled=false;
+    }
+    // Update physics constants if they exist
+    if(typeof Physics!=='undefined'){
+      Physics.GROUND_Y = this.height - 80;
+    }
+  },
+
   update(){
     if(this.state==='LOADING')return;
     if(this.state==='TITLE')return;
@@ -92,7 +107,7 @@ const Game = {
     const camX=LevelManager.camX;
 
     // Player update
-    this.player.update(this.keys,this.mouseL,this.mouseR,platforms,camX);
+    this.player.update(this.keys,this.mouseL,this.mouseR,platforms,camX,this.width,this.height);
     // Reset right click after use
     if(this.mouseR)this.mouseR=false;
 
