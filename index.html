@@ -4,66 +4,386 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- SEOメタタグ (検索エンジン対策) -->
+    <!-- SEOメタタグ -->
     <title>馬鹿工房 (UMA SHIKA KOBO) | オリジナルWebゲーム＆アプリ</title>
     <link rel="icon" href="favicon.jpg" type="image/jpg">
     <meta name="description" content="馬鹿工房 (UMA SHIKA KOBO) は、サイバーパンク風3D迷路など、オリジナルブラウザゲームやWebアプリを公開しているポータルサイトです。">
     <meta name="keywords" content="馬鹿工房, 馬鹿工房, UMA SHIKA KOBO, ブラウザゲーム, 3Dゲーム, Webアプリ, インディーズゲーム">
     <meta name="author" content="馬鹿工房">
     
-    <!-- OGP (SNSでシェアされた時の表示用設定) -->
+    <!-- OGP -->
     <meta property="og:title" content="馬鹿工房 (UMA SHIKA KOBO) 公式サイト">
     <meta property="og:description" content="サイバーパンク風3D迷路など、オリジナルブラウザゲームやWebアプリを公開しているポータルサイトです。">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
-    <script type="module" src="./main.js"></script>
+
+    <style>
+        /* =========================================
+           Design System: Cyber-Urushi Modern
+           ========================================= */
+        :root {
+            --bg-dark: #0a0a0b;
+            --accent-red: #e63946;
+            --accent-gold: #d4af37;
+            --glass-bg: rgba(20, 20, 25, 0.9);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0a0;
+            --sidebar-width: 260px;
+            --font-jp: 'Noto Serif JP', serif;
+            --font-en: 'Outfit', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: var(--font-en), var(--font-jp);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background */
+        .urushi-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(230, 57, 70, 0.05) 0%, transparent 80%),
+                        linear-gradient(135deg, #0a0a0b 0%, #1a1a1d 100%);
+            z-index: -1;
+        }
+
+        /* Layout */
+        .app-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar (Abe Hiroshi Inspired Layout) */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0; top: 0;
+            background: var(--glass-bg);
+            border-right: 1px solid var(--border-color);
+            backdrop-filter: blur(15px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            padding: 2.5rem 0;
+        }
+
+        .favicon-container {
+            padding: 0 2.5rem;
+            margin-bottom: 3.5rem;
+        }
+
+        .top-left-favicon {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            border: 2px solid var(--accent-red);
+            box-shadow: 0 0 20px rgba(230, 57, 70, 0.3);
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .top-left-favicon:hover { transform: scale(1.05); }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            padding: 1.2rem 2.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            color: var(--accent-red);
+            background: rgba(230, 57, 70, 0.08);
+            border-left-color: var(--accent-red);
+            padding-left: 3rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 4rem;
+            max-width: 1400px;
+        }
+
+        .page-view {
+            display: none;
+            animation: fadeIn 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+
+        .page-view.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Logo Section */
+        .logo-section { margin-bottom: 5rem; }
+        .romaji {
+            font-size: 0.8rem;
+            letter-spacing: 0.6rem;
+            color: var(--accent-red);
+            margin-bottom: 0.8rem;
+        }
+        .kanji {
+            font-size: 4.5rem;
+            font-family: var(--font-jp);
+            font-weight: 700;
+            background: linear-gradient(to bottom, #fff 30%, #888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Game Cards (Keeping original structure but premium styling) */
+        .games-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 2.5rem;
+        }
+
+        .game-card {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .card-inner {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2.5rem;
+            height: 100%;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-card:hover .card-inner {
+            transform: translateY(-12px);
+            border-color: var(--accent-red);
+            background: rgba(230, 57, 70, 0.05);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .game-tag {
+            font-size: 0.65rem;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-weight: 700;
+            display: inline-block;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-body h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+        }
+
+        .card-body p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .card-footer {
+            margin-top: auto;
+            padding-top: 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+        }
+
+        .arrow-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .game-card:hover .arrow-icon { transform: translateX(8px); }
+
+        /* About Section (Portal Feel) */
+        .about-section {
+            background: #000;
+            border: 1px solid var(--accent-gold);
+            border-radius: 12px;
+            padding: 4rem;
+            min-height: 60vh;
+            position: relative;
+            box-shadow: inset 0 0 60px rgba(212, 175, 55, 0.05);
+        }
+
+        .about-section::before {
+            content: "SECURE_CONNECTION_ESTABLISHED";
+            position: absolute;
+            top: 15px; right: 25px;
+            font-size: 0.6rem;
+            color: var(--accent-gold);
+            opacity: 0.4;
+            letter-spacing: 1px;
+        }
+
+        .about-text {
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--accent-gold);
+            font-size: 1.8rem;
+            line-height: 1.5;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 850px) {
+            .sidebar { width: 80px; }
+            .favicon-container { padding: 0 10px; }
+            .top-left-favicon { width: 50px; height: 50px; }
+            .nav-item { font-size: 0; padding: 1.5rem; text-align: center; }
+            .nav-item::after { content: "●"; font-size: 1.2rem; }
+            .main-content { margin-left: 80px; padding: 2rem; }
+            .kanji { font-size: 2.5rem; }
+        }
+    </style>
 </head>
 <body>
     <div class="urushi-bg"></div>
-    <div class="container">
-        <header class="logo-section">
-            <div class="romaji">UMA SHIKA KOBO</div>
-            <h1 class="kanji">馬鹿工房</h1>
-        </header>
 
-        <main class="games-section">
-            <a href="./3d-maze/index.html" class="game-card">
-                <div class="card-inner">
-                    <div class="card-header">
-                        <span class="game-tag">3D GAME</span>
-                    </div>
-                    <div class="card-body">
-                        <h2>Cyberpunk Orca Maze</h2>
-                        <p>サイバーパンク風の3D迷路ゲーム。</p>
-                    </div>
-                    <div class="card-footer">
-                        <span class="play-text">PLAY NOW</span>
-                        <div class="arrow-icon">→</div>
-                    </div>
-                </div>
-            </a>
+    <div class="app-wrapper">
+        <!-- Sidebar Navigation (Abe Hiroshi Style Reference) -->
+        <aside class="sidebar">
+            <div class="favicon-container">
+                <img src="favicon.jpg" alt="Logo" class="top-left-favicon" id="site-logo">
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" data-page="home">HOME</a>
+                <a class="nav-item" data-page="about">ABOUT</a>
+            </nav>
+        </aside>
 
- <a href="./syati2/index.html" class="game-card">
-                <div class="card-inner">
-                    <div class="card-header">
-                        <span class="game-tag">3D GAME</span>
-                    </div>
-                    <div class="card-body">
-                        <h2>Walking Orca</h2>
-                        <p>元シャチ</p>
-                    </div>
-                    <div class="card-footer">
-                        <span class="play-text">PLAY NOW</span>
-                        <div class="arrow-icon">→</div>
-                    </div>
-                </div>
-            </a>
+        <!-- Main Content Area -->
+        <main class="main-content">
             
+            <!-- Home Page Content -->
+            <div id="page-home" class="page-view active">
+                <header class="logo-section">
+                    <div class="romaji">UMA SHIKA KOBO</div>
+                    <h1 class="kanji">馬鹿工房</h1>
+                </header>
+
+                <div class="games-section">
+                    <a href="./3d-maze/index.html" class="game-card">
+                        <div class="card-inner">
+                            <div class="card-header">
+                                <span class="game-tag">3D GAME</span>
+                            </div>
+                            <div class="card-body">
+                                <h2>Cyberpunk Orca Maze</h2>
+                                <p>サイバーパンク風の3D迷路ゲーム。漆黒の空間に浮かぶネオンの迷宮を、シャチと共に駆け抜けろ。</p>
+                            </div>
+                            <div class="card-footer">
+                                <span class="play-text">PLAY NOW</span>
+                                <div class="arrow-icon">→</div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <a href="./syati2/index.html" class="game-card">
+                        <div class="card-inner">
+                            <div class="card-header">
+                                <span class="game-tag">3D GAME</span>
+                            </div>
+                            <div class="card-body">
+                                <h2>Walking Orca</h2>
+                                <p>元シャチ。広大な大地を歩む、孤高の存在。重力に抗い、新たな世界を探索するウォーキング・シミュレーター。</p>
+                            </div>
+                            <div class="card-footer">
+                                <span class="play-text">PLAY NOW</span>
+                                <div class="arrow-icon">→</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- About Page Content (Simulating separate site/portal) -->
+            <div id="page-about" class="page-view">
+                <div class="about-section">
+                    <div class="about-text">
+                        テスト
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navItems = document.querySelectorAll('.nav-item');
+            const pageViews = document.querySelectorAll('.page-view');
+            const siteLogo = document.getElementById('site-logo');
+
+            /**
+             * Function to switch between content views
+             * @param {string} pageId - ID of the page to show
+             */
+            function switchView(pageId) {
+                // Update navigation visual state
+                navItems.forEach(item => {
+                    item.classList.toggle('active', item.getAttribute('data-page') === pageId);
+                });
+
+                // Update content visibility
+                pageViews.forEach(view => {
+                    view.classList.toggle('active', view.id === `page-${pageId}`);
+                });
+
+                // Smooth scroll back to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // Bind click events to navigation items
+            navItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchView(item.getAttribute('data-page'));
+                });
+            });
+
+            // Logo click returns to Home
+            if (siteLogo) {
+                siteLogo.addEventListener('click', () => switchView('home'));
+            }
+        });
+    </script>
 </body>
 </html>
