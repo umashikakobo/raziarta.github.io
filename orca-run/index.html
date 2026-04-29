@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シャチラン - ORCA RUN</title>
+  <meta name="description" content="退廃した未来世界を駆け抜ける、2D強制横スクロール ラン＆シューティングゲーム">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="overlay">
+      <div class="title-content">
+        <h1 class="title-logo-text">LOADING...</h1>
+        <div class="loading-bar-bg" style="width:300px;height:10px;background:#222;margin:20px auto;border:2px solid #555;">
+          <div id="loading-bar" style="width:0%;height:100%;background:#44cc66;transition:width 0.2s;"></div>
+        </div>
+        <p id="loading-text" class="start-prompt">0 / 0 Assets</p>
+      </div>
+    </div>
+
+    <!-- Title Screen -->
+    <div id="title-screen" class="overlay hidden">
+      <div class="title-content">
+        <h1 class="title-logo-text">シャチラン</h1>
+        <div class="title-divider"></div>
+        <p class="start-prompt blink">CLICK TO START</p>
+        <div class="controls-hint">
+          <p>← → : MOVE &nbsp;|&nbsp; W : JUMP (HOLD FOR HIGH) &nbsp;|&nbsp; ↓ : CROUCH</p>
+          <p>W (IN AIR) : DOUBLE JUMP &nbsp;|&nbsp; 1, 2, 3 : USE ITEMS</p>
+          <p>LEFT CLICK : SHOOT &nbsp;|&nbsp; RIGHT CLICK : BOMB</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage Intro -->
+    <div id="stage-intro" class="overlay hidden">
+      <div class="stage-intro-content">
+        <p id="stage-number" class="stage-number"></p>
+        <p id="stage-name" class="stage-name"></p>
+      </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="gameover-screen" class="overlay hidden">
+      <div class="title-content">
+        <h1 class="gameover-title">GAME OVER</h1>
+        <p id="final-score" class="game-subtitle">SCORE: 0</p>
+        <p class="start-prompt blink">CLICK TO RETRY</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/asset_loader.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/backgrounds.js"></script>
+  <script src="js/projectiles.js"></script>
+  <script src="js/level.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/boss.js"></script>
+  <script src="js/hud.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ending.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

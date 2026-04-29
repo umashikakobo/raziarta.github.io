@@ -1,0 +1,11 @@
+{
+  "type": "signalJelly",
+  "hp": 25, "maxHp": 25, "damage": 20,
+  "hw": 30, "hh": 50,
+  "sprites": {
+    "red": "assets/sprites/enemies/signal_jelly/jelly_red.png",
+    "yellow": "assets/sprites/enemies/signal_jelly/jelly_yellow.png",
+    "green": "assets/sprites/enemies/signal_jelly/jelly_green.png",
+    "width": 110, "height": 140, "originX": 55, "originY": 70
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "tireShark",
+  "hp": 2, "speed": -6.5, "damage": 20,
+  "hw": 15, "hh": 18,
+  "dropRate": 0.1,
+  "sprites": {
+    "frames": ["assets/sprites/enemies/tire_shark/tire_shark_1.png","assets/sprites/enemies/tire_shark/tire_shark_2.png"],
+    "width": 60, "height": 70, "originX": 30, "originY": 35
+  }
+}
