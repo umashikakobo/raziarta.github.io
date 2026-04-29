@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#06060c; display:flex; justify-content:center; align-items:center;
+  min-height:100vh; overflow:hidden; font-family:'Press Start 2P',monospace;
+}
+#game-container {
+  position:relative; width:100vw; height:100vh;
+  overflow: hidden;
+}
+#gameCanvas {
+  display:block; width:100%; height:100%;
+  image-rendering:pixelated; image-rendering:crisp-edges; background:#0a0a15;
+}
+.overlay {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  display:flex; justify-content:center; align-items:center; z-index:10;
+  background:rgba(4,4,12,0.88); transition:opacity 0.6s ease;
+}
+.overlay.hidden { display:none; opacity:0; }
+.title-content { text-align:center; color:#d8d8e8; }
+.title-logo-text {
+  font-family:'DotGothic16',sans-serif; font-size:72px; color:#c0d0f0;
+  margin-bottom:8px; letter-spacing:12px;
+  -webkit-font-smoothing:none; font-smooth:never;
+  text-shadow:
+    -4px -4px 0 #2a3050, 4px -4px 0 #2a3050,
+    -4px  4px 0 #2a3050, 4px  4px 0 #2a3050,
+    -4px  0   0 #2a3050, 4px  0   0 #2a3050,
+     0   -4px 0 #2a3050, 0    4px 0 #2a3050,
+     0    0  20px rgba(100,150,255,0.5);
+}
+.game-subtitle {
+  font-size:14px; color:#6878a0; letter-spacing:10px; margin-bottom:20px;
+}
+.title-divider {
+  width:220px; height:1px; margin:16px auto;
+  background:linear-gradient(90deg,transparent,#3355aa,transparent);
+}
+.start-prompt { font-size:11px; color:#7799cc; margin-top:24px; }
+.blink { animation:blink 1.4s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+.controls-hint {
+  margin-top: 30px;
+  background: rgba(20, 40, 80, 0.7);
+  padding: 15px 30px;
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  display: inline-block;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.controls-hint p {
+  color: #a0c0f0;
+  font-size: 8px;
+  margin: 8px 0;
+  line-height: 1.8;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
+.gameover-title {
+  font-size:32px; color:#ee5555; letter-spacing:6px;
+  text-shadow:0 0 25px rgba(255,60,60,0.4),0 3px 0 #3a1515;
+}
+/* Stage Intro */
+.stage-intro-content { text-align:center; }
+.stage-number {
+  font-size:12px; color:#5a6a8a; letter-spacing:8px; margin-bottom:12px;
+}
+.stage-name {
+  font-family:'DotGothic16',sans-serif; font-size:28px; color:#c8d8f0;
+  letter-spacing:6px; text-shadow:0 0 20px rgba(100,160,255,0.3);
+}
+@media (max-width:980px) {
+  #game-container,#gameCanvas { width:100vw; height:calc(100vw*540/960); }
+}

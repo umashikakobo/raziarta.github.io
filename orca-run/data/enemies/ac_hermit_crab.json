@@ -1,0 +1,11 @@
+{
+  "type": "acHermitCrab",
+  "hp": 2, "damage": 20,
+  "hw": 16, "hh": 18,
+  "dropRate": 0.1,
+  "sprites": {
+    "hover": "assets/sprites/enemies/ac_hermit_crab/hermit_hover.png",
+    "dive": "assets/sprites/enemies/ac_hermit_crab/hermit_dive.png",
+    "width": 70, "height": 70, "originX": 35, "originY": 35
+  }
+}

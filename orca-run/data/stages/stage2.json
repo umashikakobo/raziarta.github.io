@@ -1,0 +1,53 @@
+{
+  "name": "植物に覆われた路地裏",
+  "number": "STAGE 2",
+  "length": 15000,
+  "bgPhase": 1,
+  "scrollSpeed": 2.8,
+  "backgrounds": [
+    {"layer": "interior_sky", "speed": 0.08, "src": "assets/backgrounds/stage2/interior_sky.png"},
+    {"layer": "walls", "speed": 0.25, "src": "assets/backgrounds/stage2/walls.png"},
+    {"layer": "furniture", "speed": 0.55, "src": "assets/backgrounds/stage2/furniture.png"},
+    {"layer": "vines", "speed": 0.8, "src": "assets/backgrounds/stage2/vines.png"}
+  ],
+  "groundColor": "#2a3a2a",
+  "groundLineColor": "#3a4a3a",
+  "platforms": [
+    {"x":600,"y":390,"w":100,"h":16},{"x":1200,"y":350,"w":130,"h":16},
+    {"x":1900,"y":370,"w":100,"h":16},{"x":2600,"y":330,"w":140,"h":16},
+    {"x":3400,"y":360,"w":110,"h":16},{"x":4100,"y":340,"w":120,"h":16},
+    {"x":4800,"y":380,"w":100,"h":16},{"x":5600,"y":350,"w":130,"h":16},
+    {"x":6400,"y":320,"w":100,"h":16},{"x":7200,"y":370,"w":140,"h":16},
+    {"x":8000,"y":340,"w":110,"h":16},{"x":8800,"y":360,"w":120,"h":16},
+    {"x":9600,"y":350,"w":130,"h":16},{"x":10400,"y":330,"w":100,"h":16},
+    {"x":11200,"y":380,"w":140,"h":16},{"x":12000,"y":350,"w":120,"h":16},
+    {"x":12800,"y":340,"w":110,"h":16}
+  ],
+  "waves": [
+    {"dist":400,"enemies":["tireShark","vendingMachine"]},
+    {"dist":1000,"enemies":["acHermitCrab"]},
+    {"dist":1600,"enemies":["tireShark","tireShark","vendingMachine"]},
+    {"dist":2400,"enemies":["acHermitCrab","tireShark"]},
+    {"dist":3200,"enemies":["vendingMachine","vendingMachine","tireShark"]},
+    {"dist":4000,"enemies":["tireShark","acHermitCrab","vendingMachine"]},
+    {"dist":4800,"enemies":["tireShark","tireShark","tireShark"]},
+    {"dist":5600,"enemies":["acHermitCrab","vendingMachine"]},
+    {"dist":6400,"enemies":["tireShark","vendingMachine","acHermitCrab"]},
+    {"dist":7200,"enemies":["tireShark","tireShark","vendingMachine","vendingMachine"]},
+    {"dist":8000,"enemies":["acHermitCrab","acHermitCrab"]},
+    {"dist":8800,"enemies":["tireShark","tireShark","tireShark","vendingMachine"]},
+    {"dist":9600,"enemies":["vendingMachine","acHermitCrab","tireShark"]},
+    {"dist":10500,"enemies":["tireShark","tireShark","acHermitCrab","vendingMachine"]},
+    {"dist":11400,"enemies":["vendingMachine","vendingMachine","vendingMachine"]},
+    {"dist":12300,"enemies":["acHermitCrab","tireShark","tireShark","tireShark"]}
+  ],
+  "midBoss": {"dist":14000, "type":"signalJelly"},
+  "boss": null,
+  "subtitles": [
+    {"dist":100, "text":"路地裏を苔が覆い、花が咲いている。"},
+    {"dist":3000, "text":"錆びたベッド。ブラウン管のテレビ。誰かの日常の残骸。"},
+    {"dist":6000, "text":"窓から差し込む光が、静かに塵を照らしている。"},
+    {"dist":9000, "text":"この場所には、まだ彼らの温もりが残っている気がした。"},
+    {"dist":12000, "text":"だが、感傷に浸る暇はない。前へ。"}
+  ]
+}

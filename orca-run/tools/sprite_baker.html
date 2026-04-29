@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Sprite Baker</title></head>
+<body>
+<h2>Sprite Baker</h2>
+<div id="status">Initializing...</div>
+<div id="log" style="white-space:pre;font-size:11px;max-height:400px;overflow:auto"></div>
+<script src="../js/asset_loader.js"></script>
+<script src="../js/renderer.js"></script>
+<script src="../js/physics.js"></script>
+<script>
+const log = (t) => { document.getElementById('log').textContent += t+'\n'; };
+const status = (t) => { document.getElementById('status').textContent = t; };
+
+function renderToCanvas(w, h, drawFn) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  drawFn(ctx, w, h);
+  return c;
+}
+
+function spriteCanvas(w, h, drawFn) {
+  const c = renderToCanvas(w, h, (ctx) => {
+    ctx.clearRect(0,0,w,h);
+    drawFn(ctx);
+  });
+  return c.toDataURL('image/png').split(',')[1];
+}
+
+async function bakeAll() {
+  const sprites = [];
+  const add = (path, w, h, fn) => {
+    sprites.push({ path, data: spriteCanvas(w, h, fn) });
+    log('Generated: ' + path);
+  };
+
+  /* Existing assets commented out to prevent overwriting
+  status('Generating player sprites...');
+  add('assets/sprites/player/orca_stand.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 0, false, false);
+  });
+  add('assets/sprites/player/orca_walk_1.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 5, false, false);
+  });
+  add('assets/sprites/player/orca_walk_2.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 15, false, false);
+  });
+  add('assets/sprites/player/orca_crouch.png', 120, 60, ctx => {
+    Renderer.drawOrca(ctx, 60, 30, 1.6, 1, 0, true, false);
+  });
+  add('assets/sprites/player/orca_damaged.png', 120, 80, ctx => {
+    Renderer.drawOrca(ctx, 60, 40, 1.6, 1, 0, false, true);
+  });
+
+  status('Generating weapon sprites...');
+  add('assets/sprites/weapons/penguin_bullet.png', 40, 30, ctx => {
+    Renderer.drawPenguin(ctx, 20, 15, 1.5, true);
+  });
+  add('assets/sprites/weapons/penguin_bomb.png', 40, 40, ctx => {
+    Renderer.drawPenguinBomb(ctx, 20, 20, 1.5, 0);
+  });
+  */
+  add('assets/sprites/weapons/penguin_bullet_blue.png', 40, 30, ctx => {
+    ctx.save(); ctx.translate(20, 15);
+    ctx.fillStyle = '#4488ff'; ctx.fillRect(-6, -3, 12, 6);
+    ctx.fillStyle = '#88ccff'; ctx.fillRect(-4, -1, 8, 2);
+    ctx.restore();
+  });
+  add('assets/sprites/weapons/penguin_bomb_blue.png', 40, 40, ctx => {
+    ctx.save(); ctx.translate(20, 20);
+    ctx.fillStyle = '#2255aa'; ctx.fillRect(-6, -6, 12, 12);
+    ctx.fillStyle = '#4488ff'; ctx.fillRect(-4, -4, 8, 8);
+    ctx.fillStyle = '#88ccff'; ctx.fillRect(-2, -2, 4, 4);
+    ctx.restore();
+  });
+  /* Existing assets commented out to prevent overwriting
+  for (let i = 1; i <= 3; i++) {
+    const r = 15 + i * 10, a = 1 - (i-1)*0.3;
+    add(`assets/sprites/weapons/explosion/explosion_${i}.png`, 80, 80, ctx => {
+      Renderer.drawExplosion(ctx, 40, 40, r, a);
+    });
+  }
+
+  status('Generating enemy sprites...');
+  add('assets/sprites/enemies/tire_shark/tire_shark_1.png', 60, 70, ctx => {
+    Renderer.drawTireShark(ctx, 30, 35, 1.8, 0);
+  });
+  add('assets/sprites/enemies/tire_shark/tire_shark_2.png', 60, 70, ctx => {
+    Renderer.drawTireShark(ctx, 30, 35, 1.8, 10);
+  });
+  add('assets/sprites/enemies/vending_machine/vending_idle.png', 60, 80, ctx => {
+    Renderer.drawVendingMachine(ctx, 30, 40, 1.5, 0, false);
+  });
+  add('assets/sprites/enemies/vending_machine/vending_shoot.png', 60, 80, ctx => {
+    Renderer.drawVendingMachine(ctx, 30, 40, 1.5, 0, true);
+  });
+  add('assets/sprites/enemies/ac_hermit_crab/hermit_hover.png', 70, 70, ctx => {
+    Renderer.drawACHermitCrab(ctx, 35, 35, 1.5, 0, false);
+  });
+  add('assets/sprites/enemies/ac_hermit_crab/hermit_dive.png', 70, 70, ctx => {
+    Renderer.drawACHermitCrab(ctx, 35, 35, 1.5, 0, true);
+  });
+
+  // Items
+  status('Generating item sprites...');
+  add('assets/sprites/items/heal_small.png', 30, 30, ctx => {
+    Renderer.drawItem(ctx, 15, 15, 1.5, 'healS', 0);
+  });
+  add('assets/sprites/items/heal_medium.png', 30, 30, ctx => {
+    Renderer.drawItem(ctx, 15, 15, 1.5, 'healM', 0);
+  });
+  add('assets/sprites/items/atk_up.png', 30, 30, ctx => {
+    Renderer.drawItem(ctx, 15, 15, 1.5, 'atkUp', 0);
+  });
+
+  // Projectiles
+  add('assets/sprites/projectiles/can_bullet.png', 20, 16, ctx => {
+    Renderer.drawCan(ctx, 10, 8, 1.5);
+  });
+  */
+
+  /* Existing assets commented out to prevent overwriting
+  // Mid-bosses (use inline drawing since no dedicated Renderer method)
+  status('Generating mid-boss sprites...');
+  // Cart Shark
+  add('assets/sprites/enemies/cart_shark/cart_shark_idle.png', 100, 100, ctx => {
+    ctx.save(); ctx.translate(50,50); const s=2.2,ol='#08081a';
+    ctx.fillStyle=ol;ctx.fillRect(-25*s/2,5*s/2,35*s/2,15*s/2);
+    ctx.fillStyle='#666';ctx.fillRect(-23*s/2,7*s/2,31*s/2,11*s/2);
+    ctx.fillStyle='#555';ctx.fillRect(-20*s/2,9*s/2,25*s/2,7*s/2);
+    ctx.fillStyle='#333';ctx.fillRect(-22*s/2,16*s/2,6*s/2,5*s/2);ctx.fillRect(8*s/2,16*s/2,6*s/2,5*s/2);
+    ctx.fillStyle='#888';ctx.fillRect(8*s/2,-2*s/2,3*s/2,12*s/2);
+    ctx.fillStyle='#5a6a80';ctx.fillRect(-18*s/2,-15*s/2,28*s/2,22*s/2);
+    ctx.fillRect(-30*s/2,-18*s/2,50*s/2,8*s/2);
+    ctx.fillStyle='#7a8a9a';ctx.fillRect(-28*s/2,-16*s/2,46*s/2,4*s/2);
+    ctx.fillStyle='#ffcc00';ctx.fillRect(-28*s/2,-16*s/2,4*s/2,3*s/2);ctx.fillRect(14*s/2,-16*s/2,4*s/2,3*s/2);
+    ctx.fillStyle='#111';ctx.fillRect(-27*s/2,-15*s/2,2*s/2,2*s/2);ctx.fillRect(15*s/2,-15*s/2,2*s/2,2*s/2);
+    ctx.fillStyle='#8a9ab0';ctx.fillRect(-14*s/2,-4*s/2,20*s/2,10*s/2);
+    ctx.fillStyle='#4a5a70';ctx.fillRect(-4*s/2,-22*s/2,6*s/2,7*s/2);
+    ctx.fillStyle='#aa8866';ctx.fillRect(-16*s/2,8*s/2,6*s/2,4*s/2);
+    ctx.fillStyle='#8899aa';ctx.fillRect(-8*s/2,7*s/2,5*s/2,5*s/2);
+    ctx.restore();
+  });
+
+  // Signal Jelly
+  add('assets/sprites/enemies/signal_jelly/jelly_red.png', 110, 140, ctx => {
+    ctx.save(); ctx.translate(55,70); const s=2.5;
+    ctx.fillStyle='#555';ctx.fillRect(-3*s,-40*s/2,6*s,12*s);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(-8*s,-52*s/2,16*s,22*s);
+    const colors=['#ff2222','#ffcc00','#22dd44'];
+    for(let i=0;i<3;i++){ctx.fillStyle=i===0?colors[i]:'#222';ctx.fillRect(-4*s,(-48+i*7)*s/2,8*s,5*s);}
+    ctx.fillStyle='rgba(150,180,220,0.7)';ctx.fillRect(-18*s,-8*s/2,36*s,20*s);ctx.fillRect(-14*s,-14*s/2,28*s,8*s);
+    ctx.fillStyle='rgba(130,160,200,0.6)';
+    for(let i=0;i<5;i++){ctx.fillRect(-14*s+i*7*s,10*s,2*s,15*s);}
+    ctx.fillStyle='#3a6a2a';ctx.fillRect(-9*s,-50*s/2,4*s,3*s);
+    ctx.restore();
+  });
+  add('assets/sprites/enemies/signal_jelly/jelly_yellow.png', 110, 140, ctx => {
+    ctx.save(); ctx.translate(55,70); const s=2.5;
+    ctx.fillStyle='#555';ctx.fillRect(-3*s,-40*s/2,6*s,12*s);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(-8*s,-52*s/2,16*s,22*s);
+    const colors=['#ff2222','#ffcc00','#22dd44'];
+    for(let i=0;i<3;i++){ctx.fillStyle=i===1?colors[i]:'#222';ctx.fillRect(-4*s,(-48+i*7)*s/2,8*s,5*s);}
+    ctx.fillStyle='rgba(150,180,220,0.7)';ctx.fillRect(-18*s,-8*s/2,36*s,20*s);ctx.fillRect(-14*s,-14*s/2,28*s,8*s);
+    ctx.fillStyle='rgba(130,160,200,0.6)';
+    for(let i=0;i<5;i++){ctx.fillRect(-14*s+i*7*s,10*s,2*s,15*s);}
+    ctx.restore();
+  });
+  add('assets/sprites/enemies/signal_jelly/jelly_green.png', 110, 140, ctx => {
+    ctx.save(); ctx.translate(55,70); const s=2.5;
+    ctx.fillStyle='#555';ctx.fillRect(-3*s,-40*s/2,6*s,12*s);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(-8*s,-52*s/2,16*s,22*s);
+    const colors=['#ff2222','#ffcc00','#22dd44'];
+    for(let i=0;i<3;i++){ctx.fillStyle=i===2?colors[i]:'#222';ctx.fillRect(-4*s,(-48+i*7)*s/2,8*s,5*s);}
+    ctx.fillStyle='rgba(150,180,220,0.7)';ctx.fillRect(-18*s,-8*s/2,36*s,20*s);ctx.fillRect(-14*s,-14*s/2,28*s,8*s);
+    ctx.fillStyle='rgba(130,160,200,0.6)';
+    for(let i=0;i<5;i++){ctx.fillRect(-14*s+i*7*s,10*s,2*s,15*s);}
+    ctx.restore();
+  });
+  */
+
+  // Boss - Leviathan (deep-sea armored beast)
+  status('Generating boss sprites...');
+  const drawLev = (ctx, yOffset) => {
+    ctx.save(); ctx.translate(100, 120 + yOffset);
+    // Main body (dark armored hull)
+    ctx.fillStyle = '#1a2a3a'; ctx.fillRect(-60, -70, 120, 140);
+    ctx.fillStyle = '#2a3a4e'; ctx.fillRect(-55, -65, 110, 130);
+    // Armored scale pattern
+    ctx.fillStyle = '#3a4a5e';
+    for(let r=0;r<6;r++) for(let c=0;c<5;c++) {
+      ctx.fillRect(-50+c*22, -60+r*22, 18, 18);
+    }
+    ctx.fillStyle = '#2a3a50';
+    for(let r=0;r<6;r++) for(let c=0;c<5;c++) {
+      ctx.fillRect(-48+c*22, -58+r*22, 14, 14);
+    }
+    // Head (wider, darker)
+    ctx.fillStyle = '#1a2838'; ctx.fillRect(-65, -85, 130, 30);
+    ctx.fillStyle = '#223344'; ctx.fillRect(-60, -80, 120, 22);
+    // Jaw (massive, with teeth)
+    ctx.fillStyle = '#1a1a2a'; ctx.fillRect(-55, -58, 100, 16);
+    ctx.fillStyle = '#0a0a15'; ctx.fillRect(-50, -55, 90, 10);
+    // Teeth
+    ctx.fillStyle = '#dde';
+    for(let i=0;i<8;i++) {
+      ctx.fillRect(-48+i*12, -55, 4, 8);
+      ctx.fillRect(-48+i*12, -48, 4, 6);
+    }
+    // Eyes (glowing red)
+    ctx.fillStyle = '#ff2222'; ctx.fillRect(-40, -78, 18, 12);
+    ctx.fillRect(22, -78, 18, 12);
+    ctx.fillStyle = '#ff6644'; ctx.fillRect(-36, -76, 10, 8);
+    ctx.fillRect(26, -76, 10, 8);
+    ctx.fillStyle = '#ffaa66'; ctx.fillRect(-34, -74, 6, 4);
+    ctx.fillRect(28, -74, 6, 4);
+    // Bioluminescent stripes
+    ctx.fillStyle = 'rgba(0,180,255,0.3)';
+    ctx.fillRect(-50, -30, 100, 3);
+    ctx.fillRect(-45, 0, 90, 3);
+    ctx.fillRect(-40, 30, 80, 3);
+    // Fin/arm stubs
+    ctx.fillStyle = '#2a3a4e';
+    ctx.fillRect(-70, -20, 15, 50); ctx.fillRect(55, -20, 15, 50);
+    ctx.fillStyle = '#1a2a3a';
+    ctx.fillRect(-72, -15, 8, 40); ctx.fillRect(64, -15, 8, 40);
+    // Dorsal fin
+    ctx.fillStyle = '#2a3a4e';
+    ctx.fillRect(-10, -95, 20, 12);
+    ctx.fillStyle = '#3a4a5e';
+    ctx.fillRect(-8, -92, 16, 8);
+    ctx.restore();
+  };
+  add('assets/sprites/enemies/boss/leviathan_idle_1.png', 200, 240, ctx => drawLev(ctx, 0));
+  add('assets/sprites/enemies/boss/leviathan_idle_2.png', 200, 240, ctx => drawLev(ctx, 4));
+
+  // Chapter 2 Enemies
+  status('Generating Chapter 2 enemy sprites...');
+  // Submarine Crab - olive submarine hull + orange crab legs
+  const drawCrab = (ctx, anim) => {
+    ctx.save(); ctx.translate(40, 38);
+    // Crab legs (orange) - 3 pairs
+    ctx.fillStyle = '#cc5522';
+    // Left legs
+    ctx.fillRect(-32, 8, 10, 4); ctx.fillRect(-36, 12, 6, 3);
+    ctx.fillRect(-28, 14, 8, 4); ctx.fillRect(-30, 18, 5, 3);
+    ctx.fillRect(-24, 18, 8, 4); ctx.fillRect(-26, 22, 5, 3);
+    // Right legs
+    ctx.fillRect(22, 8, 10, 4); ctx.fillRect(30, 12, 6, 3);
+    ctx.fillRect(20, 14, 8, 4); ctx.fillRect(25, 18, 5, 3);
+    ctx.fillRect(16, 18, 8, 4); ctx.fillRect(21, 22, 5, 3);
+    // Claws
+    ctx.fillStyle = '#dd6633';
+    ctx.fillRect(-38, 0, 12, 8); ctx.fillRect(-40, 2, 4, 4);
+    ctx.fillRect(26, 0, 12, 8); ctx.fillRect(36, 2, 4, 4);
+    ctx.fillStyle = '#bb4411'; // claw tips
+    ctx.fillRect(-40, 0, 4, 3); ctx.fillRect(-40, 5, 4, 3);
+    ctx.fillRect(36, 0, 4, 3); ctx.fillRect(36, 5, 4, 3);
+    // Submarine hull (olive green)
+    ctx.fillStyle = '#6b6b3a'; ctx.fillRect(-22, -8, 44, 20);
+    ctx.fillStyle = '#7a7a44'; ctx.fillRect(-20, -6, 40, 16);
+    ctx.fillStyle = '#5a5a2e'; ctx.fillRect(-22, -8, 44, 3); // top edge
+    ctx.fillRect(-22, 9, 44, 3); // bottom edge
+    // Periscope
+    ctx.fillStyle = '#555533'; ctx.fillRect(-2, -24, 4, 18);
+    ctx.fillRect(-4, -26, 8, 4);
+    ctx.fillStyle = '#444422'; ctx.fillRect(2, -24, 2, 2);
+    // Portholes (blue eyes)
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-14, -2, 10, 10); ctx.fillRect(4, -2, 10, 10);
+    ctx.fillStyle = '#3388cc'; ctx.fillRect(-12, 0, 6, 6); ctx.fillRect(6, 0, 6, 6);
+    ctx.fillStyle = '#55aaee'; ctx.fillRect(-11, 1, 3, 3); ctx.fillRect(7, 1, 3, 3);
+    // Stars on hull
+    ctx.fillStyle = '#cc6622';
+    ctx.fillRect(-18, -4, 3, 3); ctx.fillRect(15, -4, 3, 3);
+    // Smoke puff (anim)
+    if(anim) {
+      ctx.fillStyle = 'rgba(180,180,180,0.6)';
+      ctx.fillRect(-4, -30, 3, 3); ctx.fillRect(-1, -33, 2, 2);
+      ctx.fillRect(2, -31, 2, 2);
+    }
+    ctx.restore();
+  };
+  add('assets/sprites/enemies/submarine_crab/crab_1.png', 80, 52, ctx => drawCrab(ctx, false));
+  add('assets/sprites/enemies/submarine_crab/crab_2.png', 80, 52, ctx => drawCrab(ctx, true));
+
+  // Moray Eel - vine-wrapped eel with spots and teeth
+  const drawEel = (ctx, anim) => {
+    ctx.save(); ctx.translate(45, 25);
+    // Body segments (gray-blue with wave)
+    const bodyColor = '#6a7a88';
+    const bellyColor = '#8a9aaa';
+    const spotColor = '#4a5a66';
+    // Main body
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-40, -8, 16, 16); ctx.fillRect(-26, -10, 14, 18);
+    ctx.fillRect(-14, -8, 14, 16); ctx.fillRect(-2, -6, 14, 14);
+    ctx.fillRect(10, -8, 14, 14); ctx.fillRect(22, -6, 12, 12);
+    // Belly (lighter)
+    ctx.fillStyle = bellyColor;
+    ctx.fillRect(-40, 4, 16, 4); ctx.fillRect(-26, 4, 14, 4);
+    ctx.fillRect(-14, 4, 14, 4); ctx.fillRect(-2, 4, 14, 4);
+    // Spots
+    ctx.fillStyle = spotColor;
+    ctx.fillRect(-34, -4, 3, 3); ctx.fillRect(-20, -6, 3, 3);
+    ctx.fillRect(-6, -2, 3, 3); ctx.fillRect(14, -4, 3, 3);
+    ctx.fillRect(26, -2, 2, 2);
+    // Head (wider, with open mouth)
+    ctx.fillStyle = '#5a6a78'; ctx.fillRect(-44, -10, 8, 20);
+    // Mouth
+    ctx.fillStyle = '#2a1a1a'; ctx.fillRect(-46, -4, 6, 10);
+    // Teeth (white triangles as rects)
+    ctx.fillStyle = '#eee';
+    ctx.fillRect(-46, -4, 2, 3); ctx.fillRect(-46, 0, 2, 3);
+    ctx.fillRect(-46, 4, 2, 2);
+    ctx.fillRect(-44, -3, 2, 2); ctx.fillRect(-44, 3, 2, 2);
+    // Eye
+    ctx.fillStyle = '#ff4444'; ctx.fillRect(-42, -8, 4, 4);
+    ctx.fillStyle = '#111'; ctx.fillRect(-41, -7, 2, 2);
+    // Vine wrapping
+    ctx.fillStyle = '#3a6a2a';
+    ctx.fillRect(-30, -12, 4, 4); ctx.fillRect(-28, -10, 3, 20);
+    ctx.fillRect(-8, -10, 3, 18); ctx.fillRect(-6, -8, 4, 3);
+    ctx.fillRect(16, -10, 3, 18); ctx.fillRect(18, -8, 4, 3);
+    // Vine leaves
+    ctx.fillStyle = '#4a8a3a';
+    ctx.fillRect(-32, -14, 4, 3); ctx.fillRect(-26, 8, 4, 3);
+    ctx.fillRect(-10, -12, 4, 3); ctx.fillRect(14, -12, 4, 3);
+    // Tail fin
+    ctx.fillStyle = '#5a6a78';
+    ctx.fillRect(32, -8, 6, 4); ctx.fillRect(36, -4, 4, 4);
+    ctx.fillRect(32, 2, 6, 4); ctx.fillRect(36, 0, 4, 4);
+    // Bubble (anim)
+    if(anim) {
+      ctx.fillStyle = 'rgba(100,200,255,0.6)';
+      ctx.fillRect(38, -12, 3, 3); ctx.fillRect(40, -16, 2, 2);
+    }
+    ctx.restore();
+  };
+  add('assets/sprites/enemies/moray_eel/eel_1.png', 90, 50, ctx => drawEel(ctx, false));
+  add('assets/sprites/enemies/moray_eel/eel_2.png', 90, 50, ctx => drawEel(ctx, true));
+
+  // Carrier Seal - seal body + aircraft carrier deck on back
+  const drawSeal = (ctx, anim) => {
+    ctx.save(); ctx.translate(50, 45);
+    // Seal body (rounded gray)
+    ctx.fillStyle = '#7a8a9a'; ctx.fillRect(-40, 0, 80, 30);
+    ctx.fillStyle = '#8a9aaa'; ctx.fillRect(-36, 4, 72, 22);
+    ctx.fillStyle = '#6a7a8a'; ctx.fillRect(-42, 8, 6, 16); // left flipper
+    ctx.fillRect(36, 8, 6, 16); // right flipper
+    // Belly (light)
+    ctx.fillStyle = '#aabbcc'; ctx.fillRect(-30, 14, 60, 12);
+    // Face
+    ctx.fillStyle = '#8a9aaa'; ctx.fillRect(-20, 22, 40, 18);
+    ctx.fillStyle = '#9aabb8'; ctx.fillRect(-16, 24, 32, 14);
+    // Eyes (big cute black)
+    ctx.fillStyle = '#111'; ctx.fillRect(-14, 26, 8, 8); ctx.fillRect(6, 26, 8, 8);
+    ctx.fillStyle = '#fff'; ctx.fillRect(-12, 27, 3, 3); ctx.fillRect(8, 27, 3, 3);
+    // Nose
+    ctx.fillStyle = '#333'; ctx.fillRect(-3, 34, 6, 4);
+    // Whiskers
+    ctx.fillStyle = '#556'; ctx.fillRect(-20, 34, 8, 1); ctx.fillRect(12, 34, 8, 1);
+    ctx.fillRect(-18, 36, 6, 1); ctx.fillRect(12, 36, 6, 1);
+    // Aircraft carrier deck on back
+    ctx.fillStyle = '#5a5a5a'; ctx.fillRect(-36, -16, 72, 18);
+    ctx.fillStyle = '#666'; ctx.fillRect(-34, -14, 68, 14);
+    // Landing strip lines
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(-30, -8, 60, 1); ctx.fillRect(-30, -5, 60, 1);
+    // Dashed center line
+    ctx.fillStyle = '#ff0';
+    for(let i=0;i<8;i++) ctx.fillRect(-28+i*8, -7, 4, 1);
+    // Control tower
+    ctx.fillStyle = '#4a4a4a'; ctx.fillRect(20, -24, 10, 10);
+    ctx.fillStyle = '#555'; ctx.fillRect(22, -22, 6, 6);
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(22, -26, 6, 3);
+    // Number "88" on hull
+    ctx.fillStyle = '#ddd'; ctx.font = '8px monospace';
+    ctx.fillRect(-8, 6, 3, 7); ctx.fillRect(-4, 6, 3, 7);
+    ctx.fillRect(-8, 6, 8, 2); ctx.fillRect(-8, 9, 8, 1); ctx.fillRect(-8, 12, 8, 1);
+    // Mini jets on deck (anim)
+    if(anim) {
+      ctx.fillStyle = '#4a5a6a';
+      ctx.fillRect(-24, -12, 8, 4); ctx.fillRect(-20, -14, 3, 2);
+      ctx.fillRect(4, -12, 8, 4); ctx.fillRect(8, -14, 3, 2);
+    }
+    // Water splash at bottom
+    ctx.fillStyle = 'rgba(180,210,240,0.5)';
+    ctx.fillRect(-44, 28, 8, 3); ctx.fillRect(36, 28, 8, 3);
+    ctx.fillRect(-38, 30, 4, 2); ctx.fillRect(38, 30, 4, 2);
+    ctx.restore();
+  };
+  add('assets/sprites/enemies/carrier_seal/seal_1.png', 100, 80, ctx => drawSeal(ctx, false));
+  add('assets/sprites/enemies/carrier_seal/seal_2.png', 100, 80, ctx => drawSeal(ctx, true));
+
+  // Abyss Angler
+  const drawAngler = (ctx, flash) => {
+    ctx.save(); ctx.translate(50, 40);
+    ctx.fillStyle = '#1a1a2a'; ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#0a0a1a'; ctx.beginPath(); ctx.arc(0, 0, 35, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#cc3333'; ctx.fillRect(-20, -10, 15, 10); ctx.fillRect(5, -10, 15, 10);
+    ctx.fillStyle = '#111'; ctx.fillRect(-15, -5, 5, 5); ctx.fillRect(10, -5, 5, 5);
+    ctx.fillStyle = '#fff';
+    for(let i=0;i<5;i++){ ctx.fillRect(-25+i*10, 15, 4, 8); }
+    ctx.fillStyle = '#3a4a5a'; ctx.fillRect(-5, -60, 10, 25);
+    ctx.fillStyle = flash ? '#ffffff' : '#33aaff';
+    ctx.beginPath(); ctx.arc(0, -65, flash ? 15 : 10, 0, Math.PI*2); ctx.fill();
+    if (flash) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath(); ctx.arc(0, -65, 30, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  };
+  add('assets/sprites/enemies/boss/angler_idle.png', 100, 80, ctx => drawAngler(ctx, false));
+  add('assets/sprites/enemies/boss/angler_flash.png', 100, 80, ctx => drawAngler(ctx, true));
+
+  // Null Boss
+  const drawNull = (ctx, phase) => {
+    ctx.save(); ctx.translate(70, 70);
+    ctx.fillStyle = '#050510'; ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1a1a3a'; ctx.beginPath(); ctx.arc(0, 0, 50, 0, Math.PI*2); ctx.fill();
+    const grad = ctx.createRadialGradient(0,0,10, 0,0,45);
+    grad.addColorStop(0, '#000'); grad.addColorStop(1, '#221133');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, 45, 0, Math.PI*2); ctx.fill();
+    
+    const eyeSize = 10 + (phase%2)*5;
+    ctx.fillStyle = phase > 1 ? '#ff3333' : '#8833ff';
+    ctx.beginPath(); ctx.arc(0, 0, eyeSize, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(0, 0, eyeSize/2, 0, Math.PI*2); ctx.fill();
+    
+    // Draw some static tendrils
+    ctx.strokeStyle = '#2a1a4a'; ctx.lineWidth = 4;
+    for(let i=0;i<8;i++) {
+      const a = (i/8)*Math.PI*2 + (phase*0.2);
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*40, Math.sin(a)*40);
+      ctx.lineTo(Math.cos(a)*65, Math.sin(a)*65); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  add('assets/sprites/enemies/boss/null_1.png', 140, 140, ctx => drawNull(ctx, 0));
+  add('assets/sprites/enemies/boss/null_2.png', 140, 140, ctx => drawNull(ctx, 1));
+  add('assets/sprites/enemies/boss/null_3.png', 140, 140, ctx => drawNull(ctx, 2));
+  add('assets/sprites/enemies/boss/null_4.png', 140, 140, ctx => drawNull(ctx, 3));
+
+
+  /* Existing assets commented out to prevent overwriting
+  // Backgrounds
+  status('Generating background layers...');
+  // Stage 1
+  add('assets/backgrounds/stage1/sky.png', 960, 540, (ctx) => {
+    const g=ctx.createLinearGradient(0,0,0,540);
+    g.addColorStop(0,'#4477bb');g.addColorStop(0.4,'#77aadd');g.addColorStop(1,'#bbccdd');
+    ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+    ctx.fillStyle='#ffeeaa';ctx.fillRect(720,35,35,35);
+    ctx.fillStyle='rgba(255,238,170,0.25)';ctx.fillRect(710,25,55,55);
+    ctx.fillStyle='#dde8ff';
+    ctx.fillRect(80,55,90,22);ctx.fillRect(96,42,58,14);
+    ctx.fillRect(350,85,70,16);ctx.fillRect(362,75,46,12);
+    ctx.fillRect(650,45,75,20);ctx.fillRect(665,32,48,14);
+    ctx.fillRect(230,110,55,14);ctx.fillRect(242,100,31,12);
+  });
+  add('assets/backgrounds/stage1/buildings_far.png', 960, 540, (ctx) => {
+    const bs=[{x:10,bw:55,bh:200},{x:80,bw:40,bh:270},{x:140,bw:65,bh:220},{x:225,bw:50,bh:300},{x:300,bw:75,bh:180},{x:400,bw:45,bh:320},{x:460,bw:60,bh:240},{x:545,bw:55,bh:280},{x:625,bw:70,bh:210},{x:720,bw:50,bh:260},{x:790,bw:60,bh:230},{x:870,bw:45,bh:290}];
+    bs.forEach(b=>{
+      ctx.fillStyle='#6a7a90';ctx.fillRect(b.x,540-b.bh,b.bw,b.bh);
+      ctx.fillStyle='#7a8aa0';ctx.fillRect(b.x,540-b.bh,b.bw,6);
+      ctx.fillStyle='#8a9ab0';ctx.fillRect(b.x+b.bw*0.3,540-b.bh,b.bw*0.15,b.bh*0.12);
+    });
+  });
+  add('assets/backgrounds/stage1/buildings_mid.png', 960, 540, (ctx) => {
+    const h=540;
+    const bs=[{x:20,bw:85,bh:240},{x:130,bw:100,bh:300},{x:270,bw:70,bh:220},{x:380,bw:90,bh:340},{x:510,bw:75,bh:260},{x:620,bw:95,bh:280},{x:750,bw:80,bh:320},{x:860,bw:70,bh:250}];
+    bs.forEach(b=>{
+      const t=h-b.bh;
+      ctx.fillStyle='#556878';ctx.fillRect(b.x,t,b.bw,b.bh);
+      ctx.fillStyle='#3a4a5a';
+      for(let wy=t+18;wy<h-35;wy+=28)for(let wx=b.x+10;wx<b.x+b.bw-10;wx+=16){
+        if(Math.random()>0.3)ctx.fillRect(wx,wy,9,13);
+      }
+      ctx.fillStyle='#bbccdd';
+      for(let c=0;c<2;c++)ctx.fillRect(b.x+Math.random()*b.bw*0.5,t-3,12+Math.random()*18,8+Math.random()*20);
+    });
+    // Smog
+    ctx.fillStyle='rgba(200,210,220,0.1)';
+    ctx.beginPath();ctx.arc(100,h-80,150,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(400,h-60,200,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(750,h-100,180,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(180,190,200,0.15)';
+    ctx.beginPath();ctx.arc(250,h-40,120,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(600,h-20,160,0,Math.PI*2);ctx.fill();
+  });
+  add('assets/backgrounds/stage1/debris_near.png', 960, 540, (ctx) => {
+    ctx.fillStyle='#4a5060';
+    for(let i=0;i<25;i++)ctx.fillRect(Math.random()*960,440-Math.random()*35,5+Math.random()*14,4+Math.random()*10);
+  });
+
+  // Stage 2
+  add('assets/backgrounds/stage2/interior_sky.png', 960, 540, (ctx) => {
+    const g=ctx.createLinearGradient(0,0,0,540);
+    g.addColorStop(0,'#2a3a2a');g.addColorStop(0.5,'#3a4a3a');g.addColorStop(1,'#1a2a1a');
+    ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+  });
+  add('assets/backgrounds/stage2/walls.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#3a4a3a';ctx.fillRect(0,0,960,h);
+    for(let i=0;i<50;i++){ctx.fillStyle=`hsl(${110+Math.random()*25},${30+Math.random()*20}%,${22+Math.random()*12}%)`;ctx.fillRect(Math.random()*960,Math.random()*h,25+Math.random()*45,4+Math.random()*12);}
+    for(let i=0;i<4;i++){const wx=90+i*230;ctx.fillStyle='#2a3040';ctx.fillRect(wx,75,55,75);ctx.fillStyle='rgba(255,245,200,0.06)';ctx.beginPath();ctx.moveTo(wx,75);ctx.lineTo(wx+55,75);ctx.lineTo(wx+95,h);ctx.lineTo(wx-25,h);ctx.fill();}
+  });
+  add('assets/backgrounds/stage2/furniture.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#6a4a2a';ctx.fillRect(100,h-145,85,8);ctx.fillRect(100,h-145,6,42);ctx.fillRect(179,h-155,6,52);
+    ctx.fillStyle='#2a5a2a';ctx.fillRect(108,h-152,35,5);ctx.fillRect(118,h-160,4,18);
+    ctx.fillStyle='#3a3a44';ctx.fillRect(400,h-155,55,42);ctx.fillStyle='#1a1a28';ctx.fillRect(405,h-150,45,32);
+    ctx.fillStyle='#2a5a2a';ctx.fillRect(395,h-168,22,16);
+    for(let i=0;i<10;i++){const fx=45+i*100;ctx.fillStyle='#2a6a2a';ctx.fillRect(fx,h-125,3,22+Math.random()*18);ctx.fillStyle=['#ee5577','#ffaa33','#ee77aa','#99bb33'][i%4];ctx.fillRect(fx-3,h-130-Math.random()*12,8,8);}
+  });
+  add('assets/backgrounds/stage2/vines.png', 960, 540, (ctx) => {
+    for(let i=0;i<14;i++){const vx=i*72;ctx.fillStyle=`hsl(${118+Math.random()*18},38%,${18+Math.random()*12}%)`;const len=55+Math.random()*220;ctx.fillRect(vx,0,3,len);for(let l=0;l<len;l+=16){ctx.fillRect(vx-5,l,5,7);ctx.fillRect(vx+3,l+9,5,7);}}
+  });
+
+  // Stage 3
+  add('assets/backgrounds/stage3/night_sky.png', 960, 540, (ctx) => {
+    const g=ctx.createLinearGradient(0,0,0,540);
+    g.addColorStop(0,'#12101a');g.addColorStop(0.5,'#221828');g.addColorStop(1,'#080510');
+    ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+    ctx.fillStyle='#fff';for(let i=0;i<35;i++){ctx.globalAlpha=0.25+Math.random()*0.6;ctx.fillRect(Math.random()*960,Math.random()*240,2,2);}ctx.globalAlpha=1;
+  });
+  add('assets/backgrounds/stage3/crater.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#22202e';ctx.fillRect(0,h*0.55,960,h*0.45);
+    ctx.fillStyle='#2e2a38';for(let x=0;x<960;x+=4)ctx.fillRect(x,h*0.53+Math.sin(x*0.02)*18,4,8);
+    ctx.fillStyle='rgba(180,80,40,0.04)';ctx.fillRect(0,h*0.65,960,h*0.35);
+  });
+  add('assets/backgrounds/stage3/edge.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='#2e2838';ctx.fillRect(0,h-125,960,125);
+    ctx.fillStyle='#1a1020';for(let i=0;i<18;i++)ctx.fillRect(Math.random()*960,h-125,2,40+Math.random()*85);
+    ctx.fillStyle='#3e3848';for(let i=0;i<12;i++)ctx.fillRect(Math.random()*960,h-135-Math.random()*22,16+Math.random()*22,10+Math.random()*16);
+  });
+  add('assets/backgrounds/stage3/abyss.png', 960, 540, (ctx) => {
+    const h=540;
+    ctx.fillStyle='rgba(160,50,25,0.03)';ctx.fillRect(0,h-85,960,85);
+    ctx.fillStyle='#221828';for(let x=0;x<960;x+=9)ctx.fillRect(x,h-110+Math.random()*16,7,110);
+  });
+  */
+
+  // Send to server
+  status(`Sending ${sprites.length} sprites to server...`);
+  try {
+    const resp = await fetch('http://localhost:8090/save-sprites', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ sprites })
+    });
+    const result = await resp.json();
+    status(`Done! Saved ${result.saved} sprites.`);
+  } catch(e) {
+    status('Error: ' + e.message + '. Is generate_assets.py running?');
+  }
+}
+
+bakeAll();
+</script>
+</body></html>

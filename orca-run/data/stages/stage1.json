@@ -1,0 +1,55 @@
+{
+  "name": "崩落したビル群",
+  "number": "STAGE 1",
+  "length": 15000,
+  "bgPhase": 0,
+  "scrollSpeed": 2.5,
+  "backgrounds": [
+    {"layer": "sky", "speed": 0.08, "src": "assets/backgrounds/stage1/sky.png"},
+    {"layer": "buildings_far", "speed": 0.2, "src": "assets/backgrounds/stage1/buildings_far.png"},
+    {"layer": "buildings_mid", "speed": 0.45, "src": "assets/backgrounds/stage1/buildings_mid.png"},
+    {"layer": "debris_near", "speed": 0.75, "src": "assets/backgrounds/stage1/debris_near.png"}
+  ],
+  "groundColor": "#4a5060",
+  "groundLineColor": "#5a6070",
+  "platforms": [
+    {"x":800,"y":380,"w":120,"h":16},{"x":1400,"y":350,"w":100,"h":16},
+    {"x":2200,"y":360,"w":150,"h":16},{"x":3000,"y":330,"w":100,"h":16},
+    {"x":3800,"y":370,"w":130,"h":16},{"x":4600,"y":340,"w":110,"h":16},
+    {"x":5400,"y":380,"w":140,"h":16},{"x":6200,"y":350,"w":100,"h":16},
+    {"x":7000,"y":320,"w":120,"h":16},{"x":7800,"y":360,"w":150,"h":16},
+    {"x":8600,"y":340,"w":100,"h":16},{"x":9400,"y":370,"w":130,"h":16},
+    {"x":10200,"y":350,"w":120,"h":16},{"x":11000,"y":330,"w":100,"h":16},
+    {"x":11800,"y":380,"w":140,"h":16},{"x":12500,"y":350,"w":110,"h":16},
+    {"x":13200,"y":340,"w":130,"h":16}
+  ],
+  "waves": [
+    {"dist":300,"enemies":["tireShark"]},
+    {"dist":700,"enemies":["vendingMachine"]},
+    {"dist":1200,"enemies":["tireShark","tireShark"]},
+    {"dist":1800,"enemies":["vendingMachine","tireShark"]},
+    {"dist":2500,"enemies":["acHermitCrab"]},
+    {"dist":3200,"enemies":["tireShark","tireShark","vendingMachine"]},
+    {"dist":4000,"enemies":["acHermitCrab","tireShark"]},
+    {"dist":4800,"enemies":["vendingMachine","vendingMachine"]},
+    {"dist":5500,"enemies":["tireShark","acHermitCrab"]},
+    {"dist":6300,"enemies":["tireShark","tireShark","tireShark"]},
+    {"dist":7100,"enemies":["vendingMachine","acHermitCrab"]},
+    {"dist":8000,"enemies":["tireShark","vendingMachine","tireShark"]},
+    {"dist":8800,"enemies":["acHermitCrab","acHermitCrab"]},
+    {"dist":9600,"enemies":["tireShark","tireShark","vendingMachine"]},
+    {"dist":10500,"enemies":["vendingMachine","vendingMachine","tireShark"]},
+    {"dist":11400,"enemies":["acHermitCrab","tireShark","tireShark"]},
+    {"dist":12200,"enemies":["vendingMachine","acHermitCrab","tireShark"]},
+    {"dist":13000,"enemies":["tireShark","tireShark","tireShark","vendingMachine"]}
+  ],
+  "midBoss": {"dist":14000, "type":"cartShark"},
+  "boss": null,
+  "subtitles": [
+    {"dist":100, "text":"人類が滅んだのは、もう遠い昔のことだ。"},
+    {"dist":2000, "text":"朽ちたビルの壁に、色褪せたポスターが見える。"},
+    {"dist":4000, "text":"「シャチのショー、毎日開催！」―― かつての記録。"},
+    {"dist":7000, "text":"見世物だった者たちが、今は街を闊歩している。"},
+    {"dist":10000, "text":"皮肉なものだ。自由とは、こういうものなのか。"}
+  ]
+}
