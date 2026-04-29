@@ -1,0 +1,10 @@
+{
+  "type": "abyss_angler",
+  "hp": 40, "maxHp": 40,
+  "hw": 50, "hh": 40,
+  "sprites": {
+    "idle": "assets/sprites/enemies/boss/angler_idle.png",
+    "flash": "assets/sprites/enemies/boss/angler_flash.png",
+    "width": 100, "height": 80, "originX": 50, "originY": 40
+  }
+}

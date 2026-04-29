@@ -1,0 +1,44 @@
+{
+  "name": "終焉の淵",
+  "number": "STAGE 6",
+  "length": 12000,
+  "bgPhase": 5,
+  "scrollSpeed": 3.2,
+  "backgrounds": [
+    {"layer": "abyss_void", "speed": 0.03, "src": "assets/backgrounds/stage3/night_sky.png"},
+    {"layer": "abyss_deep", "speed": 0.12, "src": "assets/backgrounds/stage3/crater.png"},
+    {"layer": "abyss_mid", "speed": 0.28, "src": "assets/backgrounds/stage3/edge.png"},
+    {"layer": "abyss_near", "speed": 0.5, "src": "assets/backgrounds/stage3/abyss.png"}
+  ],
+  "groundColor": "#050508",
+  "groundLineColor": "#101018",
+  "platforms": [
+    {"x":600,"y":360,"w":100,"h":16},{"x":1200,"y":330,"w":120,"h":16},
+    {"x":1900,"y":370,"w":100,"h":16},{"x":2600,"y":340,"w":130,"h":16},
+    {"x":3300,"y":360,"w":110,"h":16},{"x":4000,"y":320,"w":100,"h":16},
+    {"x":4700,"y":380,"w":140,"h":16},{"x":5400,"y":350,"w":100,"h":16},
+    {"x":6100,"y":330,"w":120,"h":16},{"x":6800,"y":370,"w":110,"h":16},
+    {"x":7500,"y":340,"w":100,"h":16},{"x":8200,"y":360,"w":130,"h":16}
+  ],
+  "waves": [
+    {"dist":400,"enemies":["morayEel","morayEel","submarineCrab","carrierSeal"]},
+    {"dist":1200,"enemies":["carrierSeal","carrierSeal","morayEel","morayEel"]},
+    {"dist":2000,"enemies":["submarineCrab","submarineCrab","submarineCrab","carrierSeal","morayEel"]},
+    {"dist":2800,"enemies":["morayEel","morayEel","morayEel","morayEel"]},
+    {"dist":3600,"enemies":["carrierSeal","submarineCrab","morayEel","carrierSeal","submarineCrab"]},
+    {"dist":4400,"enemies":["morayEel","morayEel","submarineCrab","submarineCrab","carrierSeal"]},
+    {"dist":5200,"enemies":["carrierSeal","carrierSeal","carrierSeal","morayEel"]},
+    {"dist":6000,"enemies":["submarineCrab","morayEel","morayEel","carrierSeal","submarineCrab","morayEel"]},
+    {"dist":7000,"enemies":["carrierSeal","carrierSeal","morayEel","morayEel","submarineCrab"]},
+    {"dist":8000,"enemies":["morayEel","morayEel","morayEel","submarineCrab","submarineCrab","carrierSeal"]},
+    {"dist":9000,"enemies":["carrierSeal","carrierSeal","carrierSeal","morayEel","morayEel"]}
+  ],
+  "midBoss": null,
+  "boss": {"dist":11000},
+  "subtitles": [
+    {"dist":100, "text":"ここが、全ての終わりの場所。"},
+    {"dist":3000, "text":"闇が目を開く。"},
+    {"dist":6000, "text":"「虚無」が、こちらを認識した。"},
+    {"dist":9000, "text":"最後の戦いが、始まる。"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "submarine_crab",
+  "hp": 4, "maxHp": 4, "damage": 15,
+  "hw": 30, "hh": 20,
+  "sprites": {
+    "frames": [
+      "assets/sprites/enemies/submarine_crab/crab_1.png",
+      "assets/sprites/enemies/submarine_crab/crab_2.png"
+    ],
+    "width": 80, "height": 52, "originX": 40, "originY": 26
+  }
+}

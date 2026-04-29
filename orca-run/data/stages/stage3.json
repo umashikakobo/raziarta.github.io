@@ -1,0 +1,45 @@
+{
+  "name": "巨大クレーター跡地",
+  "number": "STAGE 3",
+  "length": 12000,
+  "bgPhase": 2,
+  "scrollSpeed": 3.0,
+  "backgrounds": [
+    {"layer": "night_sky", "speed": 0.08, "src": "assets/backgrounds/stage3/night_sky.png"},
+    {"layer": "crater", "speed": 0.3, "src": "assets/backgrounds/stage3/crater.png"},
+    {"layer": "edge", "speed": 0.55, "src": "assets/backgrounds/stage3/edge.png"},
+    {"layer": "abyss", "speed": 0.85, "src": "assets/backgrounds/stage3/abyss.png"}
+  ],
+  "groundColor": "#1e1828",
+  "groundLineColor": "#2e2838",
+  "platforms": [
+    {"x":800,"y":370,"w":120,"h":16},{"x":1600,"y":340,"w":100,"h":16},
+    {"x":2400,"y":360,"w":130,"h":16},{"x":3200,"y":320,"w":100,"h":16},
+    {"x":4000,"y":350,"w":140,"h":16},{"x":4800,"y":380,"w":110,"h":16},
+    {"x":5600,"y":340,"w":120,"h":16},{"x":6400,"y":360,"w":100,"h":16},
+    {"x":7200,"y":330,"w":130,"h":16},{"x":8000,"y":370,"w":100,"h":16},
+    {"x":8800,"y":350,"w":140,"h":16},{"x":9600,"y":340,"w":110,"h":16}
+  ],
+  "waves": [
+    {"dist":400,"enemies":["tireShark","tireShark","vendingMachine"]},
+    {"dist":1200,"enemies":["acHermitCrab","tireShark"]},
+    {"dist":2000,"enemies":["vendingMachine","vendingMachine","tireShark","tireShark"]},
+    {"dist":2800,"enemies":["acHermitCrab","acHermitCrab"]},
+    {"dist":3600,"enemies":["tireShark","vendingMachine","acHermitCrab","tireShark"]},
+    {"dist":4400,"enemies":["tireShark","tireShark","tireShark","vendingMachine"]},
+    {"dist":5200,"enemies":["acHermitCrab","vendingMachine","tireShark"]},
+    {"dist":6000,"enemies":["tireShark","tireShark","vendingMachine","vendingMachine","acHermitCrab"]},
+    {"dist":7000,"enemies":["acHermitCrab","acHermitCrab","tireShark"]},
+    {"dist":8000,"enemies":["vendingMachine","vendingMachine","tireShark","tireShark","acHermitCrab"]},
+    {"dist":9000,"enemies":["tireShark","tireShark","tireShark","tireShark"]},
+    {"dist":10000,"enemies":["acHermitCrab","vendingMachine","vendingMachine","tireShark"]}
+  ],
+  "midBoss": null,
+  "boss": {"dist":11000},
+  "subtitles": [
+    {"dist":100, "text":"巨大な穴が、大地を呑み込んでいる。"},
+    {"dist":3000, "text":"これが、人類の終わりを告げた場所なのだろうか。"},
+    {"dist":6000, "text":"底の見えない暗闇が、こちらを見つめ返している。"},
+    {"dist":9000, "text":"何かが……いる。"}
+  ]
+}

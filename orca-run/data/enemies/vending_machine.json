@@ -1,0 +1,11 @@
+{
+  "type": "vendingMachine",
+  "hp": 2, "damage": 10, "shootInterval": 75,
+  "hw": 18, "hh": 25,
+  "dropRate": 0.1,
+  "sprites": {
+    "idle": "assets/sprites/enemies/vending_machine/vending_idle.png",
+    "shoot": "assets/sprites/enemies/vending_machine/vending_shoot.png",
+    "width": 60, "height": 80, "originX": 30, "originY": 40
+  }
+}

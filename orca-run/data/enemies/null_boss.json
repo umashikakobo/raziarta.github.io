@@ -1,0 +1,14 @@
+{
+  "type": "null_boss",
+  "hp": 120, "maxHp": 120,
+  "hw": 60, "hh": 60,
+  "sprites": {
+    "idle": [
+      "assets/sprites/enemies/boss/null_1.png",
+      "assets/sprites/enemies/boss/null_2.png",
+      "assets/sprites/enemies/boss/null_3.png",
+      "assets/sprites/enemies/boss/null_4.png"
+    ],
+    "width": 140, "height": 140, "originX": 70, "originY": 70
+  }
+}
