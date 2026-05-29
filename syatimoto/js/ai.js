@@ -27,11 +27,9 @@ function createAI(name, entIndex = 1) {
 
     let mesh;
     if (G.playerModel) {
-        mesh = G.playerModel.clone();
+        mesh = clonePlayerModel(0x90ee90);
         mesh.traverse(n => {
             if (n.isMesh) {
-                n.material = n.material.clone();
-                n.material.color.set(0x90ee90);
                 n.material.emissive.set(0x225522);
             }
         });
@@ -43,30 +41,17 @@ function createAI(name, entIndex = 1) {
     }
     mesh.castShadow = true;
 
-    const xrayMat = new THREE.MeshBasicMaterial({
-        color: 0xffaa33,
-        transparent: true,
-        opacity: 0.5,
-        depthFunc: THREE.GreaterDepth,
-        depthWrite: false,
-        stencilWrite: true,
-        stencilRef: 1,
-        stencilFunc: THREE.NotEqualStencilFunc
-    });
-
-    let xrayMesh;
     if (G.playerModel) {
-        xrayMesh = G.playerModel.clone();
-        xrayMesh.scale.set(1, 1, 1);
-        xrayMesh.traverse((node) => {
-            if (node.isMesh) {
-                node.material = xrayMat;
-            }
-        });
+        addXrayMeshToModel(mesh, 0xffaa33);
     } else {
-        xrayMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), xrayMat);
+        const xrayMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa33, transparent: true, opacity: 0.5,
+            depthFunc: THREE.GreaterDepth, depthWrite: false,
+            stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
+        });
+        const xrayMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), xrayMat);
+        mesh.add(xrayMesh);
     }
-    mesh.add(xrayMesh);
 
     const sprite = createNameSprite(name);
     mesh.add(sprite);

@@ -3,34 +3,6 @@
 // ═══════════════════════════════════════════════════════
 'use strict';
 
-// --- Records Migration & Cleanup ---
-(function migrateRecords() {
-    const key = 'raziarta_ascent_records';
-    try {
-        let records = JSON.parse(localStorage.getItem(key) || '[]');
-        let changed = false;
-        
-        // 1. Delete specific record (Time: 37.80s)
-        const initialCount = records.length;
-        records = records.filter(r => Math.abs((r.elapsedPrecise || r.time) - 37.80) > 0.001);
-        if (records.length !== initialCount) changed = true;
-
-        // 2. Normalize all records to seed 0 (as they were generated with effective seed 0 before the fix)
-        records.forEach(r => {
-            if (r.seed === undefined || r.seed !== 0) {
-                r.seed = 0;
-                changed = true;
-            }
-        });
-
-        if (changed) {
-            localStorage.setItem(key, JSON.stringify(records));
-            console.log("[Migration] Records cleaned and normalized to seed 0.");
-        }
-    } catch (e) {
-        console.error("Migration failed:", e);
-    }
-})();
 
 
 const STORAGE_KEY = 'raziarta_ascent_records';
@@ -139,9 +111,6 @@ function showRecordsUI() {
     }
 
     // 開くたびに初期化（または維持）
-    if (window.G && !G.currentRecordMode) {
-        G.currentRecordMode = 'TIME TRIAL';
-    }
 
     const records = getRecords();
 

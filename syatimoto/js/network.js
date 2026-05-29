@@ -14,7 +14,7 @@ function packData(eventId, data) {
         return { event: 5, id: data.id, name: data.name };
     }
     if (eventId === 6) {
-        return { event: 6, seed: data.seed, mode: data.mode, areaSize: data.areaSize, density: data.density, goalHeight: data.goalHeight, maxLives: data.maxLives, aiCount: data.aiCount };
+        return { event: 6, seed: data.seed, mode: data.mode, areaSize: data.areaSize, density: data.density, goalHeight: data.goalHeight, maxLives: data.maxLives, deathFallMode: data.deathFallMode, raceType: data.raceType };
     }
     if (eventId === 7) {
         return { event: 7, config: data.config };
@@ -241,8 +241,7 @@ function setupHost() {
                         goalHeight: config.goalHeight,
                         density: config.density,
                         raceType: config.raceType,
-                        maxLives: config.maxLives,
-                        aiCount: config.aiCount
+                        maxLives: config.maxLives
                     }
                 }));
                 // 既存の全プレイヤーの名前リストを新規接続者に同期
@@ -294,7 +293,6 @@ function setupClient(targetRoomId) {
             console.log(`[Multiplayer] Connected to host: ${conn.peer}`);
             G.hostConn = conn;
             G.isOnline = true;
-            G.isClientInLobby = true;
             logStatus("Connected to Room " + targetRoomId + "!");
             enterClientLobby();
 
@@ -310,7 +308,6 @@ function setupClient(targetRoomId) {
         conn.on('close', () => {
             console.warn(`[Multiplayer] Connection to host ${conn.peer} closed.`);
             G.isOnline = false;
-            G.isClientInLobby = false;
             logStatus("Connection closed.");
             if (G.isStarted) {
                 resetToHome();
@@ -395,7 +392,7 @@ function updateLobbyPlayerList() {
     names.push(`<span style="color:#0ea5e9; font-weight:bold;">★ ${G.myPlayerName} (HOST)</span>`);
     // 接続中のクライアント
     G.peerNames.forEach((name, id) => {
-        names.push(`<span style="color:#f1f5f9;">● ${name}</span>`);
+        if (id !== G.myPeerId) names.push(`<span style="color:#f1f5f9;">● ${name}</span>`);
     });
     // まだ名前を受信していない接続
     G.connections.forEach(c => {
@@ -422,7 +419,6 @@ function updateLobbySettingsUI() {
         { label: 'DENSITY', val: (config.density * 100).toFixed(0) + '%' },
         { label: 'GOAL HEIGHT', val: config.goalHeight + 'm' },
         { label: 'MAX LIVES', val: config.maxLives },
-        { label: 'AI COUNT', val: config.aiCount },
         { label: 'DEATH FALL', val: config.deathFallMode === 'none' ? 'OFF' : config.deathFallMode + 'm' }
     ];
 
@@ -434,34 +430,24 @@ function updateLobbySettingsUI() {
     `).join('');
 }
 
-function handleNetworkData(rawData, sourceConn) {
-    const data = unpackData(rawData);
-    if (!data) return;
-
-    const from = sourceConn ? sourceConn.peer : "LOCAL(HOST)";
-
-
-    if (data.event === 0) {
+const NETWORK_EVENT_HANDLERS = {
+    0: (data, sourceConn, from) => {
         if (!G.isHost) {
             G.randomSeed = data.seed;
             console.log("Received Seed:", G.randomSeed);
             G.peerNames.set(data.hostId, data.hostName);
             if (data.density !== undefined) config.density = data.density;
             if (data.hostConfig) {
-                if (data.hostConfig.deathFallMode) config.deathFallMode = data.hostConfig.deathFallMode;
-                if (data.hostConfig.areaSize) config.areaSize = data.hostConfig.areaSize;
-                if (data.hostConfig.goalHeight) config.goalHeight = data.hostConfig.goalHeight;
-                if (data.hostConfig.density) config.density = data.hostConfig.density;
-                if (data.hostConfig.raceType) config.raceType = data.hostConfig.raceType;
-                if (data.hostConfig.maxLives) config.maxLives = data.hostConfig.maxLives;
-                if (data.hostConfig.aiCount !== undefined) config.aiCount = data.hostConfig.aiCount;
+                Object.assign(config, data.hostConfig);
             }
             updateLobbySettingsUI();
             broadcastEvent(5, { id: G.myPeerId, name: G.myPlayerName });
         }
-    } else if (data.event === 1) {
+    },
+    1: (data, sourceConn, from) => {
         updateNetworkEntity(data, sourceConn);
-    } else if (data.event === 5) {
+    },
+    5: (data, sourceConn, from) => {
         G.peerNames.set(data.id, data.name);
         if (G.networkEntities.has(data.id)) {
             const ent = G.networkEntities.get(data.id);
@@ -475,7 +461,7 @@ function handleNetworkData(rawData, sourceConn) {
 
             const lobbyList = [];
             lobbyList.push({ id: G.myPeerId, name: G.myPlayerName, isHost: true });
-            G.peerNames.forEach((name, id) => lobbyList.push({ id, name, isHost: false }));
+            G.peerNames.forEach((name, id) => { if (id !== G.myPeerId) lobbyList.push({ id, name, isHost: false }) });
             broadcastEvent(25, { list: lobbyList });
 
             G.projectiles.forEach(p => {
@@ -485,7 +471,8 @@ function handleNetworkData(rawData, sourceConn) {
                 if (b.netId != null && b.body) broadcastEvent(11, { netId: b.netId, type: 1, x: b.body.position.x, y: b.body.position.y, z: b.body.position.z, vx: b.body.linearVelocity.x, vy: b.body.linearVelocity.y, vz: b.body.linearVelocity.z, props: b.props, ownerName: b.ownerId });
             });
         }
-    } else if (data.event === 25) {
+    },
+    25: (data, sourceConn, from) => {
         if (!G.isHost) {
             const listEl = document.getElementById('lobby-player-list');
             if (!listEl) return;
@@ -497,20 +484,20 @@ function handleNetworkData(rawData, sourceConn) {
             listEl.innerHTML = names.join('<br>');
             listEl.style.display = 'block';
         }
-    } else if (data.event === 6) {
+    },
+    6: (data, sourceConn, from) => {
         if (!G.isHost && !G.isStarted) {
-            const incomingAiCount = parseInt(data.aiCount);
-            config.aiCount = (incomingAiCount > 0) ? incomingAiCount : false;
             if (data.seed !== undefined) G.randomSeed = data.seed;
-            if (data.areaSize !== undefined) config.areaSize = data.areaSize;
-            if (data.density !== undefined) config.density = data.density;
-            if (data.goalHeight !== undefined) config.goalHeight = data.goalHeight;
-            if (data.maxLives !== undefined) config.maxLives = data.maxLives;
-            if (data.deathFallMode !== undefined) config.deathFallMode = data.deathFallMode;
-            if (data.raceType !== undefined) config.raceType = data.raceType;
+            Object.assign(config, {
+                areaSize: data.areaSize !== undefined ? data.areaSize : config.areaSize,
+                density: data.density !== undefined ? data.density : config.density,
+                goalHeight: data.goalHeight !== undefined ? data.goalHeight : config.goalHeight,
+                maxLives: data.maxLives !== undefined ? data.maxLives : config.maxLives,
+                deathFallMode: data.deathFallMode !== undefined ? data.deathFallMode : config.deathFallMode,
+                raceType: data.raceType !== undefined ? data.raceType : config.raceType
+            });
 
             G.isStarted = true;
-            G.isClientInLobby = false;
             G.currentMode = data.mode || 'main';
             G.playerLives = config.maxLives;
             updateLifeHUD();
@@ -530,13 +517,15 @@ function handleNetworkData(rawData, sourceConn) {
                 try { G.controls.lock(); } catch (e) { }
             }
         }
-    } else if (data.event === 7) {
+    },
+    7: (data, sourceConn, from) => {
         // [NEW] ホストからのリアルタイム設定同期
         if (!G.isHost && data.config) {
             Object.assign(config, data.config);
             updateLobbySettingsUI();
         }
-    } else if (data.event === 10) {
+    },
+    10: (data, sourceConn, from) => {
         if (G.isHost) {
             let reqOwnerBody = null;
             let reqOwnerId = null;
@@ -552,7 +541,8 @@ function handleNetworkData(rawData, sourceConn) {
                 createBubble(data.x, data.y, data.z, data.vx, data.vy, data.vz, reqOwnerBody, null, reqOwnerId, data.props);
             }
         }
-    } else if (data.event === 11) {
+    },
+    11: (data, sourceConn, from) => {
         if (!G.isHost) {
             const myId = G.myPeerId ? String(G.myPeerId).trim() : "";
             const ownId = data.ownerName ? String(data.ownerName).trim() : "";
@@ -580,7 +570,8 @@ function handleNetworkData(rawData, sourceConn) {
                 createBubble(data.x, data.y, data.z, data.vx, data.vy, data.vz, resolveBody(data.ownerName), data.netId, data.ownerName, data.props);
             }
         }
-    } else if (data.event === 12) {
+    },
+    12: (data, sourceConn, from) => {
         if (!G.isHost) {
             const list = data.list;
             if (!list) return;
@@ -605,7 +596,8 @@ function handleNetworkData(rawData, sourceConn) {
                 }
             }
         }
-    } else if (data.event === 13) {
+    },
+    13: (data, sourceConn, from) => {
         if (!G.isHost) {
             if (data.type === 0) {
                 const idx = G.projectiles.findIndex(p => p.netId === data.netId);
@@ -632,7 +624,8 @@ function handleNetworkData(rawData, sourceConn) {
                 }
             }
         }
-    } else if (data.event === 20) {
+    },
+    20: (data, sourceConn, from) => {
         // ホストがロビーに戻った → クライアントも追従（通知なし）
         if (!G.isHost) {
             console.log("[Multiplayer] Host returned to lobby. Following...");
@@ -642,7 +635,8 @@ function handleNetworkData(rawData, sourceConn) {
             G.isClientInLobby = true;
             enterClientLobby();
         }
-    } else if (data.event === 21) {
+    },
+    21: (data, sourceConn, from) => {
         // ホストからのダメージ＋ノックバック通知
         if (!G.isHost) {
             const myId = G.myPeerId ? String(G.myPeerId).trim() : "";
@@ -658,7 +652,8 @@ function handleNetworkData(rawData, sourceConn) {
                 }
             }
         }
-    } else if (data.event === 22) {
+    },
+    22: (data, sourceConn, from) => {
         // ロビー解散通知
         if (!G.isHost) {
             console.log("[Multiplayer] Host dissolved the lobby.");
@@ -674,10 +669,10 @@ function handleNetworkData(rawData, sourceConn) {
             exitClientLobby();
             logStatus("ホストがロビーを解散しました");
         }
-    } else if (data.event === 30) {
+    },
+    30: (data, sourceConn, from) => {
         // [UPDATED] Stats Processing
         // クライアントが死亡を通知 → ホストがキル加算してから全員にブロードキャスト
-        console.log(`[DEBUG] Host received Event 30 from ${data.peerId}. KilledBy: ${data.killedBy}`);
         if (G.isHost) {
             if (!G.peerStats) G.peerStats = new Map();
 
@@ -718,9 +713,9 @@ function handleNetworkData(rawData, sourceConn) {
             // ホスト自身の画面も更新
             if (typeof updateScoreboard === 'function') updateScoreboard();
         }
-    } else if (data.event === 31) {
+    },
+    31: (data, sourceConn, from) => {
         // ホストからの stats 全体更新（クライアント側で受け取る）
-        console.log(`[DEBUG] Client received Event 31 (Stats Update)`);
         if (!G.isHost) {
             if (!G.peerStats) G.peerStats = new Map();
             if (data.stats) {
@@ -728,7 +723,8 @@ function handleNetworkData(rawData, sourceConn) {
             }
             if (typeof updateScoreboard === 'function') updateScoreboard();
         }
-    } else if (data.event === 32) {
+    },
+    32: (data, sourceConn, from) => {
         // 無敵状態の同期
         const ent = G.networkEntities.get(data.peerId);
         if (ent) {
@@ -773,7 +769,8 @@ function handleNetworkData(rawData, sourceConn) {
                 }
             });
         }
-    } else if (data.event === 33) {
+    },
+    33: (data, sourceConn, from) => {
         // 死亡状態（十字架メッシュの切り替え）同期
         const ent = G.networkEntities.get(data.peerId);
         if (ent && G.scene) {
@@ -815,13 +812,27 @@ function handleNetworkData(rawData, sourceConn) {
                 }
             });
         }
-    } else if (data.event === 34) {
+    },
+    34: (data, sourceConn, from) => {
         // [NEW] キルログ通知を受信
         if (typeof addKillLog === 'function') {
             // ホストの場合、自分自身の死亡ログは ui.js で表示済みなのでスキップ
             if (G.isHost && data.victimName === G.myPlayerName) return;
             addKillLog(data.killerName, data.victimName);
         }
+    }
+};
+
+function handleNetworkData(rawData, sourceConn) {
+    const data = unpackData(rawData);
+    if (!data) return;
+
+    const from = sourceConn ? sourceConn.peer : "LOCAL(HOST)";
+
+    if (NETWORK_EVENT_HANDLERS[data.event]) {
+        NETWORK_EVENT_HANDLERS[data.event](data, sourceConn, from);
+    } else {
+        console.warn("[Multiplayer] Unhandled event type:", data.event);
     }
 }
 
@@ -862,31 +873,16 @@ function createNetworkPlayer(id) {
     let mesh;
 
     if (G.playerModel) {
-        mesh = G.playerModel.clone();
+        const matColor = isAINet ? 0x90ee90 : null;
+        mesh = clonePlayerModel(matColor);
         if (isAINet) {
             mesh.traverse(n => {
                 if (n.isMesh) {
-                    n.material = n.material.clone();
-                    n.material.color.set(0x90ee90);
                     n.material.emissive.set(0x225522);
                 }
             });
         }
-        
-        // 障害物越しにオレンジ色に透けるマテリアル（xrayMesh）を追加
-        const xrayMat = new THREE.MeshBasicMaterial({
-            color: 0xffaa33, transparent: true, opacity: 0.5,
-            depthFunc: THREE.GreaterDepth, depthWrite: false,
-            stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
-        });
-        const xrayMesh = G.playerModel.clone();
-        xrayMesh.scale.set(1, 1, 1);
-        xrayMesh.traverse(n => {
-            if (n.isMesh) {
-                n.material = xrayMat;
-            }
-        });
-        mesh.add(xrayMesh);
+        addXrayMeshToModel(mesh, 0xffaa33);
 
     } else {
         const matColor = isAINet ? 0x90ee90 : 0x4488ff;

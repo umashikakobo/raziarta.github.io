@@ -94,7 +94,7 @@ function requestFire(type) {
         }
     } else {
         const bx = startPos.x;
-        const by = startPos.y + 1.5;
+        const by = startPos.y + 2.87;
         const bz = startPos.z;
 
         const vx = 0;
@@ -124,6 +124,17 @@ function requestFire(type) {
             const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
             fireB(right.x * 0.8, right.z * 0.8);
             fireB(-right.x * 0.8, -right.z * 0.8);
+        }else if (bSplit === 3) {
+            const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+            fireB(right.x * 0.0, right.z * 4.0);
+            fireB(right.x * 0.0, right.z * 0);
+            fireB(right.x * 0.0, -right.z * 4.0);
+        }else if (bSplit === 4) {
+            const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+            fireB(right.x * 1.0, right.z * 1.0);
+            fireB(right.x * 1.0, -right.z * 1.0);
+            fireB(-right.x * 1.0, right.z * 1.0);
+            fireB(-right.x * 1.0, -right.z * 1.0);
         }
     }
 }

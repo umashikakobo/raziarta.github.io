@@ -14,6 +14,9 @@ const _tmpOffset = new THREE.Vector3();
 const _tmpDp = new THREE.Vector3();
 let _rewardScreenEl = null;
 
+let _syncCounter = 0;
+let _posSyncCounter = 0;
+
 function animate() {
     if (!G.isStarted) return;
     G.animFrameId = requestAnimationFrame(animate);
@@ -44,17 +47,17 @@ function updateFixedLogic(dt) {
     G.bubbles.forEach(b => { b._hitFlag = false; b._hitBody = null; });
     G.bubbles.forEach(b => {
         if (b.body) {
-            // ホスト/オフライン: 物理bodyで上昇
             b.body.linearVelocity.y = b.speedY || 5.0;
             b.body.linearVelocity.x *= 0.987;
             b.body.linearVelocity.z *= 0.987;
         } else {
-            // クライアント: メッシュ位置を速度予測で更新
             b.mesh.position.y += (b.speedY || 5.0) * dt;
         }
     });
 
-    G.world.step();
+    if (G.world) {
+        G.world.step();
+    }
 
     // シャボン玉衝突判定
     if (G.isHost || !G.isOnline) {
@@ -93,9 +96,6 @@ function updateFixedLogic(dt) {
                         if (other === G.playerBody) {
                             takeDamage(b.props ? b.props.damage : config.damageBubble, b.ownerId || resolveName(b.ownerBody));
                         }
-
-                        // 3. ネットワークプレイヤー判定
-                        // ホスト側の処理（combat.js の updateSoapBubbles で行われるが、ヒットフラグを立てることで確実に検知させる）
                         break;
                     }
                 }
@@ -103,6 +103,8 @@ function updateFixedLogic(dt) {
             }
         });
     }
+
+    if (G.isDead || !G.playerBody) return;
 
     const pos = G.playerBody.position;
     const vel = G.playerBody.linearVelocity;
@@ -331,44 +333,13 @@ function updateFixedLogic(dt) {
     // 弾丸更新
     animateProjectiles(dt);
 
-    // ダメージ判定
-    if (G.isStarted && G.playerLives>0) {
-        G.projectiles.forEach(p => {
-            if (p.ownerBody!==G.playerBody && !p._hitFlag && !G.isInvincible) {
-                const dx=p.position.x-pos.x,dy=p.position.y-pos.y,dz=p.position.z-pos.z;
-                if (dx*dx+dy*dy+dz*dz<0.35) {
-                    p._hitFlag=true;
-                    // オンラインクライアント: ダメージはホストからEvent 21で受け取る。ここでは弾のヒットフラグのみ立てる
-                    if (G.isHost || !G.isOnline) {
-                        takeDamage(p.props ? p.props.damage : config.damageProjectile, resolveName(p.ownerBody));
-                    }
-                }
-            }
-        });
-        G.bubbles.forEach(b => {
-            const bPos = b.body ? b.body.position : (b.mesh ? b.mesh.position : null);
-            if (!bPos) return;
-            const myId=G.myPeerId?String(G.myPeerId).trim():"", bOwnerId=b.ownerId?String(b.ownerId).trim():"";
-            const isMyBubble=(b.ownerBody===G.playerBody)||(myId&&bOwnerId===myId);
-            if (!isMyBubble&&!b._hitFlag&&!G.isInvincible&&(Date.now()-(b.spawnTime||0))>300) {
-                const dx=bPos.x-pos.x,dy=bPos.y-pos.y,dz=bPos.z-pos.z;
-                if (dx*dx+dy*dy+dz*dz<8.2) {
-                    b._hitFlag = true;
-                    b._hitBody = G.playerBody;
-                    // クライアント側: ダメージはEvent 21でホストから受け取る
-                    if (G.isHost || !G.isOnline) {
-                        takeDamage(b.props ? b.props.damage : config.damageBubble, bOwnerId || resolveName(b.ownerBody));
-                    }
-                }
-            }
-        });
-    }
+
     updateSoapBubbles(dt);
 
     // ホスト権威同期（20fps = 3フレームに1回、弾丸+シャボン両方）
     if (G.isHost&&G.isStarted) {
-        if (!window.syncCounter) window.syncCounter=0; window.syncCounter++;
-        if (window.syncCounter%3===0) {
+        _syncCounter++;
+        if (_syncCounter%3===0) {
             const sl=[];
             G.projectiles.forEach(p=>{
                 if(p.netId != null) {
@@ -386,9 +357,8 @@ function updateFixedLogic(dt) {
 
     // プレイヤー座標同期（30fps = 2フレームに1回、受信側はlerp補間で十分スムーズ）
     if (G.isOnline) {
-        if (!window._posSyncCounter) window._posSyncCounter = 0;
-        window._posSyncCounter++;
-        if (window._posSyncCounter % 2 === 0) {
+        _posSyncCounter++;
+        if (_posSyncCounter % 2 === 0) {
             broadcastEvent(1,{id:G.myPeerId,x:pos.x,y:pos.y,z:pos.z,jumps:G.jumpCount});
         }
     }
@@ -399,12 +369,6 @@ function updateFixedLogic(dt) {
         if (G.deathTimer<=0) respawnPlayer();
         else G.deathTextEl.innerText='YOU DIED\n'+Math.ceil(G.deathTimer);
         G.playerBody.linearVelocity.set(0,0,0);
-        // [FIXED] 十字架をその場に固定（重力落下を防ぐ）
-        /*
-        if (G.crossMesh) {
-            G.crossMesh.position.set(pos.x, pos.y, pos.z);
-        }
-        */
     }
 
     // 無敵更新
@@ -532,12 +496,6 @@ function renderVisuals(dt) {
             ent.mesh.visible = !ent.isDead;
             if (ent._deathCrossMesh) {
                 ent._deathCrossMesh.visible = !!ent.isDead;
-                // [FIXED] ネットワークプレイヤーの十字架もその場に固定
-                /*
-                if (ent.isDead) {
-                    ent._deathCrossMesh.position.lerp(ent.mesh.position, 0.2);
-                }
-                */
             }
         }
     });

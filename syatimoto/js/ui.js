@@ -7,9 +7,9 @@ function updateLifeHUD() {
     const lifeEl = document.getElementById('life-display');
     if (!lifeEl) return;
     if (G.playerLives <= 0) {
-        lifeEl.textContent = '💀';
+        lifeEl.textContent = '✕';
     } else {
-        lifeEl.textContent = '♥'.repeat(Math.max(0, G.playerLives));
+        lifeEl.textContent = '■'.repeat(Math.max(0, G.playerLives));
     }
     updateAmmoHUD();
 }
@@ -394,13 +394,13 @@ const UPGRADE_POOLS = {
         { id: 'm1', name: "スピード", desc: "速度：ややはやい\n跳躍：ふつう", stats: { playerSpeed: 7.5, jumpVelocity: 2.6, jumpMultiplier: 0.65, holdBoost: 0.38, maxHoldTime: 9 } },
         { id: 'm2', name: "ジャンプ", desc: "速度：ふつう\n跳躍：ややたかい", stats: { playerSpeed: 6.0, jumpVelocity: 3.0, jumpMultiplier: 0.65, holdBoost: 0.38, maxHoldTime: 9 } },
         { id: 'm3', name: "アクロバット", desc: "速度：ふつう\n空中制御：たかい", stats: { playerSpeed: 6.0, jumpVelocity: 2.7, jumpMultiplier: 0.77, holdBoost: 0.38, maxHoldTime: 9 } },
-        { id: 'm4', name: "ムーンウォーク", desc: "速度：ふつう\n長押し：ながい", stats: { playerSpeed: 6.0, jumpVelocity: 2.6, jumpMultiplier: 0.65, holdBoost: 0.43, maxHoldTime: 12 } },
+        { id: 'm4', name: "ムーンウォーク", desc: "速度：ふつう\n長押し：ながい", stats: { playerSpeed: 6.0, jumpVelocity: 2.6, jumpMultiplier: 0.65, holdBoost: 0.38, maxHoldTime: 12 } },
         { id: 'm5', name: "バイタリティ", desc: "速度：ふつう\n最大ライフ：＋２", stats: { playerSpeed: 6.0, jumpVelocity: 2.6, jumpMultiplier: 0.65, holdBoost: 0.38, maxHoldTime: 9 }, lifeBoost: 2 }
     ],
     projectile: [
-        { id: 'p1', name: "マシンガン", desc: "回復速度：とてもはやい\nダメージ：ちいさい", stats: { projectileRecoveryRate: 20.0, damageProjectile: 1, projectileSpeed: 20.0, projectileAutoFire: true, projectileRangeMult: 0.5, projectileRadiusMult: 0.6} },
+        { id: 'p1', name: "マシンガン", desc: "回復速度：とてもはやい\nダメージ：ちいさい", stats: { projectileRecoveryRate: 20.0, damageProjectile: 1, projectileSpeed: 20.0, projectileAutoFire: true, projectileRangeMult: 0.5, projectileRadiusMult: 0.4} },
         { id: 'p2', name: "ハヤイ", desc: "弾速：とてもはやい\nダメージ：おおきい", stats: { projectileRecoveryRate: 1.0, damageProjectile: 2, projectileSpeed: 45.0, projectileRangeMult: 2.0 } },
-        { id: 'p3', name: "キャノン", desc: "右クリックでスコープ\nスコープ中のみ発射可能\nダメージ：とてもおおきい", stats: { projectileRecoveryRate: 0.33, damageProjectile: 5, projectileSpeed: 40.0, projectileRadiusMult: 2.0, projectileRequiresScope: true, maxProjectileStock: 2.0 } },
+        { id: 'p3', name: "キャノン", desc: "右クリックでスコープ\nスコープ中のみ発射可能\nダメージ：とてもおおきい", stats: { projectileRecoveryRate: 0.33, damageProjectile: 5, projectileSpeed: 20.0, projectileRadiusMult: 2.0, projectileRequiresScope: true, maxProjectileStock: 2.0 } },
         { id: 'p4', name: "マガジン", desc: "最大装弾数が\n2発増加する", stats: { projectileRecoveryRate: 1.0, damageProjectile: 1, projectileSpeed: 20.0, maxProjectileStock: 4.0 } },
         { id: 'p5', name: "ブロック", desc: "弾のサイズが大きく\nダメージも少し高い", stats: { projectileRecoveryRate: 1.0, damageProjectile: 2, projectileSpeed: 15.0, projectileRadiusMult: 1.6 } },
         { id: 'p6', name: "ブンレツ", desc: "弾が斜め2方向に\n分裂して飛ぶ", stats: { projectileRecoveryRate: 1.0, damageProjectile: 1, projectileSpeed: 20.0, projectileSplit: 2 } },
@@ -412,13 +412,15 @@ const UPGRADE_POOLS = {
         { id: 'p12', name: "ナガイ", desc: "弾の射程が\n大幅に伸びる", stats: { projectileRecoveryRate: 1.0, damageProjectile: 1, projectileSpeed: 20.0, projectileRangeMult: 3.0, projectileRequiresScope: false } }
     ],
     bubble: [
-        { id: 'b1', name: "シャワー", desc: "回復速度：とてもはやい\nダメージ：ちいさい", stats: { bubbleRecoveryRate: 0.180, damageBubble: 1, bubbleSpeedY: 5.0 } },
+        { id: 'b1', name: "シャワー", desc: "回復速度：とてもはやい\nダメージ：ちいさい", stats: { bubbleRecoveryRate: 0.216, damageBubble: 1, bubbleSpeedY: 5.0 } },
         { id: 'b2', name: "ヘビー", desc: "上昇速度：おそい\nダメージ：とてもおおきい", stats: { bubbleRecoveryRate: 0.108, damageBubble: 5, bubbleSpeedY: 2.8 } },
         { id: 'b3', name: "ロケット", desc: "上昇速度：とてもはやい\nダメージ：ふつう", stats: { bubbleRecoveryRate: 0.108, damageBubble: 2, bubbleSpeedY: 10.0 } },
         { id: 'b4', name: "スロー", desc: "上昇速度：とてもおそい\nじっくりと浮上", stats: { bubbleRecoveryRate: 0.108, damageBubble: 2, bubbleSpeedY: 2.0 } },
         { id: 'b5', name: "ツイン", desc: "シャボン玉を\n同時に2発撃つ", stats: { bubbleRecoveryRate: 0.108, damageBubble: 2, bubbleSpeedY: 5.0, bubbleSplit: 2 } },
         { id: 'b6', name: "ダメージ", desc: "シャボン玉の\nダメージが大幅増加", stats: { bubbleRecoveryRate: 0.108, damageBubble: 4, bubbleSpeedY: 5.0 } },
-        { id: 'b7', name: "クイック", desc: "シャボン玉の\nリロード速度向上", stats: { bubbleRecoveryRate: 0.135, damageBubble: 2, bubbleSpeedY: 5.0 } }
+        { id: 'b7', name: "クイック", desc: "シャボン玉の\nリロード速度向上", stats: { bubbleRecoveryRate: 0.135, damageBubble: 2, bubbleSpeedY: 5.0 } },
+        { id: 'b8', name: "カホル", desc: "シャボン玉を\n同時に4発撃つ", stats: { bubbleRecoveryRate: 0.135, damageBubble: 2, bubbleSpeedY: 5.0, bubbleSplit: 4 } },
+        { id: 'b9', name: "ダンゴ", desc: "シャボン玉を\n団子状に撃つ", stats: { bubbleRecoveryRate: 0.133, damageBubble: 3, bubbleSpeedY: 3.0, bubbleSplit: 3 } }
     ]
 };
 
@@ -597,6 +599,7 @@ function initGUI() {
 
     const fMove = gui.addFolder('Move');
     fMove.add(config, 'playerSpeed', 1.0, 20.0).name('Speed');
+    fMove.add(config, 'mouseSensitivity', 0.1, 5.0).step(0.05).name('Sensitivity');
     fMove.open();
 
     const fJump = gui.addFolder('Jump');

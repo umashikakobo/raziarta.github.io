@@ -117,8 +117,16 @@ function handleJump(isSpacePressed) {
     G.lastSpaceState = isSpacePressed;
 }
 
+function applyMouseSensitivity() {
+    if (G.controls) {
+        G.controls.pointerSpeed = config.mouseSensitivity || 1.0;
+    }
+}
+
 function setupControls() {
     G.controls = new THREE.PointerLockControls(G.camera, document.body);
+    // 初期化後に保存済み感度を即時反映
+    applyMouseSensitivity();
 
     window.addEventListener('keyup', (e) => {
         if (e.code === 'KeyW') G.keys.w = false;
@@ -127,6 +135,31 @@ function setupControls() {
         if (e.code === 'KeyD') G.keys.d = false;
         if (e.code === 'Space') G.keys.space = false;
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') G.keys.shift = false;
+    });
+
+    const _sensEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+    document.addEventListener('mousemove', (e) => {
+        if (G.controls && G.controls.isLocked) {
+            const sens = config.mouseSensitivity !== undefined ? config.mouseSensitivity : 1.0;
+            const extraMultiplier = sens - 1.0;
+            
+            // デバッグ用のコンソールログ出力（0.1秒に1回程度の頻度に制限して出力）
+            if (!G._lastSensLog || Date.now() - G._lastSensLog > 1000) {
+                console.log(`[Mouse] sens=${sens}, extraMultiplier=${extraMultiplier}`);
+                G._lastSensLog = Date.now();
+            }
+
+            if (Math.abs(extraMultiplier) > 0.001) {
+                const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+                const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+                _sensEuler.setFromQuaternion(G.camera.quaternion);
+                _sensEuler.y -= movementX * 0.002 * extraMultiplier;
+                _sensEuler.x -= movementY * 0.002 * extraMultiplier;
+                const PI_2 = Math.PI / 2;
+                _sensEuler.x = Math.max(PI_2 - G.controls.maxPolarAngle, Math.min(PI_2 - G.controls.minPolarAngle, _sensEuler.x));
+                G.camera.quaternion.setFromEuler(_sensEuler);
+            }
+        }
     });
     window.addEventListener('mousedown', (e) => {
         if (e.button === 0 && G.controls.isLocked) G.keys.space = true;

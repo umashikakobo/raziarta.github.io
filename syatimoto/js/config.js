@@ -32,6 +32,7 @@ const config = {
     bubbleRecoveryRate: 0.108,
     projectileAutoFire: false,
     brightness: 0.46,
+    mouseSensitivity: 1.0,
     deathFallMode: '50', // 'none', '25', '50'
     raceType: 'COMBAT' // 'COMBAT', 'TIME TRIAL'
 };
@@ -140,7 +141,6 @@ const G = {
     currentMode: 'main',
     animFrameId: null,
     highestY: 0,
-    lowestY: 0,
     nextMilestoneY: 50,
     upgrades: { sphere: 0, bubble: 0 },
     jumpCount: 0,
@@ -179,8 +179,6 @@ const G = {
     entityListEl: null,
     logicAccumulator: 0,
     lastAnimTime: 0,
-    isRewarding: false,
-    isClientInLobby: false,
 
     // Time Trial / Ghost
     frameCount: 0,

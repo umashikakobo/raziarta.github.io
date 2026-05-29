@@ -4,9 +4,7 @@
 // ═══════════════════════════════════════════════════════
 'use strict';
 
-// デバッグ用ログバッファ
-if (!G.aiLogBuffer) G.aiLogBuffer = [];
-G.aiLog = "";
+
 
 // ── ブロック探索ヘルパー ──
 // 指定座標の近隣で「着地可能な面」を探す（上が空いているブロック）
@@ -103,26 +101,9 @@ function animateAI(dt) {
             ent.isJumping = false;
         }
 
-        // ── NN / ヒューリスティック切り替え ──
-        const useNN = document.getElementById('ai-nn-mode') && document.getElementById('ai-nn-mode').checked;
-        const collectData = document.getElementById('ai-collect-data') && document.getElementById('ai-collect-data').checked;
-        let currentState = null, nnAction = null;
-        let isJumpTriggered = false, mx = 0, mz = 0;
-
-        if (typeof getAIObservation === 'function') {
-            currentState = getAIObservation(ent, G.playerBody);
-            if (useNN) {
-                nnAction = predictAIAction(currentState);
-                mx = nnAction[0] * 5;
-                mz = nnAction[1] * 5;
-                if (nnAction[2] > 0.1) isJumpTriggered = true;
-            }
-        }
-
         // ═══════════════════════════════════════════════
-        //  ヒューリスティック登頂アルゴリズム (NNモード時はスキップ)
+        //  ヒューリスティック登頂アルゴリズム
         // ═══════════════════════════════════════════════
-        if (!useNN) {
             // ── ターゲット選択 ──
             // ジャンプ中（空中）はターゲットを固定して挙動を安定させる
             // ただし、長時間スタックしている場合は強制的に再評価
@@ -356,7 +337,7 @@ function animateAI(dt) {
                     mx = 0; mz = 0;
                 }
             }
-        }
+
 
         // ═══════════════════════════════════════════════
         //  ジャンプ実行（精密な物理計算に基づく）
@@ -407,37 +388,7 @@ function animateAI(dt) {
             }
         }
 
-        // デバッグログ記録 (最初のAIのみ)
-        if (ent.entIndex === 1) {
-            if (typeof window.aiLogFrame === 'undefined') window.aiLogFrame = 0;
-            window.aiLogFrame++;
-            
-            const t = ent.targetPos;
-            const distH = t ? Math.sqrt(Math.pow(t.x - pos.x, 2) + Math.pow(t.z - pos.z, 2)) : 0;
-            const dy = t ? t.y - pos.y : 0;
-            
-            const logEntry = [
-                `[F:${window.aiLogFrame}]`,
-                `PosY:${pos.y.toFixed(2)}`,
-                `VelY:${vel.y.toFixed(2)}`,
-                `Grnd:${ent.isGrounded ? 1 : 0}`,
-                `JCnt:${ent.jumpCount}`,
-                `Wall:${ent.debugWallAhead ? 1 : 0}`,
-                `Gap:${ent.debugGapAhead ? 1 : 0}`,
-                `Ovhd:${ent.debugHasOverhead ? 1 : 0}`,
-                `Stuck:${ent.stuckTimer}`,
-                `TgtXYZ:(${t ? t.x.toFixed(0) : '-' },${t ? t.y.toFixed(0) : '-' },${t ? t.z.toFixed(0) : '-' })`,
-                `DistH:${distH.toFixed(1)}`,
-                `Dy:${dy.toFixed(1)}`,
-                `mx:${mx.toFixed(1)}`,
-                `mz:${mz.toFixed(1)}`,
-                `JmpTrig:${isJumpTriggered ? 1 : 0}`
-            ].join(' ');
 
-            G.aiLogBuffer.push(logEntry);
-            if (G.aiLogBuffer.length > 200) G.aiLogBuffer.shift();
-            G.aiLog = G.aiLogBuffer.join("\n");
-        }
 
         ent.lastJumpTriggered = isJumpTriggered;
 
@@ -513,25 +464,7 @@ function animateAI(dt) {
         ent.lastMx = mx;
         ent.lastMz = mz;
 
-        if (collectData && currentState && typeof collectAIExperience === 'function') {
-            let reward = 0;
-            const dy = pos.y - (ent.lastFrameY || pos.y);
-            if (dy > 0.01) reward += dy * 300;
-            else if (dy < -0.01) reward += dy * 80;
-            if (Math.abs(dy) < 0.005) reward -= 0.2;
 
-            const nextMem = G.membranes.find(m => m.y > pos.y);
-            const curNextMemY = nextMem ? nextMem.y : config.goalHeight;
-            if (ent.prevNextMemY !== undefined && curNextMemY > ent.prevNextMemY) {
-                reward += 1000;
-            }
-            ent.prevNextMemY = curNextMemY;
-            if (ent.isDead) reward -= 500;
-            ent.lastFrameY = pos.y;
-            const normMx = amag > 0 ? mx / amag : 0;
-            const normMz = amag > 0 ? mz / amag : 0;
-            collectAIExperience(currentState, [normMx, normMz, isJumpTriggered ? 1 : 0], reward, null);
-        }
 
         // 攻撃ロジック省略
         const fireNow = Date.now();
@@ -557,16 +490,7 @@ function animateAI(dt) {
         }
     });
 
-    const collectData = document.getElementById('ai-collect-data') && document.getElementById('ai-collect-data').checked;
-    if (collectData) {
-        if (!window.lastAutoTrainTime) window.lastAutoTrainTime = Date.now();
-        if (Date.now() - window.lastAutoTrainTime > 30000) {
-            window.lastAutoTrainTime = Date.now();
-            if (typeof trainAIModel === 'function' && aiReplayBuffer.length >= 32) {
-                trainAIModel();
-            }
-        }
-    }
+
 }
 
 function animateProjectiles(dt) {
@@ -631,6 +555,23 @@ function animateProjectiles(dt) {
                 }
                 if (hitEB) { p._hitFlag = true; p._hitBody = hitEB; exploded = true; break; }
             }
+            // 膜との衝突判定（弾は通過不可、シャボン玉は通過可）
+            if (!exploded) {
+                const newPos = p.position.clone().addScaledVector(p.velocity, dt);
+                for (const m of G.membranes) {
+                    const halfW = m.w / 2;
+                    const cx = m.mesh ? m.mesh.position.x : config.areaSize / 2;
+                    const cz = m.mesh ? m.mesh.position.z : config.areaSize / 2;
+                    if (newPos.x >= cx - halfW && newPos.x <= cx + halfW &&
+                        newPos.z >= cz - halfW && newPos.z <= cz + halfW) {
+                        // 弾が膜のY面を跨いだか判定 (ステップまたぎを考慮)
+                        if ((p.position.y <= m.y && newPos.y >= m.y) ||
+                            (p.position.y >= m.y && newPos.y <= m.y)) {
+                            p._hitFlag = true; exploded = true; break;
+                        }
+                    }
+                }
+            }
             if (!exploded) p.position.addScaledVector(p.velocity, dt); else p.position.copy(cPos);
         } else if (!exploded && !G.isHost && G.isOnline) {
             // クライアント: 速度予測 + 視覚的な衝突判定（ダメージは適用しない）
@@ -684,7 +625,6 @@ function animateProjectiles(dt) {
                         p._hitFlag = false; // ヒットをキャンセル
                     } else {
                         G.lastDamageSourceId = p.ownerId || resolvePeerId(p.ownerBody);
-                        console.log(`[DEBUG] Host (Self) hit. Attacker: ${G.lastDamageSourceId}`);
                         takeDamage(pDamage);
                         G.playerBody.linearVelocity.x += kbx;
                         G.playerBody.linearVelocity.y += kby;
@@ -699,7 +639,6 @@ function animateProjectiles(dt) {
                             if (netEnt.isInvincible) break;
                             // [UPDATED] Hit Logic & Attribution
                             G.lastDamageSourceId = p.ownerId || resolvePeerId(p.ownerBody);
-                            console.log(`[DEBUG] Host detected hit on ${peerId}. Attacker: ${G.lastDamageSourceId}`);
                             sendToClient(peerId, 21, { targetPeerId: peerId, damage: pDamage, kbx, kby, kbz, attackerId: G.lastDamageSourceId });
                             break;
                         }

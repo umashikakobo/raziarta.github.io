@@ -352,14 +352,13 @@
             </div>
         </div>
         <div id="ai-training-ui" style="margin-top: 15px; background: transparent; text-align: left; width: 500px; display: none;">
-            <div style="color: #64748b; font-size: 10px; margin-bottom: 12px; letter-spacing: 2px; font-weight: 800; text-transform: uppercase; padding-left: 5px;">SYSTEM & AI OPTIONS</div>
+            <div style="color: #64748b; font-size: 10px; margin-bottom: 12px; letter-spacing: 2px; font-weight: 800; text-transform: uppercase; padding-left: 5px;">SYSTEM</div>
             <div id="options-list">
                 <!-- Rows injected here -->
             </div>
-            <div id="ai-train-status" style="font-size: 10px; color: #64748b; margin-top: 12px; font-family: monospace; padding: 4px 8px; font-weight: 500;">SYSTEM READY</div>
-            
+                       
             <!-- Hidden Legacy Inputs for Compatibility -->
-            <input type="range" id="cfg-brightness" style="display:none;" min="0.1" max="2.0" step="0.01" value="0.46">
+            <input type="range" id="cfg-brightness" style="display:none;" min="0.01" max="2.00" step="0.01" value="0.46">
             <input type="checkbox" id="ai-nn-mode" style="display:none;">
             <input type="checkbox" id="ai-collect-data" style="display:none;">
             <input type="checkbox" id="ai-follow-player" style="display:none;">
@@ -471,7 +470,6 @@
             { key: 'areaSize', label: 'AREA SIZE', min: 5, max: 20, step: 1, value: 9 },
             { key: 'density', label: 'DENSITY', min: 0.03, max: 0.5, step: 0.01, value: 0.16 },
             { key: 'maxLives', label: 'MAX LIVES', min: 1, max: 10, step: 1, value: 3 },
-            { key: 'aiCount', label: 'AI COUNT', min: 0, max: 10, step: 1, value: 0 },
             { key: '__startGame', label: 'START GAME', type: 'action', action: () => handleStartAction() }
         ];
         let currentSettingIdx = 0;
@@ -479,34 +477,51 @@
 
         // ── OPTIONS（AI）設定 ──
         const optionsDefs = [
-            { key: 'brightness', label: 'BRIGHTNESS', min: 0.1, max: 2.0, step: 0.01, value: 0.46 },
-            { key: 'deathFall', label: 'DEATH FALL', type: 'select', options: ['none', '25', '50'], labels: ['OFF', '25m', '50m'], value: '50' },
-            { key: 'nnMode', label: 'NN DRIVE', type: 'toggle', value: false },
-            { key: 'autoLearn', label: 'AUTO-LEARN', type: 'toggle', value: false },
-            { key: 'teacherMode', label: 'TEACHER MODE', type: 'toggle', value: false },
-            { key: 'forceTrain', label: 'FORCE TRAIN', type: 'action' },
-            { key: 'saveBrain', label: 'SAVE BRAIN', type: 'action' }
+            { key: 'brightness', label: 'BRIGHTNESS', min: 0.01, max: 2.00, step: 0.01, value: 0.46 },
+            { key: 'mouseSensitivity', label: 'MOUSE SENSITIVITY', min: 0.01, max: 3.0, step: 0.01, value: config.mouseSensitivity !== undefined ? config.mouseSensitivity : 1.0 },
+            { key: 'deathFall', label: 'DEATH FALL', type: 'select', options: ['none', '25', '50'], labels: ['OFF', '25m', '50m'], value: 'none' }
         ];
         let currentOptionIdx = 0;
         let isOptionsFocused = false;
 
         function saveOptions() {
             const data = {};
+            // optionsDefs (AI/システム設定) の保存
             optionsDefs.forEach(s => { if (s.type !== 'action') data[s.key] = s.value; });
+            // settingDefs (メイン設定: RACE TYPE, GOAL HEIGHT など) の保存も追加
+            settingDefs.forEach(s => { if (s.type !== 'action') data[s.key] = s.value; });
+            
             localStorage.setItem('ascent_options', JSON.stringify(data));
         }
+
         function loadOptions() {
             const saved = localStorage.getItem('ascent_options');
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
+                    
+                    // optionsDefs の復元
                     optionsDefs.forEach(s => {
                         if (s.type !== 'action' && data[s.key] !== undefined) {
                             s.value = data[s.key];
                             syncOptionToGame(s);
                         }
                     });
-                } catch(e) { console.error(e); }
+                    
+                    // settingDefs の復元
+                    settingDefs.forEach(s => {
+                        if (s.type !== 'action' && data[s.key] !== undefined) {
+                            s.value = data[s.key];
+                            // configオブジェクトにも即時反映させる
+                            if (s.key === 'areaSize') config.areaSize = s.value;
+                            if (s.key === 'density') config.density = s.value;
+                            if (s.key === 'goalHeight') config.goalHeight = s.value;
+                            if (s.key === 'maxLives') config.maxLives = s.value;
+                            if (s.key === 'aiCount') config.aiCount = s.value;
+                            if (s.key === 'raceType') config.raceType = s.value;
+                        }
+                    });
+                } catch(e) { console.error('Failed to load settings', e); }
             }
         }
 
@@ -667,7 +682,10 @@
                         else if (s.type === 'select') {
                             const idx = s.options.indexOf(s.value);
                             valEl.innerText = s.labels[idx] || s.value;
-                        } else valEl.innerText = s.value.toFixed(2);
+                        } else {
+                           const decimals = s.step === 0.01 ? 2 : ((s.step || 1) < 1 ? 1 : 0);
+                            valEl.innerText = Number(s.value).toFixed(decimals);
+                        }
                     }
                     // 矢印の暗転
                     let leftDim = false, rightDim = false;
@@ -701,6 +719,7 @@
                 s.value = s.options[newIdx];
             } else if (s.type !== 'action') {
                 s.value = Math.max(s.min, Math.min(s.max, s.value + dir * s.step));
+                s.value = Math.round(s.value * 100) / 100;
             }
             updateOptionsUI();
             syncOptionToGame(s);
@@ -740,6 +759,10 @@
                 if (legacyInp) legacyInp.value = s.value;
             } else if (s.key === 'deathFall') {
                 config.deathFallMode = s.value;
+            } else if (s.key === 'mouseSensitivity') {
+                config.mouseSensitivity = Math.min(3.0, Math.max(0.01, parseFloat(s.value) || 1.0));
+                // G.controls が存在する場合（ゲーム中の変更）は即時反映
+                if (G.controls) G.controls.pointerSpeed = config.mouseSensitivity;
             } else if (s.key === 'nnMode') {
                 const legacyInp = document.getElementById('ai-nn-mode');
                 if (legacyInp) legacyInp.checked = s.value;
@@ -835,6 +858,7 @@
                     document.getElementById('mp-status').innerText = 'ALREADY IN A ROOM';
                     return;
                 }
+                if (typeof settingDefs !== 'undefined') settingDefs.forEach(s => { if (s.type !== 'action') config[s.key] = s.value; });
                 setupHost();
             } else if (_currentOnlineMenuIdx === 2) {
                 if (G.isOnline || G.peer) {
@@ -971,6 +995,7 @@
             });
         }
 
+        // 変更後
         function changeSettingValue(dir) {
             const s = settingDefs[currentSettingIdx];
             if (s.type === 'action') return;
@@ -990,7 +1015,10 @@
             if (s.key === 'maxLives') config.maxLives = s.value;
             if (s.key === 'aiCount') config.aiCount = s.value;
             if (s.key === 'raceType') config.raceType = s.value;
+            
             syncLobbySettings();
+            // 変更されたらローカルストレージに保存
+            saveOptions();
         }
 
         // アセットの初期化
@@ -1225,6 +1253,7 @@
             btnHost.addEventListener('click', (e) => {
                 e.stopPropagation();
                 G.myPlayerName = document.getElementById('player-name-input').value.trim() || ASCENT_NAMES[Math.floor(Math.random() * ASCENT_NAMES.length)];
+                if (typeof settingDefs !== 'undefined') settingDefs.forEach(s => { if (s.type !== 'action') config[s.key] = s.value; });
                 setupHost();
             });
         }
@@ -1259,7 +1288,7 @@
         document.getElementById('cfg-brightness').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             config.brightness = val;
-            document.getElementById('brightness-val').innerText = val.toFixed(2);
+            document.getElementById('brightness-val').innerText = val.toFixed(3);
             if (G.renderer) {
                 G.renderer.toneMappingExposure = val;
             }

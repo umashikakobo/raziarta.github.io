@@ -174,6 +174,42 @@ function initAssets() {
     ];
 }
 
+// ── ユーティリティ: プレイヤーモデルの複製と色変更 ──
+function clonePlayerModel(color) {
+    if (!G.playerModel) return null;
+    let newMesh = G.playerModel.clone();
+    if (color !== undefined && color !== null) {
+        newMesh.traverse(n => {
+            if (n.isMesh) {
+                n.material = n.material.clone();
+                n.material.color.set(color);
+            }
+        });
+    }
+    return newMesh;
+}
+
+// ── ユーティリティ: Xray メッシュの追加 ──
+function addXrayMeshToModel(model, color) {
+    if (!G.playerModel) return;
+    const xrayMat = new THREE.MeshBasicMaterial({
+        color: color, transparent: true, opacity: 0.5,
+        depthFunc: THREE.GreaterDepth, depthWrite: false,
+        stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
+    });
+    const xrayMesh = G.playerModel.clone();
+    xrayMesh.name = "XRAY";
+    xrayMesh.renderOrder = 999;
+    xrayMesh.scale.set(1, 1, 1);
+    xrayMesh.traverse(n => {
+        if (n.isMesh) {
+            n.material = xrayMat;
+            n.renderOrder = 999;
+        }
+    });
+    model.add(xrayMesh);
+}
+
 // モデルロード完了後に、仮の箱をモデルに差し替える関数
 function updateExistingEntitiesWithModel() {
     if (!G.playerModel) return;
@@ -182,30 +218,11 @@ function updateExistingEntitiesWithModel() {
             const oldMesh = ent.mesh;
             const pos = oldMesh.position.clone();
 
-            let newMesh = G.playerModel.clone();
-            if (ent.isAI) {
-                newMesh.traverse(n => {
-                    if (n.isMesh) {
-                        n.material = n.material.clone();
-                        n.material.color.set(0x90ee90);
-                    }
-                });
-            }
+            const modelColor = ent.isAI ? 0x90ee90 : null;
+            let newMesh = clonePlayerModel(modelColor);
             newMesh.position.copy(pos);
 
-            const xrayMat = new THREE.MeshBasicMaterial({
-                color: 0xffaa33, transparent: true, opacity: 0.5,
-                depthFunc: THREE.GreaterDepth, depthWrite: false,
-                stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
-            });
-            const xrayMesh = G.playerModel.clone();
-            xrayMesh.scale.set(1, 1, 1);
-            xrayMesh.traverse(n => {
-                if (n.isMesh) {
-                    n.material = xrayMat;
-                }
-            });
-            newMesh.add(xrayMesh);
+            addXrayMeshToModel(newMesh, 0xffaa33);
 
             const childrenToMove = [];
             oldMesh.children.forEach(c => {
