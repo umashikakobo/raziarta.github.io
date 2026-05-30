@@ -830,7 +830,12 @@
             G.myPlayerName = (G.myPlayerName || '').trim() || 'GUEST';
             const oldInput = document.getElementById('player-name-input');
             if (oldInput) oldInput.value = G.myPlayerName;
-            
+
+            if (G.isOnline && G.myPeerId && typeof broadcastEvent === 'function') {
+                broadcastEvent(5, { id: G.myPeerId, name: G.myPlayerName });
+                if (G.isHost && typeof updateLobbyPlayerList === 'function') updateLobbyPlayerList();
+            }
+
             overlay.style.display = 'none';
             _onlinePhase = 'menu';
             updateOnlineSettingsUI();

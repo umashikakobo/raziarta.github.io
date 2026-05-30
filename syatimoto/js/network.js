@@ -469,14 +469,15 @@ const NETWORK_EVENT_HANDLERS = {
         });
     }
 }
-if (G.isHost && sourceConn !== null) {
+if (G.isHost) {
     broadcastEvent(5, data);
     updateLobbyPlayerList();
 
-            const lobbyList = [];
+ const lobbyList = [];
             lobbyList.push({ id: G.myPeerId, name: G.myPlayerName, isHost: true });
             G.peerNames.forEach((name, id) => { if (id !== G.myPeerId) lobbyList.push({ id, name, isHost: false }) });
-            broadcastEvent(25, { list: lobbyList });
+            const packed25 = packData(25, { list: lobbyList });
+            G.connections.forEach(c => { if (c.open) c.send(packed25); });
 
             G.projectiles.forEach(p => {
                 if (p.netId != null) broadcastEvent(11, { netId: p.netId, type: 0, x: p.position.x, y: p.position.y, z: p.position.z, vx: p.velocity.x, vy: p.velocity.y, vz: p.velocity.z, props: p.props, ownerName: resolveName(p.ownerBody) });
