@@ -123,145 +123,145 @@ function applyMouseSensitivity() {
     }
 }
 
-function setupControls() {
-    G.controls = new THREE.PointerLockControls(G.camera, document.body);
-    // 初期化後に保存済み感度を即時反映
-    applyMouseSensitivity();
 
-    window.addEventListener('keyup', (e) => {
-        if (e.code === 'KeyW') G.keys.w = false;
-        if (e.code === 'KeyA') G.keys.a = false;
-        if (e.code === 'KeyS') G.keys.s = false;
-        if (e.code === 'KeyD') G.keys.d = false;
-        if (e.code === 'Space') G.keys.space = false;
-        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') G.keys.shift = false;
-    });
+const _sensEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
-    const _sensEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-    document.addEventListener('mousemove', (e) => {
-        if (G.controls && G.controls.isLocked) {
-            const sens = config.mouseSensitivity !== undefined ? config.mouseSensitivity : 1.0;
-            const extraMultiplier = sens - 1.0;
-            
-            // デバッグ用のコンソールログ出力（0.1秒に1回程度の頻度に制限して出力）
-            if (!G._lastSensLog || Date.now() - G._lastSensLog > 1000) {
-                console.log(`[Mouse] sens=${sens}, extraMultiplier=${extraMultiplier}`);
-                G._lastSensLog = Date.now();
-            }
+function _onMouseMove(e) {
+    if (!G.controls || !G.controls.isLocked) return;
+    const sens = config.mouseSensitivity !== undefined ? config.mouseSensitivity : 1.0;
+    const extraMultiplier = sens - 1.0;
+    if (Math.abs(extraMultiplier) > 0.001) {
+        const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+        const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+        _sensEuler.setFromQuaternion(G.camera.quaternion);
+        _sensEuler.y -= movementX * 0.002 * extraMultiplier;
+        _sensEuler.x -= movementY * 0.002 * extraMultiplier;
+        const PI_2 = Math.PI / 2;
+        _sensEuler.x = Math.max(PI_2 - G.controls.maxPolarAngle, Math.min(PI_2 - G.controls.minPolarAngle, _sensEuler.x));
+        G.camera.quaternion.setFromEuler(_sensEuler);
+    }
+}
 
-            if (Math.abs(extraMultiplier) > 0.001) {
-                const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-                const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-                _sensEuler.setFromQuaternion(G.camera.quaternion);
-                _sensEuler.y -= movementX * 0.002 * extraMultiplier;
-                _sensEuler.x -= movementY * 0.002 * extraMultiplier;
-                const PI_2 = Math.PI / 2;
-                _sensEuler.x = Math.max(PI_2 - G.controls.maxPolarAngle, Math.min(PI_2 - G.controls.minPolarAngle, _sensEuler.x));
-                G.camera.quaternion.setFromEuler(_sensEuler);
-            }
-        }
-    });
-    window.addEventListener('mousedown', (e) => {
-        if (e.button === 0 && G.controls.isLocked) G.keys.space = true;
-        if (e.button === 2 && G.controls.isLocked) {
-            if (config.raceType === 'TIME TRIAL') {
+function _onKeyUp(e) {
+    if (e.code === 'KeyW') G.keys.w = false;
+    if (e.code === 'KeyA') G.keys.a = false;
+    if (e.code === 'KeyS') G.keys.s = false;
+    if (e.code === 'KeyD') G.keys.d = false;
+    if (e.code === 'Space') G.keys.space = false;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') G.keys.shift = false;
+}
+
+function _onMouseDown(e) {
+    if (e.button === 0 && G.controls.isLocked) G.keys.space = true;
+    if (e.button === 2 && G.controls.isLocked) {
+        if (config.raceType === 'TIME TRIAL') return;
+        G.keys.rightClick = true;
+        if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
+        if (config.projectileRequiresScope) {
+            if (!G.isScopedIn) {
+                G.isScopedIn = true;
+                const overlay = document.getElementById('scope-overlay');
+                if (overlay) overlay.style.display = 'block';
                 return;
-            }
-            G.keys.rightClick = true;
-            if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
-
-            if (config.projectileRequiresScope) {
-                if (!G.isScopedIn) {
-                    // 第1段階：スコープイン（空中でも可能にする）
-                    G.isScopedIn = true;
-                    const overlay = document.getElementById('scope-overlay');
-                    if (overlay) overlay.style.display = 'block';
-                    return;
-                } else {
-                    // 第2段階：スコープ済み → 発射試行
-                    // 接地していない場合は発射せずにスコープ解除（キャンセル）
-                    // 垂直速度がほぼゼロなら接地とみなす(保険)
-                    const isPhysicallyGrounded = G.isGrounded || Math.abs(G.playerBody.linearVelocity.y) < 0.2;
-
-                    if (!isPhysicallyGrounded) {
-                        G.isScopedIn = false;
-                        const overlay = document.getElementById('scope-overlay');
-                        if (overlay) overlay.style.display = 'none';
-                        return;
-                    }
-
-                    const now = Date.now();
-                    const projCooldown = 500 / (config.projectileRecoveryRate || 1);
-                    const timeDiff = now - G.lastFireTimeProjectile;
-
-                    if (timeDiff >= projCooldown && G.playerProjectileStock >= 1.0) {
-                        G.lastFireTimeProjectile = now;
-                        G.playerProjectileStock -= 1.0;
-                        updateAmmoHUD();
-                        requestFire(0);
-                    }
-                    // 発射後スコープ解除
+            } else {
+                const isPhysicallyGrounded = G.isGrounded || Math.abs(G.playerBody.linearVelocity.y) < 0.2;
+                if (!isPhysicallyGrounded) {
                     G.isScopedIn = false;
                     const overlay = document.getElementById('scope-overlay');
                     if (overlay) overlay.style.display = 'none';
-                }
-            } else {
-                // 通常武器：スコープなしで即発射
-                const now = Date.now();
-                const projCooldown = 500 / (config.projectileRecoveryRate || 1);
-                if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
-                    requestFire(0);
-                    G.lastFireTimeProjectile = now;
-                    G.playerProjectileStock -= 1.0;
-                    updateAmmoHUD();
-                }
-            }
-        }
-    });
-    window.addEventListener('mouseup', (e) => {
-        if (e.button === 0) G.keys.space = false;
-        if (e.button === 2) G.keys.rightClick = false;
-    });
-    window.addEventListener('contextmenu', (e) => {
-        if (G.controls.isLocked) e.preventDefault();
-    });
-
-    window.addEventListener('keydown', (e) => {
-        if (!G.isStarted) return;
-        if (e.code === 'KeyW') G.keys.w = true;
-        if (e.code === 'KeyA') G.keys.a = true;
-        if (e.code === 'KeyS') G.keys.s = true;
-        if (e.code === 'KeyD') G.keys.d = true;
-        if (e.code === 'Space') { e.preventDefault(); G.keys.space = true; }
-        
-        if (G.controls.isLocked) {
-            if (e.key === 'b' || e.key === 'B' || e.key === 'q' || e.key === 'Q') {
-                if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
-                if (config.raceType === 'TIME TRIAL') {
                     return;
                 }
                 const now = Date.now();
-                const bubbleCooldown = 500 / (config.bubbleRecoveryRate || 1);
-                if (now - G.lastFireTimeBubble >= bubbleCooldown && G.playerBubbleStock >= 1.0) {
-                    G.lastFireTimeBubble = now;
-                    G.playerBubbleStock -= 1.0;
+                const projCooldown = 500 / (config.projectileRecoveryRate || 1);
+                if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
+                    G.lastFireTimeProjectile = now;
+                    G.playerProjectileStock -= 1.0;
                     updateAmmoHUD();
-                    requestFire(1);
+                    requestFire(0);
                 }
+                G.isScopedIn = false;
+                const overlay = document.getElementById('scope-overlay');
+                if (overlay) overlay.style.display = 'none';
+            }
+        } else {
+            const now = Date.now();
+            const projCooldown = 500 / (config.projectileRecoveryRate || 1);
+            if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
+                requestFire(0);
+                G.lastFireTimeProjectile = now;
+                G.playerProjectileStock -= 1.0;
+                updateAmmoHUD();
             }
         }
-    });
+    }
+}
 
-    window.addEventListener('wheel', (e) => {
-        if (G.controls.isLocked) {
-            // スコープモード用に追加で 0.0 までスクロール可能にする
-            G.camDist = Math.max(0.0, Math.min(5.0, G.camDist + e.deltaY * 0.005));
+function _onMouseUp(e) {
+    if (e.button === 0) G.keys.space = false;
+    if (e.button === 2) G.keys.rightClick = false;
+}
+
+function _onContextMenu(e) {
+    if (G.controls.isLocked) e.preventDefault();
+}
+
+function _onKeyDown(e) {
+    if (!G.isStarted) return;
+    if (e.code === 'KeyW') G.keys.w = true;
+    if (e.code === 'KeyA') G.keys.a = true;
+    if (e.code === 'KeyS') G.keys.s = true;
+    if (e.code === 'KeyD') G.keys.d = true;
+    if (e.code === 'Space') { e.preventDefault(); G.keys.space = true; }
+    if (G.controls.isLocked) {
+        if (e.key === 'b' || e.key === 'B' || e.key === 'q' || e.key === 'Q') {
+            if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
+            if (config.raceType === 'TIME TRIAL') return;
+            const now = Date.now();
+            const bubbleCooldown = 500 / (config.bubbleRecoveryRate || 1);
+            if (now - G.lastFireTimeBubble >= bubbleCooldown && G.playerBubbleStock >= 1.0) {
+                G.lastFireTimeBubble = now;
+                G.playerBubbleStock -= 1.0;
+                updateAmmoHUD();
+                requestFire(1);
+            }
         }
-    }, { passive: true });
+    }
+}
 
-    window.addEventListener('resize', () => {
-        G.camera.aspect = window.innerWidth / window.innerHeight;
-        G.camera.updateProjectionMatrix();
-        if (G.renderer) G.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+function _onWheel(e) {
+    if (G.controls.isLocked)
+        G.camDist = Math.max(0.0, Math.min(5.0, G.camDist + e.deltaY * 0.005));
+}
+
+function _onResize() {
+    G.camera.aspect = window.innerWidth / window.innerHeight;
+    G.camera.updateProjectionMatrix();
+    if (G.renderer) G.renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function teardownControls() {
+    if (G.controls) G.controls.dispose();
+    document.removeEventListener('mousemove',  _onMouseMove);
+    window.removeEventListener('keyup',        _onKeyUp);
+    window.removeEventListener('mousedown',    _onMouseDown);
+    window.removeEventListener('mouseup',      _onMouseUp);
+    window.removeEventListener('contextmenu',  _onContextMenu);
+    window.removeEventListener('keydown',      _onKeyDown);
+    window.removeEventListener('wheel',        _onWheel);
+    window.removeEventListener('resize',       _onResize);
+}
+
+function setupControls() {
+    teardownControls();
+    G.controls = new THREE.PointerLockControls(G.camera, document.body);
+    applyMouseSensitivity();
+
+    document.addEventListener('mousemove',  _onMouseMove);
+    window.addEventListener('keyup',        _onKeyUp);
+    window.addEventListener('mousedown',    _onMouseDown);
+    window.addEventListener('mouseup',      _onMouseUp);
+    window.addEventListener('contextmenu',  _onContextMenu);
+    window.addEventListener('keydown',      _onKeyDown);
+    window.addEventListener('wheel',        _onWheel, { passive: true });
+    window.addEventListener('resize',       _onResize);
 }

@@ -455,9 +455,23 @@ const NETWORK_EVENT_HANDLERS = {
             ent.sprite = createNameSprite(data.name);
             ent.mesh.add(ent.sprite);
         }
-        if (G.isHost && sourceConn !== null) {
-            broadcastEvent(5, data);
-            updateLobbyPlayerList();
+       if (!G.isHost) {
+    G.peerNames.set(data.id, data.name);
+    // ロビー中であればリスト更新（クライアントは25番で受け取るが念のため）
+    const listEl = document.getElementById('lobby-player-list');
+    if (listEl && G.isClientInLobby) {
+        // ホストから25番が来るまでの暫定表示として自分の名前を更新
+        const items = listEl.querySelectorAll('span');
+        items.forEach(el => {
+            if (el.textContent.includes('(YOU)')) {
+                el.textContent = `● ${G.myPlayerName} (YOU)`;
+            }
+        });
+    }
+}
+if (G.isHost && sourceConn !== null) {
+    broadcastEvent(5, data);
+    updateLobbyPlayerList();
 
             const lobbyList = [];
             lobbyList.push({ id: G.myPeerId, name: G.myPlayerName, isHost: true });
@@ -473,18 +487,21 @@ const NETWORK_EVENT_HANDLERS = {
         }
     },
     25: (data, sourceConn, from) => {
-        if (!G.isHost) {
-            const listEl = document.getElementById('lobby-player-list');
-            if (!listEl) return;
-            const names = data.list.map(p =>
-                p.isHost
-                ? `<span style="color:#0ea5e9; font-weight:bold;">★ ${p.name} (HOST)</span>`
-                : `<span style="color:#f1f5f9;">● ${p.name}${p.id === G.myPeerId ? ' (YOU)' : ''}</span>`
-            );
-            listEl.innerHTML = names.join('<br>');
-            listEl.style.display = 'block';
-        }
-    },
+    if (!G.isHost) {
+        const listEl = document.getElementById('lobby-player-list');
+        if (!listEl) return;
+        // data.list 内の自分の名前を最新の G.myPlayerName で上書き（名前変更直後のズレを防ぐ）
+        const names = data.list.map(p => {
+            const isSelf = p.id === G.myPeerId;
+            const displayName = isSelf ? G.myPlayerName : p.name;
+            return p.isHost
+                ? `<span style="color:#0ea5e9; font-weight:bold;">★ ${displayName} (HOST)</span>`
+                : `<span style="color:#f1f5f9;">● ${displayName}${isSelf ? ' (YOU)' : ''}</span>`;
+        });
+        listEl.innerHTML = names.join('<br>');
+        listEl.style.display = 'block';
+    }
+},
     6: (data, sourceConn, from) => {
         if (!G.isHost && !G.isStarted) {
             if (data.seed !== undefined) G.randomSeed = data.seed;
@@ -511,7 +528,17 @@ const NETWORK_EVENT_HANDLERS = {
             if (window.stopMenuOcean) window.stopMenuOcean();
             document.getElementById('ui-layer').style.display = 'block';
             init();
-            G.startTime = Date.now();
+	G.startTime = Date.now();
+	// ゲーム開始直後にpeerNamesが確定しているので、全ネットワークエンティティのスプライトを更新
+	G.networkEntities.forEach((ent, id) => {
+   	 const name = G.peerNames.get(id);
+  	  if (name && ent.sprite && ent.mesh) {
+        ent.mesh.remove(ent.sprite);
+        ent.sprite = createNameSprite(name);
+        ent.mesh.add(ent.sprite);
+        ent.name = name;
+    }
+});
             logStatus('ゲーム開始！画面をクリックして操作を開始してください');
             if (G.controls) {
                 try { G.controls.lock(); } catch (e) { }
@@ -895,7 +922,7 @@ function createNetworkPlayer(id) {
     const container = new THREE.Group();
     container.add(mesh);
 
-    const pName = G.peerNames.get(id) || (isAINet ? "RIVAL AI" : "Player");
+    const pName = G.peerNames.get(id) || (isAINet ? "RIVAL AI" : id);
     const sprite = createNameSprite(pName);
     container.add(sprite);
     if (G.scene) G.scene.add(container);
@@ -917,4 +944,8 @@ function createNetworkPlayer(id) {
     }
 
     return { id: id, mesh: container, body: body, targetNetPos: container.position.clone(), sprite: sprite, name: pName, rawMesh: mesh, entIndex: entIndex };
+}
+function broadcastMyName() {
+    if (!G.isOnline || !G.myPeerId) return;
+    broadcastEvent(5, { id: G.myPeerId, name: G.myPlayerName });
 }

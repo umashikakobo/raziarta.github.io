@@ -63,6 +63,16 @@ function updateAmmoHUD() {
     }
 }
 
+
+function resetUpgradeDisplay() {
+    const move = document.getElementById('upg-move');
+    const proj = document.getElementById('upg-proj');
+    const bubb = document.getElementById('upg-bubb');
+    if (move) move.textContent = 'MOVE: ---';
+    if (proj) proj.textContent = 'PROJ: ---';
+    if (bubb) bubb.textContent = 'BUBB: ---';
+}
+
 function createNameSprite(nameText) {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;

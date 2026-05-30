@@ -43,6 +43,7 @@ function resetConfigToDefaults() {
     // Invincibility
     G.isInvincible = false;
     G.invincibilityTimer = 0;
+    if (typeof resetUpgradeDisplay === 'function') resetUpgradeDisplay();
 }
 
 function resetToHome() {
@@ -56,7 +57,8 @@ function resetToHome() {
     G.isDead = false;
     if (G.deathTextEl) G.deathTextEl.style.display = 'none';
     G.mapInitialized = false;
-    if (G.controls) G.controls.unlock();
+    if (typeof teardownControls === 'function') teardownControls();
+    G.controls = null;
     if (G.animFrameId !== null) cancelAnimationFrame(G.animFrameId);
 
     const elList = document.getElementById('entity-list'); if (elList) elList.innerHTML = '';
