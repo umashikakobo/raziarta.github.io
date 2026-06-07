@@ -14,7 +14,11 @@
     --font-en: 'Outfit', sans-serif;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 body {
     background-color: var(--bg-dark);
@@ -27,9 +31,12 @@ body {
 /* Background */
 .urushi-bg {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: radial-gradient(circle at 50% 50%, rgba(230, 57, 70, 0.05) 0%, transparent 80%),
-                linear-gradient(135deg, #0a0a0b 0%, #1a1a1d 100%);
+        linear-gradient(135deg, #0a0a0b 0%, #1a1a1d 100%);
     z-index: -1;
 }
 
@@ -44,7 +51,8 @@ body {
     width: var(--sidebar-width);
     height: 100vh;
     position: fixed;
-    left: 0; top: 0;
+    left: 0;
+    top: 0;
     background: var(--glass-bg);
     border-right: 1px solid var(--border-color);
     backdrop-filter: blur(20px);
@@ -70,7 +78,9 @@ body {
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.top-left-favicon:hover { transform: scale(1.1) rotate(5deg); }
+.top-left-favicon:hover {
+    transform: scale(1.1) rotate(5deg);
+}
 
 .sidebar-nav {
     display: flex;
@@ -91,7 +101,8 @@ body {
     text-transform: uppercase;
 }
 
-.nav-item:hover, .nav-item.active {
+.nav-item:hover,
+.nav-item.active {
     color: var(--accent-red);
     background: rgba(230, 57, 70, 0.1);
     border-left-color: var(--accent-red);
@@ -105,7 +116,8 @@ body {
     padding: 6rem 4rem;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center horizontally */
+    align-items: center;
+    /* Center horizontally */
 }
 
 .page-view {
@@ -115,11 +127,20 @@ body {
     animation: fadeIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
 
-.page-view.active { display: block; }
+.page-view.active {
+    display: block;
+}
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Centered Logo Section */
@@ -144,8 +165,9 @@ body {
     font-weight: 700;
     background: linear-gradient(to bottom, #ffffff 40%, #777777 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 20px rgba(255,255,255,0.1));
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
 }
 
 /* Game Cards */
@@ -183,14 +205,12 @@ body {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-        120deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.05) 40%, 
-        rgba(255, 255, 255, 0.2) 50%, 
-        rgba(255, 255, 255, 0.05) 60%, 
-        transparent
-    );
+    background: linear-gradient(120deg,
+            transparent,
+            rgba(255, 255, 255, 0.05) 40%,
+            rgba(255, 255, 255, 0.2) 50%,
+            rgba(255, 255, 255, 0.05) 60%,
+            transparent);
     transition: 0.6s cubic-bezier(0.19, 1, 0.22, 1);
     z-index: 1;
 }
@@ -199,7 +219,7 @@ body {
     transform: translateY(-15px) scale(1.02);
     border-color: var(--accent-red);
     background: rgba(230, 57, 70, 0.08);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
 .game-card:hover .card-inner::before {
@@ -246,7 +266,9 @@ body {
     transition: transform 0.4s ease;
 }
 
-.game-card:hover .arrow-icon { transform: translateX(12px); }
+.game-card:hover .arrow-icon {
+    transform: translateX(12px);
+}
 
 /* About Section */
 .about-section {
@@ -271,13 +293,39 @@ body {
     :root {
         --sidebar-width: 100px;
     }
-    .favicon-container { padding: 0 10px; }
-    .top-left-favicon { width: 60px; height: 60px; }
-    .nav-item { font-size: 0.7rem; padding: 1.5rem 0.5rem; text-align: center; letter-spacing: 1px; }
-    .main-content { margin-left: var(--sidebar-width); padding: 3rem 1.5rem; }
-    .kanji { font-size: 3rem; }
-    .logo-section { margin-bottom: 4rem; }
-    .games-section { grid-template-columns: 1fr; }
+
+    .favicon-container {
+        padding: 0 10px;
+    }
+
+    .top-left-favicon {
+        width: 60px;
+        height: 60px;
+    }
+
+    .nav-item {
+        font-size: 0.7rem;
+        padding: 1.5rem 0.5rem;
+        text-align: center;
+        letter-spacing: 1px;
+    }
+
+    .main-content {
+        margin-left: var(--sidebar-width);
+        padding: 3rem 1.5rem;
+    }
+
+    .kanji {
+        font-size: 3rem;
+    }
+
+    .logo-section {
+        margin-bottom: 4rem;
+    }
+
+    .games-section {
+        grid-template-columns: 1fr;
+    }
 }
 
 
@@ -323,6 +371,7 @@ body {
     font-size: 4.5rem;
     background: linear-gradient(to right, #fff, var(--accent-red));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -378,5 +427,189 @@ body {
     font-size: 3.5rem;
     background: linear-gradient(to right, #fff, var(--accent-gold));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+/* =========================================
+   BGM Modal & Controller Styles
+   ========================================= */
+
+/* Music Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 11, 0.85);
+    backdrop-filter: blur(15px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--glass-bg);
+    border: 1px solid var(--accent-red);
+    box-shadow: 0 0 40px rgba(230, 57, 70, 0.2);
+    border-radius: 20px;
+    padding: 3rem;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+    transform: translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-overlay.active .modal-content {
+    transform: translateY(0);
+}
+
+.modal-title {
+    font-family: var(--font-jp);
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: #fff;
+    letter-spacing: 2px;
+}
+
+.modal-description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.modal-btn {
+    padding: 0.8rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 120px;
+    border: 1px solid transparent;
+}
+
+.btn-on {
+    background: var(--accent-red);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
+}
+
+.btn-on:hover {
+    background: #fff;
+    color: var(--bg-dark);
+    box-shadow: 0 0 20px #fff;
+    transform: scale(1.05);
+}
+
+.btn-off {
+    background: transparent;
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+.btn-off:hover {
+    color: #fff;
+    border-color: #fff;
+    transform: scale(1.05);
+}
+
+/* Sidebar BGM Toggle */
+.sidebar-footer {
+    margin-top: auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.bgm-toggle-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    padding: 0.8rem 1.5rem;
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-family: var(--font-en);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.bgm-toggle-btn:hover {
+    border-color: var(--accent-red);
+    color: #fff;
+    background: rgba(230, 57, 70, 0.05);
+}
+
+.bgm-toggle-btn.playing {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.2);
+}
+
+.bgm-toggle-btn.playing .bgm-icon {
+    display: inline-block;
+    animation: bgmPulse 1.2s infinite alternate;
+}
+
+@keyframes bgmPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.2); }
+}
+
+/* =========================================
+   Music Ticker Styles
+   ========================================= */
+.ticker-container {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0.6rem 0;
+    margin-bottom: 2rem;
+    position: relative;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.ticker-text {
+    display: inline-block;
+    padding-left: 100%;
+    color: #ffffff;
+    font-family: 'Hachi Maru Pop', cursive, var(--font-jp);
+    font-size: 1.15rem;
+    letter-spacing: 2px;
+    font-weight: 500;
+    animation: tickerLoop 25s linear infinite;
+}
+
+@keyframes tickerLoop {
+    0% {
+        transform: translate3d(0, 0, 0);
+    }
+    100% {
+        transform: translate3d(-100%, 0, 0);
+    }
 }

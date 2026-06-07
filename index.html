@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta name="google-site-verification" content="KT_upO29hR73TlCTn0Eq4QGt-92819ScvYnshVtkdk4" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <!-- SEOメタタグ -->
     <title>馬鹿工房 (UMA SHIKA KOBO) | オリジナルWebゲーム＆アプリ</title>
     <link rel="icon" href="favicon.jpg?v=2" type="image/jpeg">
     <meta name="description" content="馬鹿工房 (UMA SHIKA KOBO) は、サイバーパンク風3D迷路など、オリジナルブラウザゲームやWebアプリを公開しているポータルサイトです。">
     <meta name="keywords" content="馬鹿工房, 馬鹿工房, UMA SHIKA KOBO, ブラウザゲーム, 3Dゲーム, Webアプリ, インディーズゲーム">
     <meta name="author" content="馬鹿工房">
-    
+
     <!-- OGP -->
     <meta property="og:title" content="馬鹿工房 (UMA SHIKA KOBO) 公式サイト">
     <meta property="og:description" content="サイバーパンク風3D迷路など、オリジナルブラウザゲームやWebアプリを公開しているポータルサイトです。">
@@ -20,38 +21,68 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
-    <script type="module" src="./main.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Outfit:wght@300;500;700&family=Hachi+Maru+Pop&display=swap"
+        rel="stylesheet">
+    <script defer src="./main.js"></script>
 </head>
+
 <body>
     <div class="urushi-bg"></div>
+
+    <!-- BGM案内ダイアログ -->
+    <div id="music-announcement-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="modal-title">音楽が流れます</h3>
+            <p class="modal-description">当サイトのテーマソング「うましかこうぼうのうた」が再生されます。音声をONにしますか？</p>
+            <div class="modal-buttons">
+                <button id="btn-music-on" class="modal-btn btn-on">ON</button>
+                <button id="btn-music-off" class="modal-btn btn-off">OFF</button>
+            </div>
+        </div>
+    </div>
 
     <div class="app-wrapper">
         <!-- サイドバー (阿部寛さん風レイアウト参考) -->
         <aside class="sidebar">
             <div class="favicon-container">
-                <a href="https://github.com/umashikakobo/raziarta.github.io/tree/main" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/umashikakobo/raziarta.github.io/tree/main" target="_blank"
+                    rel="noopener noreferrer">
                     <img src="favicon.jpg" alt="GitHub Repository" class="top-left-favicon" id="site-logo">
                 </a>
             </div>
             <nav class="sidebar-nav">
                 <a class="nav-item active" data-page="home">HOME</a>
                 <a class="nav-item" data-page="about">ABOUT</a>
-                 <a class="nav-item" data-page="member">MEMBER</a>
+                <a class="nav-item" data-page="member">MEMBER</a>
             </nav>
+            <!-- BGMコントローラー -->
+            <div class="sidebar-footer">
+                <button id="sidebar-bgm-toggle" class="bgm-toggle-btn">
+                    <span class="bgm-icon">🔇</span>
+                    <span class="bgm-text">BGM: OFF</span>
+                </button>
+            </div>
         </aside>
 
         <!-- メインコンテンツ -->
         <main class="main-content">
-            
-            <!-- HOMEセクション -->            
+
+            <!-- HOMEセクション -->
             <div id="page-home" class="page-view active">
+                <!-- 曲情報ティッカー -->
+                <div class="ticker-container">
+                    <div class="ticker-text">うましかこうぼうのうた　さく:らじあーた　うた:はつねみく</div>
+                </div>
+
                 <header class="logo-section">
                     <div class="romaji">UMA SHIKA KOBO</div>
                     <h1 class="kanji">馬鹿工房</h1>
                 </header>
 
- <a href="./orca-run_retro/index.html" class="game-card">
+                <div class="games-section">
+                    <!-- 1番目: シャチラン -->
+                    <a href="./orca-run_retro/index.html" class="game-card">
                         <div class="card-inner">
                             <div class="card-header">
                                 <span class="game-tag">2D GAME</span>
@@ -67,7 +98,41 @@
                         </div>
                     </a>
 
-                <div class="games-section">
+                    <!-- 2番目: シャチ元 -->
+                    <a href="./syatimoto/index.html" class="game-card">
+                        <div class="card-inner">
+                            <div class="card-header">
+                                <span class="game-tag">3D GAME</span>
+                            </div>
+                            <div class="card-body">
+                                <h2>シャチ元</h2>
+                                <p>平和に登っていく協力型ゲーム</p>
+                            </div>
+                            <div class="card-footer">
+                                <span class="play-text">PLAY NOW</span>
+                                <div class="arrow-icon">→</div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- 3番目: White Monolith -->
+                    <a href="./white-monolith/index.html" class="game-card">
+                        <div class="card-inner">
+                            <div class="card-header">
+                                <span class="game-tag">2D GAME</span>
+                            </div>
+                            <div class="card-body">
+                                <h2>White Monolith</h2>
+                                <p>崩壊した世界を舞台に、白き巨塔「WCC」の謎に迫る SF2Dアクションアドベンチャーゲーム。多様な固有能力を駆使してステージを攻略せよ。</p>
+                            </div>
+                            <div class="card-footer">
+                                <span class="play-text">PLAY NOW</span>
+                                <div class="arrow-icon">→</div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- 4番目: Cyberpunk Orca Maze -->
                     <a href="./3d-maze/index.html" class="game-card">
                         <div class="card-inner">
                             <div class="card-header">
@@ -84,24 +149,7 @@
                         </div>
                     </a>
 
-                    
-
-<a href="./syatimoto/index.html" class="game-card">
-                        <div class="card-inner">
-                            <div class="card-header">
-                                <span class="game-tag">3D GAME</span>
-                            </div>
-                            <div class="card-body">
-                                <h2>シャチ元</h2>
-                                <p>平和に登っていく協力型ゲーム</p>
-                            </div>
-                            <div class="card-footer">
-                                <span class="play-text">PLAY NOW</span>
-                                <div class="arrow-icon">→</div>
-                            </div>
-                        </div>
-                    </a>
-
+                    <!-- 5番目: 球体 -->
                     <a href="./tama/index.html" class="game-card">
                         <div class="card-inner">
                             <div class="card-header">
@@ -118,7 +166,8 @@
                         </div>
                     </a>
 
-                   <a href="./orca-run/index.html" class="game-card">
+                    <!-- 6番目: シャチ2d(仮) -->
+                    <a href="./orca-run/index.html" class="game-card">
                         <div class="card-inner">
                             <div class="card-header">
                                 <span class="game-tag">2D GAME</span>
@@ -132,7 +181,7 @@
                                 <div class="arrow-icon">→</div>
                             </div>
                         </div>
-                    </a> 
+                    </a>
                 </div>
             </div>
 
@@ -146,55 +195,59 @@
             </div>
 
             <!-- MEMBERセクション -->
-<div id="page-member" class="page-view">
-    <div class="member-container">
-        <div class="member-grid">
-            <!-- ラジアータ -->
-            <div class="member-card">
-                <h2 class="member-name primary">ラジアータ</h2>
-                <div class="member-bio">
-                    <p>馬鹿工房の創設者。</p>
-                    <p>ボカロ制作の片手間にゲーム作りをしているが、ボカロ製作は全く捗っていない。</p>
-                    <p class="recommend">
-                        <a href="https://unityroom.com/games/bgmemory" target="_blank" rel="noopener noreferrer">
-                            バックグラウンドメモリー</a>
-                        というゲームがおすすめ
-                        
-                    </p>
+            <div id="page-member" class="page-view">
+                <div class="member-container">
+                    <div class="member-grid">
+                        <!-- ラジアータ -->
+                        <div class="member-card">
+                            <h2 class="member-name primary">ラジアータ</h2>
+                            <div class="member-bio">
+                                <p>馬鹿工房の創設者。</p>
+                                <p>ボカロ制作の片手間にゲーム作りをしているが、ボカロ製作は全く捗っていない。</p>
+                                <p class="recommend">
+                                    <a href="https://unityroom.com/games/bgmemory" target="_blank"
+                                        rel="noopener noreferrer">
+                                        バックグラウンドメモリー</a>
+                                    というゲームがおすすめ
+
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- トリコさん -->
+                        <div class="member-card">
+                            <h2 class="member-name secondary">トリコさん</h2>
+                            <div class="member-bio">
+                                <p>ラジアータのともだち。馬鹿工房の立ち上げを手伝ってくれたいい奴。</p>
+                                <p>トリコが好きすぎてChat GPTをトリコの口調に調教している。</p>
+                                <p>
+                                    <a href="https://unityroom.com/games/3d-kintama" target="_blank"
+                                        rel="noopener noreferrer" class="game-link">
+                                        とある3Dゲーム
+                                    </a>を半年以上ほぼ毎日プレイしている狂人
+                                </p>
+                            </div>
+                        </div>
+                        <!-- そういちろう -->
+                        <div class="member-card">
+                            <h2 class="member-name tertiary">そういちろう</h2>
+                            <div class="member-bio">
+                                <p>ラジアータのともだち。馬鹿工房のデバッカーであり、とてつもない学歴厨である。</p>
+                                <p>一度何かにハマると永遠にやり続ける習性があり、<a href="https://store.steampowered.com/app/2632800/_/"
+                                        target="_blank" rel="noopener noreferrer">いるかにうろこがないわけ</a>というゲームを永遠とやっていた。</p>
+                                <p>好きなものは仙台と東北大学とTOEIC。</p>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
 
-            <!-- トリコさん -->
-            <div class="member-card">
-                <h2 class="member-name secondary">トリコさん</h2>
-                <div class="member-bio">
-                    <p>ラジアータのともだち。馬鹿工房の立ち上げを手伝ってくれたいい奴。</p>
-                    <p>トリコが好きすぎてChat GPTをトリコの口調に調教している。</p>
-                    <p>
-                        <a href="https://unityroom.com/games/3d-kintama" target="_blank" rel="noopener noreferrer" class="game-link">
-                            とある3Dゲーム
-                        </a>を半年以上ほぼ毎日プレイしている狂人
-                    </p>
-                </div>
-            </div>
-            <!-- そういちろう -->
-            <div class="member-card">
-                <h2 class="member-name tertiary">そういちろう</h2>
-                <div class="member-bio">
-                    <p>ラジアータのともだち。馬鹿工房のデバッカーであり、とてつもない学歴厨である。</p>
-                    <p>一度何かにハマると永遠にやり続ける習性があり、<a href="https://store.steampowered.com/app/2632800/_/" target="_blank" rel="noopener noreferrer">いるかにうろこがないわけ</a>というゲームを永遠とやっていた。</p>
-                    <p>好きなものは仙台と東北大学とTOEIC。</p>
-                </div>
-            </div>
- 
-        </div>
-    </div>
-</div>
 
-                       
 
 
         </main>
     </div>
 </body>
+
 </html>

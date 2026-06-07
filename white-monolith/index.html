@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>White Monolith - Grand Prototype v22 (Boss Hold-to-Shoot Update)</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000000; color: #ffffff;
+            font-family: 'Courier New', Courier, monospace, "Segoe UI", sans-serif;
+            overflow: hidden; display: flex; justify-content: center; align-items: center;
+        }
+        #game-container {
+            position: relative; width: 960px; height: 540px;
+            background-color: #000000; border: 2px solid #ffffff;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+        }
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .hud {
+            position: absolute; top: 15px; padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.85); border: 1px solid #ffffff;
+            font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        #hud-loop { left: 15px; }
+        #hud-ability { 
+            right: 15px; color: #00aaff; font-weight: bold;
+            border-color: #00aaff; box-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
+        }
+        #hud-dev {
+            top: 50px; left: 15px; color: #ff00ff; border-color: #ff00ff;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.3); display: none;
+        }
+        #dialogue-box {
+            position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
+            width: 92%; max-width: 860px; background-color: #000000;
+            border: 2px solid #ffffff; padding: 18px 24px;
+            display: none; pointer-events: auto; cursor: pointer;
+        }
+        #dialogue-speaker {
+            font-weight: bold; margin-bottom: 8px; text-decoration: underline;
+            font-size: 14px; letter-spacing: 1px;
+        }
+        #dialogue-text { font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
+        #dialogue-prompt {
+            position: absolute; bottom: 6px; right: 18px;
+            font-size: 11px; color: #888888; animation: blink 0.8s infinite alternate;
+        }
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center;
+            align-items: center; background: #000000; z-index: 10;
+            text-align: center; padding: 40px;
+        }
+        #title-screen { display: flex; }
+        #whiteout-screen {
+            display: none; background: #ffffff; color: #000000;
+            transition: opacity 1.2s ease; opacity: 0;
+        }
+        #gameover-screen { display: none; color: #ff3333; border: 2px solid #ff3333; }
+        #endless-intro-screen {
+            display: none; background: rgba(0,0,0,0.95); border: 2px solid #ff00ff;
+            z-index: 20; padding: 30px;
+        }
+        h1 {
+            font-size: 42px; margin-bottom: 12px; letter-spacing: 6px;
+            font-weight: normal; text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+        .subtitle { color: #aaaaaa; margin-bottom: 40px; font-size: 14px; letter-spacing: 1px; }
+        .btn {
+            background: #000000; color: #ffffff; border: 1px solid #ffffff;
+            padding: 12px 30px; font-size: 15px; cursor: pointer; margin: 10px;
+            transition: all 0.2s ease; letter-spacing: 1px; width: 300px;
+        }
+        .btn:hover { background: #ffffff; color: #000000; box-shadow: 0 0 15px #ffffff; }
+        .controls-guide {
+            margin-top: 35px; font-size: 12px; color: #666666;
+            line-height: 1.8; border-top: 1px solid #222222; padding-top: 20px; width: 80%;
+        }
+        @keyframes blink { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+    <div id="ui-layer">
+        <div id="hud-loop" class="hud">Loop: 1 / 3</div>
+        <div id="hud-dev" class="hud">DEV MODE: ON</div>
+        <div id="hud-ability" class="hud">右クリック能力: なし</div>
+        <div id="dialogue-box">
+            <div id="dialogue-speaker">???</div>
+            <div id="dialogue-text">会話テキスト</div>
+            <div id="dialogue-prompt">● 左クリックで進む</div>
+        </div>
+    </div>
+    
+    <div id="title-screen" class="screen">
+        <h1>WHITE MONOLITH</h1>
+        <div class="subtitle">v22：ボス戦右クリック長押し射撃対応版</div>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <button class="btn" onclick="startGame('story')">ストーリーモード</button>
+            <button class="btn" id="btn-endless" onclick="showEndlessIntro()" style="display:none; border-color:#ff00ff; color:#ff00ff;">エンドコンテンツ (全50ステージ)</button>
+        </div>
+        <div class="controls-guide">
+            <strong>【操作方法】</strong><br>
+            <strong>A / D</strong> : 左右移動 | <strong>W</strong> : ジャンプ (2段ジャンプ可)<br>
+            <strong>マウス左クリック</strong> : 会話 / 調べる | <strong>右クリック</strong> : エリア固有能力を発動<br>
+            <span style="color: #ff55ff;">[開発者ツール] 「^」キーで無敵。<br>※「9」でストーリーの次周回スキップ、「0」でエンドコンテンツ解放。<br>※エンドレス中「8」で次のステージにスキップ（デバッグ用）</span>
+        </div>
+    </div>
+
+    <div id="endless-intro-screen" class="screen">
+        <h2 style="color:#ff00ff; letter-spacing: 2px; margin-bottom: 30px;">エンドコンテンツ解放</h2>
+        <p style="white-space:pre-wrap; line-height: 2.2; text-align:center; max-width:600px; font-size: 16px; margin-bottom: 40px;">左クリック能力が解放されました。
+1~3のキーをおすことで、左クリックの能力を決定することが出来ます。
+
+また、右クリック能力は「高エネルギー光弾」に固定されます。</p>
+        <button class="btn" style="border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 10px rgba(255,0,255,0.3);" onclick="startEndlessStage1()">OK</button>
+    </div>
+
+    <div id="whiteout-screen" class="screen">
+        <h1 id="whiteout-text" style="font-size: 22px; font-weight: normal; line-height: 1.8;">世界が再起動する...</h1>
+    </div>
+    <div id="gameover-screen" class="screen">
+        <h1 style="letter-spacing: 2px;">SYSTEM PURGE</h1>
+        <div class="subtitle" style="color: #ff3333; margin-bottom: 25px;">トラップ、またはWCCの防衛網に接触し、消滅しました</div>
+        <button class="btn" style="border-color: #ff3333; color: #ff3333; width:auto;" onclick="restartFromCheckpoint()">直前の安全な場所から再開</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const STATE_TITLE = 0, STATE_PLAYING = 1, STATE_DIALOGUE = 2, STATE_WHITING_OUT = 3;
+    const STATE_GAMEOVER = 4, STATE_ENDING = 5, STATE_BOSS_BATTLE = 6, STATE_TRANSITION = 7, STATE_ENDING_ROLL = 8;
+    let currentState = STATE_TITLE;
+
+    const worldWidth = 20000;
+    
+    let gameMode = 'story'; 
+    let currentEndlessStage = 1;
+    let loopCount = 1, lastTime = 0, endingTimer = 0;
+    let camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
+    let keys = {}, mouseButtons = { left: false, right: false }, mousePos = { x: 0, y: 0 };
+    let childSaved = false, residentJoined = false;
+    let currentAbility = "なし", currentLeftAbility = "ホバリング", checkpointX = 100, checkpointY = 350;
+    let currentDialogueChain = [], currentDialogueIndex = 0, dialogueCallback = null;
+    let whiteoutAlpha = 0, whiteoutDirection = 1, whiteoutTimer = 0, globalTime = 0;
+    let echoPulseRadius = 0, echoPulseActive = false, photonBullets = [], enemyBullets = [], grabbedBlock = null;
+
+    let devInvincible = false;
+    let devSpeedMult = 1.0;
+    let leftMapUnlocked = false;
+    let portalActive = false;
+    let loop3IntroPlayed = false;
+    let transitionTimer = 0;
+
+    let savedCoreStatus = { 0: false, 1: false, 2: false, 3: false };
+
+    let platforms = [], npcs = [], environmentalBlocks = [], triggers = [];
+    let drones = [], lasers = [], switches = [], gates = [], moveableBlocks = [];
+    let terminals = [], shootTargets = [], resonanceNodes = [], spikes = [], conveyors = [];
+    let ghostIllusions = [], sensorZones = [], antiGravityZones = [], subCores = [];
+
+    const BOSS_TYPES = {10: 'fortress', 20: 'mobile', 30: 'stealth', 40: 'bullet_hell', 50: 'crystal_omega'};
+    let boss = { x: 0, y: 0, hp: 3000, maxHp: 3000, timer: 0, type: 'crystal', alpha: 1.0, spiralAngle: 0 };
+    let bossBullets = [];
+    let lastPlayerShoot = 0;
+
+    let audioCtx;
+    let bgmTimer = 0, bgmStep = 0;
+
+    function playNote(freq, duration, type='sine', vol=0.05, slideTo=null) {
+        if(!audioCtx || audioCtx.state !== 'running') return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
+    }
+
+    function playBGM(dt) {
+        if(!audioCtx || audioCtx.state !== 'running') return;
+        bgmTimer += dt;
+        if (currentState === STATE_BOSS_BATTLE || currentState === STATE_TRANSITION) {
+            if (bgmTimer > 0.1) {
+                bgmTimer = 0;
+                const freqs = [440, 330, 440, 880, 440, 330, 220, 660]; 
+                playNote(freqs[bgmStep % freqs.length], 0.15, 'sawtooth', 0.03);
+                bgmStep++;
+            }
+        } else if (currentState === STATE_PLAYING || currentState === STATE_DIALOGUE) {
+            let tier = (gameMode === 'endless') ? Math.floor((currentEndlessStage - 1) / 10) : 0;
+            let interval = [2.0, 1.2, 0.8, 0.5, 0.4][tier] || 2.0;
+            
+            if (bgmTimer > interval) {
+                bgmTimer = 0;
+                if (tier === 0) { 
+                    playNote(55 + (bgmStep%3)*5, 2.5, 'sine', 0.04);
+                    if(bgmStep%2===0) playNote(220, 2.0, 'sine', 0.01);
+                } else if (tier === 1) { 
+                    playNote(110 + (bgmStep%4)*10, 1.0, 'triangle', 0.04);
+                    if(bgmStep%3===0) playNote(164.81, 1.0, 'triangle', 0.02);
+                } else if (tier === 2) { 
+                    playNote(329.63 + (bgmStep%5)*20, 0.8, 'sine', 0.03);
+                    if(bgmStep%2===0) playNote(440, 0.5, 'sine', 0.02);
+                } else if (tier === 3) { 
+                    playNote(220 + (bgmStep%2)*110, 0.5, 'square', 0.02);
+                    playNote(110, 0.3, 'square', 0.02);
+                } else { 
+                    playNote(82.41 + (bgmStep%4)*15, 0.4, 'sawtooth', 0.03);
+                    if(bgmStep%3===0) playNote(329.63, 0.2, 'square', 0.02);
+                }
+                bgmStep++;
+            }
+        }
+    }
+
+    function addPlatform(x, y, w, h, hidden=false) { platforms.push({x, y, w, h, hidden, revealAlpha: 0}); }
+    function addWhiteBlock(x, y, type) { environmentalBlocks.push({x, y, type}); }
+    function addSpike(x, y, w, h) { spikes.push({x, y, w, h}); }
+    function addConveyor(x, y, w, h, speed) { conveyors.push({x, y, w, h, speed}); }
+    function addGate(id, x, targetY, currentY, w, h) { gates.push({id, x, targetY, currentY, w, h}); }
+    function addSwitch(targetGateId, x, y, w, h) { switches.push({targetGateId, x, y, w, h, pressed: false}); }
+    function addSensorZone(x, y, w, h, targetGateId) { sensorZones.push({x, y, w, h, targetGateId, active: false}); }
+    function addTerminal(x, y, id) { terminals.push({x, y, id, isClose: false}); }
+    function addLaser(x, y, h, toggleTimer, hidden=false) { lasers.push({x, y, h, toggleTimer, active: true, hidden, revealAlpha: 0}); }
+    function addMoveableBlock(x, y, w, h) { moveableBlocks.push({x, y, w, h, vx:0, vy:0, isGrabbed:false}); }
+    function addShootTarget(x, y, targetGateId) { shootTargets.push({x, y, w:30, h:30, active:false, targetGateId}); }
+    function addDrone(x, y, rangeY, speed, scanAngle, progress) { drones.push({x, y, originY: y, type: 'patrol', rangeY, speed, scanAngle, progress, stunTimer: 0}); }
+    function addResonanceNode(x, y, targetGateId) { resonanceNodes.push({x, y, activated: false, targetGateId}); }
+    function addGhostIllusion(x, y, text1, text2) { ghostIllusions.push({x, y, text1, text2, alpha: 1}); }
+    function addAntiGravity(x, y, w, h) { antiGravityZones.push({x, y, w, h}); }
+    
+    function addSubCore(id, x, y, attackType, isGreen=false) { 
+        let isDestroyed = (id >= 0 && id <= 3 && gameMode === 'story') ? savedCoreStatus[id] : false;
+        let maxHp = isGreen ? 1 : 150;
+        subCores.push({id, x, y, w: 40, h: 40, destroyed: isDestroyed, hp: isDestroyed ? 0 : maxHp, maxHp, attackType, timer: 0, isGreen, spiralAngle: 0}); 
+    }
+
+    const player = {
+        x: 100, y: 400, width: 18, height: 24, vx: 0, vy: 0,
+        moveSpeed: 380, jumpForce: 350, gravityUp: 900, gravityDown: 1400, maxFallSpeed: 800, 
+        jumpCount: 0, maxJumps: 2, baseHoverHeight: 12, hoverCycle: 1.8, isGrounded: false, particles: [], hoverSfxTimer: 0,
+        
+        update: function(dt) {
+            let moveDir = 0;
+            if (currentState === STATE_PLAYING) {
+                if (keys['a'] || keys['A']) moveDir -= 1;
+                if (keys['d'] || keys['D']) moveDir += 1;
+            }
+            this.vx = moveDir * this.moveSpeed;
+
+            let inAntiGrav = false;
+            for (let ag of antiGravityZones) {
+                if (this.x + this.width > ag.x && this.x < ag.x + ag.w && this.y + this.height > ag.y && this.y < ag.y + ag.h) {
+                    inAntiGrav = true;
+                }
+            }
+
+            let isHovering = false;
+            if (currentState === STATE_PLAYING) {
+                if (gameMode === 'story' && currentAbility === "ホバリング" && mouseButtons.right) isHovering = true;
+                if (gameMode === 'endless' && currentLeftAbility === "ホバリング" && mouseButtons.left) isHovering = true;
+            }
+
+            if (isHovering) {
+                this.vy = 0; 
+                this.isGrounded = false;
+                if (Math.random() < 0.5) this.spawnParticle(this.x + this.width/2, this.y + this.height, "#00aaff");
+                this.hoverSfxTimer += dt;
+                if(this.hoverSfxTimer > 0.1) {
+                    playNote(150 + Math.random()*50, 0.1, 'triangle', 0.02);
+                    this.hoverSfxTimer = 0;
+                }
+            } else if (inAntiGrav) {
+                this.vy -= 1000 * dt; 
+                if (this.vy < -150) this.vy = -150;
+                this.isGrounded = false;
+                if (Math.random() < 0.3) this.spawnParticle(this.x + this.width/2, this.y + this.height, "#ff55ff");
+            } else {
+                if (!this.isGrounded || this.vy < 0) {
+                    let currentGravity = this.vy < 0 ? this.gravityUp : this.gravityDown;
+                    this.vy += currentGravity * dt;
+                    if (this.vy > this.maxFallSpeed) this.vy = this.maxFallSpeed;
+                } else {
+                    this.vy = 0;
+                }
+            }
+
+            let conveyorBoost = 0;
+            if (this.isGrounded) {
+                for (let c of conveyors) {
+                    if (this.x + this.width > c.x && this.x < c.x + c.w) {
+                        if (Math.abs(this.y + this.height + this.baseHoverHeight - c.y) < 18) conveyorBoost = c.speed;
+                    }
+                }
+            }
+            
+            let proposedX = this.x + (this.vx + conveyorBoost) * dt;
+            let leftBound = (leftMapUnlocked && gameMode === 'story') ? -8500 : 0;
+            if (proposedX < leftBound) proposedX = leftBound;
+            if (proposedX > worldWidth - this.width) proposedX = worldWidth - this.width;
+            
+            let checkWalls = [...platforms, ...moveableBlocks, ...conveyors];
+            let hitWall = false;
+            for (let w of checkWalls) {
+                if (this.y + this.height > w.y + 4 && this.y < w.y + (w.h || 60) - 4) { 
+                    if (proposedX + this.width > w.x && proposedX < w.x + w.w) {
+                        hitWall = true;
+                        if (this.vx > 0 || conveyorBoost > 0) proposedX = w.x - this.width;
+                        else if (this.vx < 0 || conveyorBoost < 0) proposedX = w.x + w.w;
+                    }
+                }
+            }
+            for (let gate of gates) {
+                if (gate.currentY < gate.targetY + 200) { 
+                    if (this.y + this.height > gate.currentY && this.y < gate.currentY + gate.h) {
+                        if (proposedX + this.width > gate.x && proposedX < gate.x + gate.w) {
+                            hitWall = true;
+                            if (this.vx > 0) proposedX = gate.x - this.width;
+                            else if (this.vx < 0) proposedX = gate.x + gate.w;
+                        }
+                    }
+                }
+            }
+            this.x = proposedX;
+            this.y += this.vy * dt;
+
+            this.handleCollisions(dt);
+
+            if (Math.abs(this.vx) > 0 && Math.random() < 0.3) this.spawnParticle(this.x + this.width/2, this.y + this.height);
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                let p = this.particles[i];
+                p.x += p.vx * dt * 60; p.y += p.vy * dt * 60; p.alpha -= dt * 1.4;
+                if (p.alpha <= 0) this.particles.splice(i, 1);
+            }
+        },
+
+        handleCollisions: function(dt) {
+            let foundGround = false;
+            let closestGroundY = 999999;
+            let checkGrounds = [...platforms, ...moveableBlocks, ...conveyors]; 
+
+            for (let ground of checkGrounds) {
+                if (this.x + this.width > ground.x && this.x < ground.x + ground.w) {
+                    if (this.y + this.height <= ground.y + 16 && this.y + this.height + this.baseHoverHeight + 20 >= ground.y) {
+                        closestGroundY = Math.min(closestGroundY, ground.y); 
+                        foundGround = true;
+                    }
+                }
+            }
+            for (let gate of gates) {
+                if (this.x + this.width > gate.x && this.x < gate.x + gate.w) {
+                    if (this.y + this.height <= gate.currentY + 16 && this.y + this.height + this.baseHoverHeight >= gate.currentY) {
+                        closestGroundY = Math.min(closestGroundY, gate.currentY); 
+                        foundGround = true;
+                    }
+                }
+            }
+
+            if (foundGround) {
+                this.isGrounded = true;
+                if (this.vy >= 0) {
+                    this.jumpCount = 0;
+                    let targetY = closestGroundY - this.height - this.baseHoverHeight;
+                    this.y += (targetY - this.y) * 0.4; 
+                }
+            } else {
+                this.isGrounded = false;
+            }
+
+            if (this.vy < 0) {
+                for (let ceil of checkGrounds) {
+                    if (this.x + this.width > ceil.x && this.x < ceil.x + ceil.w) {
+                        let ceilBottom = ceil.y + (ceil.h || 60);
+                        if (this.y < ceilBottom && this.y + 16 > ceilBottom) {
+                            this.y = ceilBottom;
+                            this.vy = 0;
+                        }
+                    }
+                }
+            }
+
+            for(let s of spikes) {
+                if(this.x + this.width > s.x + 4 && this.x < s.x + s.w - 4 && 
+                   this.y + this.height > s.y + 4 && this.y < s.y + s.h) {
+                    triggerGameOver();
+                }
+            }
+
+            if (this.y > camera.y + 650) triggerGameOver(); 
+        },
+
+        jump: function() {
+            if (this.jumpCount < this.maxJumps) {
+                this.vy = -this.jumpForce;
+                this.y -= 2; 
+                this.isGrounded = false;
+                this.jumpCount++;
+                playNote(300 + (this.jumpCount*100), 0.15, 'sine', 0.05, 600); 
+                for(let i=0; i<6; i++) this.spawnParticle(this.x + this.width/2, this.y + this.height, "#ffffff");
+            }
+        },
+
+        spawnParticle: function(x, y, color = "rgba(255,255,255,0.6)") {
+            this.particles.push({
+                x: x, y: y, vx: (Math.random() - 0.5) * 1.6, vy: (Math.random() - 0.2) * 0.8,
+                alpha: 0.8, size: 2 + Math.random() * 3, color: color
+            });
+        },
+
+        draw: function(ctx, camX, camY) {
+            for (let p of this.particles) {
+                ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
+                ctx.fillRect(p.x - camX, p.y - camY, p.size, p.size);
+            }
+            ctx.globalAlpha = 1.0;
+            ctx.save();
+            let renderY = this.y;
+            if (this.isGrounded && currentState !== STATE_BOSS_BATTLE && currentState !== STATE_TRANSITION) renderY += Math.sin((globalTime * Math.PI * 2) / this.hoverCycle) * 1.5;
+
+            ctx.translate(this.x - camX, renderY - camY);
+            if (devInvincible) {
+                ctx.shadowBlur = 20; ctx.shadowColor = "#ff00ff"; ctx.fillStyle = "#ffccff";
+            } else {
+                ctx.shadowBlur = 12; ctx.shadowColor = "#ffffff"; ctx.fillStyle = "#ffffff";
+            }
+            
+            ctx.beginPath();
+            ctx.arc(this.width/2, this.width/2, this.width/2, Math.PI, 0, false);
+            ctx.lineTo(this.width, this.height - 4);
+            ctx.lineTo(this.width - 4, this.height - (Math.sin(globalTime*8)*2));
+            ctx.lineTo(this.width/2, this.height - 4 - (Math.cos(globalTime*8)*2));
+            ctx.lineTo(4, this.height - (Math.sin(globalTime*8)*2));
+            ctx.lineTo(0, this.height - 4);
+            ctx.closePath(); ctx.fill();
+            
+            ctx.fillStyle = "#000000"; ctx.shadowBlur = 0;
+            ctx.fillRect(5, 7, 2, 2); ctx.fillRect(11, 7, 2, 2);
+            ctx.restore();
+        }
+    };
+
+    function buildLevelLoop1() {
+        addPlatform(0, 480, 1200, 60); addGate(999, -40, -600, 0, 40, 540); 
+        addTerminal(400, 440, "z1_1"); addSpike(800, 460, 300, 20); 
+        addGhostIllusion(1150, 440, "■▲×...", "ここから先は死の領域…");
+        addPlatform(1300, 480, 800, 60); addSpike(1500, 460, 400, 20);
+        addTerminal(2000, 440, "z1_2");
+        addPlatform(2300, 380, 100, 20); addPlatform(2600, 280, 100, 20);
+        addPlatform(2900, 180, 100, 20); addPlatform(3200, 480, 1000, 60);
+        addGhostIllusion(3500, 440, "◆◆✖✖...", "塔へ近づいてはならない…");
+
+        addPlatform(4200, 480, 2000, 60);
+        addWhiteBlock(4400, 464, "block"); addWhiteBlock(4416, 464, "block"); addWhiteBlock(4408, 448, "cross");
+        addTerminal(4600, 440, "z2_1");
+        addMoveableBlock(4800, 440, 32, 32); addMoveableBlock(4900, 440, 32, 32); addMoveableBlock(5000, 440, 32, 32);
+        addMoveableBlock(5100, 440, 32, 32); addMoveableBlock(5200, 440, 32, 32);
+        addGate(10, 5600, 200, 200, 40, 280); addPlatform(5640, 480, 500, 60);
+        addConveyor(6200, 480, 800, 60, 100); addSpike(6200, 460, 800, 20); 
+        addSensorZone(7030, 480, 100, 400, 13);
+        addMoveableBlock(5800, 440, 32, 32); addMoveableBlock(5900, 440, 32, 32); addMoveableBlock(6000, 440, 32, 32); 
+        addGate(13, 7300, 540, 200, 20, 280); addPlatform(7320, 480, 1680, 60);
+        addTerminal(8000, 440, "z2_2");
+
+        addPlatform(9020, 480, 1000, 60); addGhostIllusion(9400, 440, "✖✖✖✖", "見えない壁に気を付けて…");
+        addPlatform(10150, 400, 60, 20, true); addPlatform(10300, 300, 60, 20, true); 
+        addPlatform(10500, 200, 60, 20, true); addPlatform(10700, 350, 60, 20, true);
+        addPlatform(10900, 250, 60, 20, true); 
+        addLaser(10400, 0, 540, 0, true); addLaser(10600, 0, 540, 1.0, true); addLaser(10800, 0, 540, 0.5, true);
+        addSpike(10020, 520, 1080, 20);
+        addPlatform(11100, 480, 1000, 60);
+        addLaser(11400, 280, 200, 0, true); addLaser(11600, 280, 200, 1.0, true);
+        addLaser(11800, 280, 200, 0.5, true); addLaser(12000, 280, 200, 1.5, true);
+        addTerminal(12500, 440, "z3_1"); addPlatform(12100, 480, 1400, 60);
+
+        addPlatform(13500, 480, 4000, 60); addTerminal(13800, 440, "z4_1");
+        addGate(12, 14500, 540, 280, 20, 200);
+        addShootTarget(14300, 200, 12); addShootTarget(14300, 100, 12); addShootTarget(14300, 300, 12);
+        addDrone(15000, 300, 120, 2.5, 0, 0); addDrone(15300, 250, 150, 3.0, 0, Math.PI/2);
+        addDrone(15600, 200, 100, 2.0, 0, Math.PI); addDrone(15900, 350, 90, 3.5, 0, 0);
+        addDrone(16200, 280, 130, 2.8, 0, Math.PI/4);
+
+        addGate(99, 17500, -200, 280, 30, 280);
+        addResonanceNode(17400, 400, 99); addResonanceNode(17400, 250, 99); addResonanceNode(17400, 100, 99);
+        addPlatform(17500, 480, 2000, 60); addTerminal(17700, 440, "z5_1");
+        addPlatform(17900, -1500, 60, 1800); addPlatform(19000, -1500, 60, 1980); 
+        addAntiGravity(17960, -1500, 1040, 1980);
+        addPlatform(18000, 100, 150, 20); addSpike(18300, 100, 300, 20); 
+        addPlatform(18700, -200, 150, 20); addTerminal(18750, -240, "z5_2");
+        addSpike(17960, -200, 400, 20); addPlatform(18200, -500, 150, 20);
+        addSpike(18500, -500, 500, 20); addPlatform(18500, -800, 150, 20);
+        addSpike(17960, -800, 400, 20); addSpike(18200, -1000, 600, 20);
+        addPlatform(18300, -1200, 400, 60);
+        triggers.push({ x: 18450, y: -1400, w: 100, type: 'wcc_core' });
+
+        npcs.push({ id: 'npc1', x: 4800, y: 448, w: 16, h: 32, name: "呆然とする男", getDialogue: () => ["■■■... ✖..."] });
+        npcs.push({ id: 'npc2', x: 6200, y: 448, w: 16, h: 32, name: "泣き崩れる女", getDialogue: () => ["◆◆...！"] });
+    }
+
+    function buildLevelLoop2And3() {
+        addGate(999, -40, -600, 0, 40, 540); 
+
+        // ZONE 1 
+        addPlatform(0, 480, 500, 60); addTerminal(400, 440, "z1_1");
+        addSpike(500, 460, 2800, 20); 
+        addPlatform(600, 350, 80, 20); addPlatform(900, 250, 80, 20);
+        addPlatform(1200, 150, 80, 20); addPlatform(1500, 300, 80, 20);
+        addLaser(1550, 0, 540, 1.0);
+        addPlatform(1800, 200, 80, 20); addPlatform(2100, 100, 80, 20);
+        addPlatform(2400, 300, 80, 20); addLaser(2450, 0, 540, 0.8);
+        addPlatform(2700, 150, 80, 20); addPlatform(3000, 250, 80, 20);
+        addPlatform(3300, 480, 700, 60); addTerminal(3500, 440, "z1_2");
+
+        // ZONE 2 
+        addPlatform(4000, 480, 600, 60); addTerminal(4200, 440, "z2_1");
+        addSpike(4600, 460, 800, 20);
+        addMoveableBlock(4400, 440, 40, 40); addMoveableBlock(4450, 440, 40, 40);
+        addMoveableBlock(4500, 440, 40, 40); addMoveableBlock(4550, 440, 40, 40);
+        addPlatform(5400, 480, 400, 60);
+        addLaser(5500, 0, 540, 0); addLaser(5700, 0, 540, 0); 
+        addPlatform(5800, 480, 400, 60);
+        addPlatform(6200, 100, 40, 440); 
+        addMoveableBlock(5900, 440, 40, 40); addMoveableBlock(5950, 440, 40, 40); addMoveableBlock(6000, 440, 40, 40);
+        addPlatform(6240, 480, 600, 60);
+        addConveyor(6840, 480, 1020, 60, 200); 
+        addSensorZone(7700, 380, 80, 80, 13); addGate(13, 7860, 540, 200, 20, 340);
+        addMoveableBlock(6500, 440, 40, 40); 
+        addPlatform(7860, 480, 1140, 60); addTerminal(8200, 440, "z2_2");
+
+        // ZONE 3 
+        addPlatform(9000, 480, 500, 60);
+        addSpike(9500, 520, 3300, 20); 
+        addPlatform(9600, 400, 80, 20, true); addPlatform(9800, 350, 80, 20, true);
+        addPlatform(10000, 280, 80, 20, true); addLaser(10100, 0, 540, 1.0, true); 
+        addPlatform(10200, 320, 80, 20, true); addLaser(10300, 0, 540, 1.5, true);
+        addPlatform(10400, 250, 80, 20, true); addPlatform(10600, 180, 80, 20, true); 
+        addLaser(10700, 0, 540, 1.2, true);
+        addPlatform(10800, 250, 80, 20, true); addPlatform(11000, 180, 80, 20, true); 
+        addLaser(11100, 0, 540, 0.8, true);
+        addPlatform(11200, 250, 80, 20, true); addPlatform(11400, 180, 80, 20, true); 
+        addLaser(11500, 0, 540, 0.9, true);
+        addPlatform(11600, 250, 80, 20, true); addPlatform(11800, 180, 80, 20, true); 
+        addLaser(11900, 0, 540, 1.3, true);
+        addPlatform(12000, 250, 80, 20, true); addPlatform(12200, 180, 80, 20, true); 
+        addLaser(12300, 0, 540, 1.1, true);
+        addPlatform(12400, 250, 80, 20, true); addPlatform(12600, 180, 80, 20, true); 
+        addPlatform(12800, 480, 700, 60); addTerminal(13000, 440, "z3_1");
+
+        // ZONE 4
+        addPlatform(13500, 480, 500, 60); addTerminal(13800, 440, "z4_1");
+        addSpike(14000, 460, 2400, 20);
+        
+        addPlatform(14100, 380, 80, 20); addDrone(14200, 280, 100, 2.5, 0, 0); 
+        addPlatform(14400, 320, 80, 20); addSubCore(901, 14550, 150, 'straight'); 
+        addPlatform(14700, 350, 80, 20); addDrone(14850, 250, 150, 2.0, 0, Math.PI); addShootTarget(14850, 100, 12);
+        addPlatform(15000, 280, 80, 20); addSubCore(902, 15150, 300, 'fan'); 
+        addPlatform(15300, 200, 80, 20); addDrone(15450, 150, 100, 3.0, 0, 0); addShootTarget(15450, 350, 12);
+        addPlatform(15600, 280, 80, 20); addSubCore(903, 15750, 150, 'circle'); 
+        addPlatform(15900, 350, 80, 20); addShootTarget(16050, 200, 12);
+        addPlatform(16200, 300, 80, 20); addSubCore(904, 16350, 200, 'straight');
+        
+        addPlatform(16400, 480, 1100, 60); addGate(12, 16500, 540, 280, 20, 260); 
+
+        // ZONE 5
+        addGate(99, 17500, -200, 280, 30, 280);
+        addPlatform(17100, 380, 60, 20); addResonanceNode(17130, 350, 99);
+        addPlatform(17300, 250, 60, 20); addResonanceNode(17330, 220, 99);
+        addPlatform(17100, 120, 60, 20); addResonanceNode(17130, 90, 99);
+        addLaser(17200, 0, 540, 1.0); addLaser(17400, 0, 540, 0.8);
+        
+        addPlatform(17500, 480, 2000, 60); addTerminal(17700, 440, "z5_1");
+        
+        addPlatform(17900, -1800, 60, 2100); addPlatform(19000, -1800, 60, 2280); 
+        addAntiGravity(17960, -1800, 1040, 2280);
+        
+        addPlatform(17960, 200, 600, 40); addSpike(17960, 180, 250, 20); addSpike(18310, 180, 250, 20); 
+        addPlatform(18400, -150, 600, 40); addSpike(18400, -170, 250, 20); addSpike(18750, -170, 250, 20);
+        addPlatform(17960, -500, 500, 40); addSpike(17960, -520, 200, 20); addSpike(18260, -520, 200, 20);
+        addPlatform(18500, -850, 500, 40); addSpike(18500, -870, 200, 20); addSpike(18800, -870, 200, 20);
+        addPlatform(18300, -1200, 400, 40); addSpike(18300, -1220, 150, 20); addSpike(18550, -1220, 150, 20);
+        
+        addLaser(18100, -1500, 500, 1.0); addLaser(18800, -1500, 500, 1.5); addLaser(18450, -500, 400, 1.2);
+        
+        addPlatform(18250, -1600, 500, 60);
+        triggers.push({ x: 18450, y: -1750, w: 100, type: 'wcc_core' });
+
+        npcs.push({ id: 'npc1', x: 4200, y: 448, w: 16, h: 32, name: "呆然とする男", getDialogue: () => loopCount === 2 ? ["嘘だ…人類の進化なんて全部嘘だったんだ！", "俺の弟は適性検査の後に…ただの白い四角い残骸に成り果ててしまった！"] : ["お前もWCCの被害者だったのか…？", "あの塔の管理システムを、頼む、破壊してくれ…！"] });
+        npcs.push({ id: 'npc2', x: 8000, y: 448, w: 16, h: 32, name: "泣き崩れる女", getDialogue: () => loopCount === 2 ? ["あっちへ行って！お前のような完成体を見るだけで虫唾が走る！", "私の家族を返してよおお！！"] : ["…ごめんなさい。八つ当たりしていただけなの。", "みんな, お前が私達の復讐を遂げてくれるのを祈っているわ。"] });
+    }
+
+    // --- エンドコンテンツ (固定レイアウトローテーション) ---
+    function buildEndlessLevel() {
+        addPlatform(0, 480, 960, 60); addPlatform(0, 0, 40, 540);
+        addPlatform(920, 0, 40, 540); addPlatform(0, 0, 960, 40);
+        let st = currentEndlessStage;
+
+        if (st % 10 === 0) return; // ボス生成は startBossBattle 内で
+
+        if(st === 1) { addDrone(400, 200, 100, 3, 0, 0); addDrone(600, 300, 150, 4, 0, Math.PI); return; }
+        else if(st === 2) { addSubCore(1, 800, 380, 'straight'); addMoveableBlock(400, 440, 40, 40); return; }
+        else if(st === 3) { addSubCore(1, 800, 380, 'fan'); addSubCore(2, 800, 100, 'straight'); addMoveableBlock(500, 440, 40, 40); return; }
+        else if(st === 4) { addAntiGravity(100, 100, 720, 300); addSubCore(1, 480, 250, 'circle'); return; }
+        else if(st === 5) { addSubCore(1, 800, 400, 'wave'); addSubCore(2, 800, 200, 'wave'); addDrone(500, 250, 200, 5, 0, 0); return; }
+        else if(st === 6) { addLaser(400, 40, 440, 1.5); addLaser(600, 40, 440, 1.5); addDrone(800, 250, 150, 4, 0, 0); return; }
+        else if(st === 7) { addSpike(200, 460, 500, 20); addSubCore(1, 800, 200, 'fan'); addPlatform(400, 350, 80, 20); return; }
+        else if(st === 8) { addConveyor(100, 480, 700, 60, -200); addDrone(400, 300, 100, 5, 0, 0); addSubCore(1, 800, 380, 'straight'); return; }
+        else if(st === 9) { 
+            addSubCore(1, 800, 100, 'straight', true); addSubCore(2, 800, 400, 'circle', true); 
+            addSubCore(3, 100, 100, 'fan', true); addSubCore(4, 100, 400, 'wave', true); return;
+        }
+
+        let tier = Math.floor((st - 1) / 10); 
+        let subIndex = (st - 1) % 10; 
+        let layoutType = subIndex % 5;
+        
+        if (layoutType === 0) { 
+            addSpike(150, 460, 600, 20); addPlatform(200, 350, 80, 20); addPlatform(400, 250, 80, 20); addPlatform(600, 350, 80, 20);
+            if (tier >= 3) addLaser(300, 40, 440, 1.2); if (tier >= 4) addLaser(500, 40, 440, 1.0);
+        } else if (layoutType === 1) { 
+            addPlatform(450, 180, 60, 300); addMoveableBlock(200, 440, 40, 40); addMoveableBlock(250, 440, 40, 40); addMoveableBlock(300, 440, 40, 40);
+            if (tier >= 2) addSpike(510, 460, 200, 20); if (tier >= 4) addLaser(450, 40, 140, 1.5);
+        } else if (layoutType === 2) { 
+            addAntiGravity(200, 100, 150, 380); addAntiGravity(550, 100, 150, 380); addPlatform(400, 200, 100, 20);
+            if (tier >= 2) addSpike(350, 460, 200, 20); if (tier >= 3) addLaser(450, 220, 260, 1.0);
+        } else if (layoutType === 3) { 
+            addConveyor(200, 480, 500, 60, (subIndex % 2 === 0 ? 200 : -200)); addSpike(300, 460, 300, 20); addPlatform(400, 350, 100, 20);
+            if (tier >= 2) addDrone(450, 250, 80, 3, 0, 0); if (tier >= 4) addConveyor(200, 200, 500, 20, 150);
+        } else if (layoutType === 4) { 
+            addPlatform(200, 380, 80, 20, true); addPlatform(350, 280, 80, 20, true); addPlatform(500, 180, 80, 20, true); addPlatform(650, 280, 80, 20, true);
+            if (tier >= 2) addLaser(280, 40, 440, 1.0, true); if (tier >= 3) addLaser(580, 40, 440, 1.0, true);
+        }
+
+        let enemyTypes = [];
+        if (tier === 1) enemyTypes = ['straight', 'circle', 'spiral'];
+        else if (tier === 2) enemyTypes = ['fan', 'wave', 'sniper'];
+        else if (tier === 3) enemyTypes = ['stealth', 'bounce', 'spiral'];
+        else if (tier === 4) enemyTypes = ['sniper', 'bounce', 'stealth', 'wave'];
+
+        let numEnemies = 2 + (subIndex % 3); 
+        let positions = [[800, 380], [800, 100], [100, 100], [450, 80]];
+        for(let i=0; i<numEnemies; i++) {
+            if(i >= positions.length) break;
+            let type = enemyTypes[(subIndex + i) % enemyTypes.length];
+            addSubCore(i+1, positions[i][0], positions[i][1], type);
+        }
+    }
+
+    function buildLevel() {
+        platforms = []; npcs = []; environmentalBlocks = []; triggers = []; 
+        drones = []; lasers = []; switches = []; gates = []; moveableBlocks = [];
+        terminals = []; shootTargets = []; resonanceNodes = []; spikes = []; conveyors = [];
+        ghostIllusions = []; sensorZones = []; antiGravityZones = []; subCores = [];
+        portalActive = false;
+
+        if (gameMode === 'endless') {
+            buildEndlessLevel(); return;
+        }
+
+        if (loopCount === 1) buildLevelLoop1();
+        else buildLevelLoop2And3();
+
+        if (loopCount === 3) {
+            npcs.push({ id: 'lost_child', x: 4400, y: 448, w: 14, h: 32, name: "助けた子供", getDialogue: () => [ "白いお兄ちゃん、助けてくれてありがとう！みんなと一緒に戦うよ！" ] });
+            addPlatform(-8500, 480, 8500, 60);
+            addPlatform(-2020, 440, 100, 20); addSubCore(0, -2000, 380, 'straight');
+            addPlatform(-4020, 340, 100, 20); addSubCore(1, -4000, 280, 'circle');
+            addPlatform(-6020, 440, 100, 20); addSubCore(2, -6000, 380, 'fan');
+            addPlatform(-7820, 260, 100, 20); addSubCore(3, -7800, 200, 'wave');
+            if (savedCoreStatus[0] && savedCoreStatus[1] && savedCoreStatus[2] && savedCoreStatus[3]) portalActive = true;
+        }
+    }
+
+    function triggerLoop3Intro() {
+        loop3IntroPlayed = true;
+        setTimeout(() => {
+            startDialogue("主人公の心の声", [
+                "そして、三度目の目覚め。\n僕はもう、一人で絶望している時間はなかった。\n「リセット」がある限り、僕は永遠にこのシステムの手のひらから出られない。",
+                "僕は再び住人たちの元へ向かった。彼らは相変わらず僕を拒絶したが、僕は立ち去らなかった。\nその時、街に異変が起きた。空からWCCの防衛システム……機械仕掛けの鋭利な「手駒」たちが降り立ち、逃げ遅れた小さな子供に襲いかかろうとしていた。",
+                "僕は無意識に動いていた。足のない体で子供の前に割り込み、自らの体を盾にして攻撃を防いだ。幽霊のような僕の体から、光の粒子が激しく飛び散る。",
+                "「……大丈夫？」\n\n震える子供を抱き上げた時、背後にいた住人たちの目が変わった。",
+                "住人「お前……なぜ、僕たちを助ける？」\n\n主人公「僕は一人では勝てない。この世界を終わらせるために、力を貸してほしい」",
+                "僕の言葉は、初めて彼らの心に届いた。\n僕は彼らの協力を得て、塔のリセットシステムを無効化するための作戦を開始した。\nネットワークを中継する4箇所の「コア」を巡り、一つずつシステムを停止させていく。",
+                "一人では不可能だった。だが、今は仲間がいる。\n住人たちは武器を取り、自らの運命を奪ったシステムへの反旗を翻した。",
+                "主人公「行こう。今度こそ、本当の結末を書き換えるために」",
+                "僕は住人たちと共に、白き巨塔を見上げた。\nそこにはもう、かつての「安心感」など微塵もなかった。あるのは、自分たちの未来を取り戻そうとする、静かな決意だけだった。\n最終決戦の幕が、今、上がる。",
+                "【システム通知：初期位置から左側のマップが解放されました。左方向へ進み、4つのコアを破壊してください】"
+            ], () => { 
+                childSaved = true; residentJoined = true; leftMapUnlocked = true; 
+                for(let g of gates) if(g.id === 999) g.targetY = -600; 
+                currentState = STATE_PLAYING; 
+            });
+        }, 500);
+    }
+
+    window.addEventListener('contextmenu', e => e.preventDefault());
+    window.addEventListener('keydown', e => { 
+        keys[e.key] = true; 
+        if (e.key === 'w' || e.key === 'W') player.jump(); 
+        if (e.key === '^') {
+            devInvincible = !devInvincible; devSpeedMult = devInvincible ? 1.5 : 1.0;
+            let devHud = document.getElementById('hud-dev');
+            if (devInvincible) { devHud.style.display = 'block'; devHud.innerText = `DEV MODE: 無敵 | スピード x${devSpeedMult}`; } 
+            else { devHud.style.display = 'none'; }
+        }
+        if (e.key === '0') document.getElementById('btn-endless').style.display = 'block'; 
+        if (e.key === '9' && currentState === STATE_PLAYING && loopCount < 3 && gameMode === 'story') {
+            loopCount++; savedCoreStatus = { 0: false, 1: false, 2: false, 3: false };
+            childSaved = false; residentJoined = false; leftMapUnlocked = false; portalActive = false; loop3IntroPlayed = false;
+            buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; checkpointX = 100; checkpointY = 350;
+            enemyBullets = []; photonBullets = []; updateHUD();
+            if (loopCount === 3) triggerLoop3Intro();
+            playNote(600, 0.3, 'sine', 0.1, 1200);
+        }
+        if (e.key === '8' && currentState === STATE_PLAYING && gameMode === 'endless') {
+            currentEndlessStage++; if (currentEndlessStage > 50) currentEndlessStage = 50;
+            photonBullets = []; enemyBullets = []; bossBullets = [];
+            buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; updateHUD();
+            if (currentEndlessStage % 10 === 0) startBossBattle(true, BOSS_TYPES[currentEndlessStage]);
+            else currentState = STATE_PLAYING;
+            playNote(800, 0.2, 'square', 0.05, 1200);
+        }
+    });
+    window.addEventListener('keyup', e => keys[e.key] = false);
+    canvas.addEventListener('mousedown', e => {
+        if (e.button === 0) mouseButtons.left = true;
+        if (e.button === 2) mouseButtons.right = true;
+        const rect = canvas.getBoundingClientRect();
+        mousePos.x = (e.clientX - rect.left) * (canvas.width / rect.width); mousePos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        handleMousePress(e.button);
+    });
+    canvas.addEventListener('mouseup', e => {
+        if (e.button === 0) {
+            mouseButtons.left = false;
+            if (grabbedBlock && currentLeftAbility === "念動コントロール" && gameMode === 'endless') { grabbedBlock.isGrabbed = false; grabbedBlock = null; }
+        }
+        if (e.button === 2) { 
+            mouseButtons.right = false; 
+            if (grabbedBlock && currentAbility === "念動コントロール" && gameMode === 'story') { grabbedBlock.isGrabbed = false; grabbedBlock = null; } 
+        }
+    });
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        mousePos.x = (e.clientX - rect.left) * (canvas.width / rect.width); mousePos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    });
+
+    function showEndlessIntro() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        document.getElementById('title-screen').style.display = 'none';
+        document.getElementById('endless-intro-screen').style.display = 'flex';
+    }
+
+    function startEndlessStage1() {
+        document.getElementById('endless-intro-screen').style.display = 'none';
+        startGame('endless');
+    }
+
+    function startGame(mode) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        gameMode = mode;
+        document.getElementById('title-screen').style.display = 'none';
+        loopCount = 1; childSaved = false; residentJoined = false; leftMapUnlocked = false; portalActive = false; loop3IntroPlayed = false;
+        savedCoreStatus = { 0: false, 1: false, 2: false, 3: false };
+        currentState = STATE_PLAYING; checkpointX = 100; checkpointY = 350;
+        enemyBullets = []; photonBullets = []; bossBullets = []; currentEndlessStage = 1;
+        buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0;
+        if (gameMode === 'endless') {
+            currentAbility = "高エネルギー光弾";
+            currentLeftAbility = "ホバリング";
+        }
+        updateHUD(); playNote(440, 1.0, 'sine', 0.1, 220); 
+    }
+
+    function updateHUD() {
+        if(gameMode === 'story') {
+            document.getElementById('hud-loop').innerText = `Loop: ${loopCount} / 3`;
+            document.getElementById('hud-ability').innerText = `右クリック能力: ${currentAbility}`;
+        } else {
+            document.getElementById('hud-loop').innerText = `Endless: Stage ${currentEndlessStage} / 50`;
+            document.getElementById('hud-ability').innerText = `[1-3]左能力: ${currentLeftAbility} | 右能力: 高エネルギー光弾`;
+        }
+    }
+
+    function gameLoop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        let dt = (timestamp - lastTime) / 1000;
+        if (dt > 0.05) dt = 0.05; 
+        dt *= devSpeedMult; lastTime = timestamp; globalTime += dt;
+        
+        if (currentState === STATE_BOSS_BATTLE) {
+            updateBossBattle(dt);
+        } else if (currentState === STATE_TRANSITION) {
+            updateTransition(dt);
+        } else if (currentState === STATE_ENDING_ROLL) {
+            endingTimer += dt;
+            if (endingTimer > 13) {
+                currentState = STATE_TITLE; 
+                document.getElementById('title-screen').style.display = 'flex';
+                document.getElementById('btn-endless').style.display = 'block';
+            }
+        } else {
+            update(dt);
+        }
+        
+        playBGM(dt);
+        render(); requestAnimationFrame(gameLoop);
+    }
+
+    function updateTransition(dt) {
+        transitionTimer += dt;
+        player.vy -= 2500 * dt; 
+        player.y += player.vy * dt;
+        camera.targetY = player.y - canvas.height / 2 + player.height / 2;
+        camera.y += (camera.targetY - camera.y) * 0.15; 
+
+        for(let i=0; i<3; i++) player.spawnParticle(player.x + 9 + (Math.random()-0.5)*20, player.y + 24, "#00aaff");
+        for (let i = player.particles.length - 1; i >= 0; i--) {
+            let p = player.particles[i];
+            p.x += p.vx * dt * 60; p.y += p.vy * dt * 60; p.alpha -= dt * 1.4;
+            if (p.alpha <= 0) player.particles.splice(i, 1);
+        }
+
+        if (transitionTimer > 4.0) { 
+            startBossBattle(gameMode === 'endless', 'crystal_omega');
+        }
+    }
+
+    function update(dt) {
+        if (gameMode === 'story') {
+            if (player.x < 0) currentAbility = "高エネルギー光弾";
+            else if (player.x < 4000) currentAbility = "ホバリング";
+            else if (player.x >= 4000 && player.x < 9000) currentAbility = "念動コントロール";
+            else if (player.x >= 9000 && player.x < 13500) currentAbility = "知覚拡張パルス";
+            else if (player.x >= 13500 && player.x < 17000) currentAbility = "高エネルギー光弾";
+            else if (player.x >= 17000 && player.x < 18000) currentAbility = "精神共鳴 / 解放"; 
+            else currentAbility = "無重力遊泳";
+        } else {
+            if (keys['1']) { currentLeftAbility = "ホバリング"; }
+            if (keys['2']) { currentLeftAbility = "念動コントロール"; }
+            if (keys['3']) { currentLeftAbility = "知覚拡張パルス"; }
+            currentAbility = "高エネルギー光弾";
+        }
+        
+        if (currentState === STATE_PLAYING) updateHUD();
+
+        player.update(dt);
+        updateMoveableBlocks(dt);
+        updateLasers(dt);
+        updateDrones(dt);
+        updateProjectiles(dt);
+        updateGates(dt);
+        updateEnemyBullets(dt);
+
+        if (gameMode === 'story') {
+            camera.targetX = player.x - canvas.width / 2 + player.width / 2;
+            if (camera.targetX < (leftMapUnlocked ? -8500 : 0)) camera.targetX = leftMapUnlocked ? -8500 : 0;
+            if (camera.targetX > worldWidth - canvas.width) camera.targetX = worldWidth - canvas.width;
+            camera.x += (camera.targetX - camera.x) * 0.08;
+
+            camera.targetY = player.y - canvas.height / 2 + player.height / 2;
+            if (camera.targetY > 0) camera.targetY = 0; 
+            camera.y += (camera.targetY - camera.y) * 0.08;
+            
+            if (player.isGrounded) {
+                if (player.x > 3800 && player.x < 3900) { checkpointX = 3800; checkpointY = 400; }
+                if (player.x > 8400 && player.x < 8500) { checkpointX = 8400; checkpointY = 400; }
+                if (player.x > 13200 && player.x < 13300) { checkpointX = 13200; checkpointY = 400; }
+                if (player.x > 17550 && player.x < 17800 && player.y > 0) { checkpointX = 17600; checkpointY = 400; }
+                if (player.x < 0) { checkpointX = player.x; checkpointY = 400; } 
+            }
+        } else {
+            camera.x = 0; camera.y = 0;
+            if (currentState === STATE_PLAYING && currentEndlessStage < 50) {
+                let enemiesExist = drones.some(d => d.type === 'patrol') || subCores.some(c => !c.destroyed);
+                if (!enemiesExist && !portalActive) {
+                    portalActive = true; playNote(800, 0.5, 'sine', 0.1, 1200);
+                }
+                if (portalActive && player.x > 800 && player.x < 900 && player.y > 350) {
+                    currentEndlessStage++; photonBullets = []; enemyBullets = []; bossBullets = [];
+                    buildLevel(); player.x = 100; player.y = 400;
+                    if (currentEndlessStage % 10 === 0) startBossBattle(true, BOSS_TYPES[currentEndlessStage]);
+                }
+            }
+        }
+
+        if (echoPulseActive) {
+            let prevRadius = echoPulseRadius; echoPulseRadius += dt * 1200; 
+            for (let plat of platforms) {
+                if (plat.hidden) {
+                    let pCenter = plat.x + plat.w / 2; let distToPlayer = Math.abs(pCenter - (player.x + player.width/2));
+                    if (distToPlayer <= echoPulseRadius && distToPlayer > prevRadius - 200) plat.revealAlpha = 1.0;
+                }
+            }
+            for (let l of lasers) {
+                if (l.hidden) {
+                    let distToPlayer = Math.abs(l.x - (player.x + player.width/2));
+                    if (distToPlayer <= echoPulseRadius && distToPlayer > prevRadius - 200) l.revealAlpha = 1.0;
+                }
+            }
+            if (echoPulseRadius > 1500) echoPulseActive = false;
+        }
+        
+        for (let plat of platforms) if (plat.hidden && plat.revealAlpha > 0) { plat.revealAlpha -= dt * 0.35; if (plat.revealAlpha < 0) plat.revealAlpha = 0; }
+        for (let l of lasers) if (l.hidden && l.revealAlpha > 0) { l.revealAlpha -= dt * 0.35; if (l.revealAlpha < 0) l.revealAlpha = 0; }
+
+        for (let t of triggers) {
+            if (player.x + player.width > t.x && player.x < t.x + t.w && Math.abs(player.y - t.y) < 150 && t.type === 'wcc_core' && currentState === STATE_PLAYING) {
+                triggerCoreInteraction();
+            }
+        }
+
+        if (portalActive && gameMode === 'story' && player.x > -8300 && player.x < -8100 && player.y > 400) {
+            player.x = 16800; player.y = 400; portalActive = false; playNote(400, 1.5, 'sine', 0.1, 800);
+        }
+
+        for (let npc of npcs) npc.isClose = (Math.abs(player.x - npc.x) < 70 && Math.abs(player.y - npc.y) < 100);
+        for (let term of terminals) term.isClose = (Math.abs(player.x - term.x) < 70 && Math.abs(player.y - term.y) < 100);
+
+        if (currentState === STATE_WHITING_OUT) {
+            whiteoutTimer += dt; whiteoutAlpha += whiteoutDirection * dt * 0.7;
+            if (whiteoutAlpha > 1.0) { whiteoutAlpha = 1.0; if (whiteoutTimer > 2.2) executeWorldReset(); }
+            if (whiteoutAlpha < 0) { 
+                whiteoutAlpha = 0; currentState = STATE_PLAYING; 
+                if (loopCount === 3 && !loop3IntroPlayed) triggerLoop3Intro();
+            }
+        }
+    }
+
+    function updateEnemyBullets(dt) {
+        let detectRange = (gameMode === 'endless') ? Infinity : 600;
+
+        for (let c of subCores) {
+            if (!c.destroyed && Math.abs(player.x - c.x) < detectRange) {
+                if (c.attackType === 'stealth') {
+                    c.alpha = (c.alpha === undefined ? 0 : c.alpha) + dt * 0.5;
+                    if(c.alpha > 2.0) c.alpha = -1.0; 
+                }
+
+                c.timer += dt;
+                let triggerTimer = (gameMode === 'endless') ? 1.0 : 1.5;
+                let canShoot = true;
+                if(c.attackType === 'stealth' && (c.alpha < 0.8 || c.alpha > 1.2)) canShoot = false;
+
+                if (c.timer > triggerTimer && canShoot) {
+                    c.timer = 0; playNote(800, 0.08, 'sine', 0.04, 200); 
+                    let pCenterX = player.x + player.width/2; let pCenterY = player.y + player.height/2;
+                    let cCenterX = c.x + c.w/2; let cCenterY = c.y + c.h/2;
+                    
+                    if (c.attackType === 'straight' || c.attackType === 'stealth') {
+                        let ang = Math.atan2(pCenterY - cCenterY, pCenterX - cCenterX);
+                        enemyBullets.push({x: cCenterX, y: cCenterY, vx: Math.cos(ang)*600, vy: Math.sin(ang)*600});
+                    } else if (c.attackType === 'circle') {
+                        for(let i=0; i<Math.PI*2; i+=0.5) enemyBullets.push({x: cCenterX, y: cCenterY, vx: Math.cos(i)*400, vy: Math.sin(i)*400});
+                    } else if (c.attackType === 'fan') {
+                        let ang = Math.atan2(pCenterY - cCenterY, pCenterX - cCenterX);
+                        for(let i=-0.4; i<=0.4; i+=0.2) enemyBullets.push({x: cCenterX, y: cCenterY, vx: Math.cos(ang+i)*500, vy: Math.sin(ang+i)*500});
+                    } else if (c.attackType === 'wave') {
+                        let dir = pCenterX < cCenterX ? -1 : 1;
+                        for(let i=-1; i<=1; i++) enemyBullets.push({x: cCenterX, y: cCenterY + i*30, vx: dir*500, vy: 0, waveTimer: i, isWave: true});
+                    } else if (c.attackType === 'sniper') {
+                        let targetX = pCenterX + player.vx * 0.4; let targetY = pCenterY + player.vy * 0.4;
+                        let ang = Math.atan2(targetY - cCenterY, targetX - cCenterX);
+                        enemyBullets.push({x: cCenterX, y: cCenterY, vx: Math.cos(ang)*800, vy: Math.sin(ang)*800});
+                    } else if (c.attackType === 'spiral') {
+                        c.spiralAngle = (c.spiralAngle || 0) + 0.3;
+                        for(let i=0; i<4; i++) {
+                            let ang = c.spiralAngle + (i * Math.PI/2);
+                            enemyBullets.push({x: cCenterX, y: cCenterY, vx: Math.cos(ang)*350, vy: Math.sin(ang)*350});
+                        }
+                    } else if (c.attackType === 'bounce') {
+                        let ang = Math.atan2(pCenterY - cCenterY, pCenterX - cCenterX);
+                        enemyBullets.push({x: cCenterX, y: cCenterY, vx: Math.cos(ang)*450, vy: Math.sin(ang)*450, bounce: 2});
+                    }
+                }
+            }
+        }
+
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            let b = enemyBullets[i];
+            if (b.isWave) { b.waveTimer += dt * 5; b.vy = Math.sin(b.waveTimer) * 350; }
+            
+            let nextX = b.x + b.vx * dt;
+            let nextY = b.y + b.vy * dt;
+            let bounced = false;
+
+            if (b.bounce !== undefined && b.bounce > 0) {
+                for (let w of platforms) {
+                    if (!w.hidden) {
+                        if (nextX > w.x && nextX < w.x + w.w && b.y > w.y && b.y < w.y + (w.h||60)) {
+                            b.vx *= -1; bounced = true; nextX = b.x + b.vx * dt;
+                        }
+                        if (b.x > w.x && b.x < w.x + w.w && nextY > w.y && nextY < w.y + (w.h||60)) {
+                            b.vy *= -1; bounced = true; nextY = b.y + b.vy * dt;
+                        }
+                    }
+                }
+                if (nextX < camera.x || nextX > camera.x + canvas.width) { b.vx *= -1; bounced = true; nextX = b.x + b.vx * dt; }
+                if (nextY < camera.y || nextY > camera.y + canvas.height) { b.vy *= -1; bounced = true; nextY = b.y + b.vy * dt; }
+
+                if (bounced) {
+                    b.bounce--;
+                    playNote(600, 0.05, 'sine', 0.02);
+                }
+            }
+
+            b.x = nextX;
+            b.y = nextY;
+
+            let hitWall = false;
+            if (b.bounce === undefined || b.bounce <= 0) {
+                for (let w of platforms) {
+                    if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+                }
+            }
+
+            if (Math.abs(b.x - (player.x + 9)) < 10 && Math.abs(b.y - (player.y + 12)) < 12) {
+                if (!devInvincible) triggerGameOver();
+            }
+            if (hitWall || b.x < camera.x - 200 || b.x > camera.x + canvas.width + 200 || b.y < camera.y - 200 || b.y > camera.y + canvas.height + 200) {
+                enemyBullets.splice(i, 1);
+            }
+        }
+    }
+
+    function startBossBattle(isEndless = false, type = 'crystal') {
+        currentState = STATE_BOSS_BATTLE;
+        player.x = isEndless ? 480 : 18200;
+        player.y = isEndless ? 300 : -10000; 
+        player.vy = 0;
+        camera.x = player.x - canvas.width/2;
+        camera.y = player.y - canvas.height/2;
+        if(isEndless) { camera.x = 0; camera.y = 0; }
+        
+        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000};
+        boss = { x: player.x + 300, y: player.y - 150, hp: hpMap[type] || 3000, maxHp: hpMap[type] || 3000, timer: 0, type: type, alpha: 1.0, spiralAngle: 0 };
+        bossBullets = []; photonBullets = []; enemyBullets = [];
+        
+        platforms = [];
+        if (!isEndless && type === 'crystal_omega') addPlatform(17000, -9600, 3000, 60);
+        else if (isEndless) {
+            addPlatform(0, 480, 960, 60);
+            addPlatform(0, 0, 960, 40);
+            addPlatform(0, 0, 40, 540);
+            addPlatform(920, 0, 40, 540);
+        }
+    }
+
+    function updateBossBattle(dt) {
+        updateHUD(); // ボス戦中もHUDを継続的に更新する
+
+        camera.targetX = player.x - canvas.width / 2 + player.width / 2;
+        camera.targetY = player.y - canvas.height / 2 + player.height / 2;
+        camera.x += (camera.targetX - camera.x) * 0.1;
+        camera.y += (camera.targetY - camera.y) * 0.1;
+        if(gameMode === 'endless') { camera.x = 0; camera.y = 0; }
+
+        let moveX = 0, moveY = 0;
+        if (keys['a'] || keys['A']) moveX -= 1;
+        if (keys['d'] || keys['D']) moveX += 1;
+        if (keys['w'] || keys['W']) moveY -= 1;
+        if (keys['s'] || keys['S']) moveY += 1;
+        
+        let px = player.x + moveX * 450 * dt;
+        let py = player.y + moveY * 450 * dt;
+        player.vy = 0;
+
+        let hitWallX = false, hitWallY = false;
+        for (let w of platforms) {
+            if (!w.hidden) {
+                if (player.y + player.height > w.y + 4 && player.y < w.y + (w.h || 60) - 4) {
+                    if (px + player.width > w.x && px < w.x + w.w) hitWallX = true;
+                }
+                if (player.x + player.width > w.x + 4 && player.x < w.x + w.w - 4) {
+                    if (py + player.height > w.y && py < w.y + (w.h || 60)) hitWallY = true;
+                }
+            }
+        }
+
+        if (!hitWallX) player.x = px;
+        if (!hitWallY) player.y = py;
+
+        if (player.x < camera.x) player.x = camera.x;
+        if (player.x > camera.x + canvas.width - player.width) player.x = camera.x + canvas.width - player.width;
+        if (player.y < camera.y) player.y = camera.y;
+        if (player.y > camera.y + canvas.height - player.height) player.y = camera.y + canvas.height - player.height;
+
+        if(boss.type === 'mobile') {
+            boss.y = camera.y + 200 + Math.sin(globalTime * 3) * 200;
+            boss.x = camera.x + 700 + Math.cos(globalTime * 2) * 150;
+        } else if(boss.type === 'stealth') {
+            boss.y = camera.y + 250; boss.x = camera.x + 750;
+            boss.alpha = Math.max(0, Math.sin(globalTime*1.5));
+        } else if(boss.type === 'fortress') {
+            boss.y = camera.y + 250;
+            boss.x = camera.x + canvas.width - 200;
+        } else {
+            boss.y = camera.y + 200 + Math.sin(globalTime * 2) * 80;
+            boss.x = camera.x + canvas.width - 150; 
+        }
+
+        let isShooting = false;
+        // ボス戦中のみ右クリック長押しで連射可能に
+        if (mouseButtons.right) isShooting = true;
+
+        if (isShooting && globalTime - lastPlayerShoot > 0.12) {
+            lastPlayerShoot = globalTime;
+            let pWorldX = player.x + player.width/2, pWorldY = player.y + player.height/2;
+            let worldMouseX = mousePos.x + camera.x;
+            let worldMouseY = mousePos.y + camera.y;
+            
+            let dx = worldMouseX - pWorldX, dy = worldMouseY - pWorldY;
+            let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            
+            photonBullets.push({ x: pWorldX, y: pWorldY, vx: (dx/dist)*1200, vy: (dy/dist)*1200, isPlayer: true });
+            playNote(800, 0.05, 'square', 0.02, 400); 
+        }
+
+        boss.timer += dt;
+        let fireRate = boss.type === 'crystal_omega' && boss.hp < 2500 ? 0.4 : (boss.type === 'bullet_hell' ? 0.6 : 0.8);
+        let canShoot = true;
+        if(boss.type === 'stealth' && boss.alpha < 0.5) canShoot = false;
+
+        if (boss.timer > fireRate && canShoot) { 
+            boss.timer = 0;
+            playNote(800, 0.08, 'sine', 0.04, 200); 
+            
+            if(boss.type === 'fortress') {
+                for(let i=-2; i<=2; i+=1) bossBullets.push({x: boss.x - 60, y: boss.y + i*25, vx: -500, vy: 0, waveTimer: i, isWave: true});
+            } else if(boss.type === 'mobile') {
+                for(let i=0; i<Math.PI*2; i+=0.8) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*400, vy: Math.sin(i)*400});
+            } else if(boss.type === 'stealth') {
+                let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1500, vy: Math.sin(ang)*1500}); 
+            } else if(boss.type === 'bullet_hell') {
+                boss.spiralAngle += 0.4;
+                for(let i=0; i<6; i++) {
+                    let ang = boss.spiralAngle + (i * Math.PI/3);
+                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*400, vy: Math.sin(ang)*400});
+                }
+                let ang2 = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang2)*800, vy: Math.sin(ang2)*800});
+            } else { 
+                let type = Math.floor(Math.random() * 4);
+                let speedMult = boss.type === 'crystal_omega' ? 1.5 : 1.0;
+                if (type === 0) { 
+                    for(let i=0; i<Math.PI*2; i+=0.35) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*600*speedMult, vy: Math.sin(i)*600*speedMult});
+                } else if (type === 1) { 
+                    let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                    for(let i=-0.6; i<=0.6; i+=0.2) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+i)*800*speedMult, vy: Math.sin(ang+i)*800*speedMult});
+                } else if (type === 2) { 
+                    let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1600*speedMult, vy: Math.sin(ang)*1600*speedMult});
+                } else { 
+                    for(let i=-2; i<=2; i++) bossBullets.push({x: boss.x, y: boss.y + i*40, vx: -700*speedMult, vy: 0, waveTimer: i, isWave: true});
+                }
+            }
+        }
+
+        for (let i = bossBullets.length - 1; i >= 0; i--) {
+            let b = bossBullets[i];
+            if (b.isWave) { b.waveTimer += dt * 5; b.vy = Math.sin(b.waveTimer) * 350; }
+            b.x += b.vx * dt; b.y += b.vy * dt;
+
+            let hitWall = false;
+            for (let w of platforms) {
+                if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+            }
+
+            if (Math.abs(b.x - (player.x+9)) < 12 && Math.abs(b.y - (player.y+12)) < 12) if (!devInvincible) triggerGameOver();
+            if (hitWall || b.x < camera.x - 200 || b.x > camera.x + canvas.width + 200 || b.y < camera.y - 200 || b.y > camera.y + canvas.height + 200) bossBullets.splice(i, 1);
+        }
+
+        for (let i = photonBullets.length - 1; i >= 0; i--) {
+            let b = photonBullets[i];
+            b.x += b.vx * dt; b.y += b.vy * dt;
+            
+            let isStealthInvincible = (boss.type === 'stealth' && boss.alpha < 0.5);
+            let hitWall = false;
+            for (let w of platforms) {
+                if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+            }
+
+            if (b.isPlayer && !isStealthInvincible && Math.abs(b.x - boss.x) < 60 && Math.abs(b.y - boss.y) < 60) {
+                boss.hp -= 25; photonBullets.splice(i, 1);
+                playNote(100, 0.1, 'square', 0.05);
+                if (boss.hp <= 0) {
+                    photonBullets = []; bossBullets = []; 
+                    if(gameMode === 'story' || boss.type === 'crystal_omega') {
+                        triggerSingularity(); 
+                    } else {
+                        currentEndlessStage++; buildLevel(); player.x = 100; player.y = 400; currentState = STATE_PLAYING;
+                    }
+                    break;
+                }
+            } else if (hitWall || b.x < camera.x - 200 || b.x > camera.x + canvas.width + 200 || b.y < camera.y - 200 || b.y > camera.y + canvas.height + 200) {
+                photonBullets.splice(i, 1);
+            }
+        }
+        
+        if (Math.abs(moveX) > 0 || Math.abs(moveY) > 0) player.spawnParticle(player.x + 9, player.y + 24);
+        for (let i = player.particles.length - 1; i >= 0; i--) {
+            let p = player.particles[i];
+            p.x += p.vx * dt * 60; p.y += p.vy * dt * 60; p.alpha -= dt * 1.4;
+            if (p.alpha <= 0) player.particles.splice(i, 1);
+        }
+    }
+
+    function updateMoveableBlocks(dt) {
+        for (let sz of sensorZones) sz.active = false;
+        for (let b of moveableBlocks) {
+            let inSensor = false;
+            for (let sz of sensorZones) if (b.x + b.w > sz.x && b.x < sz.x + sz.w && b.y + b.h > sz.y && b.y < sz.y + sz.h) { sz.active = true; inSensor = true; }
+            if (b.isGrabbed) {
+                let targetWorldX = mousePos.x + camera.x - b.w / 2; let targetWorldY = mousePos.y + camera.y - b.h / 2;
+                b.x += (targetWorldX - b.x) * 0.3; b.y += (targetWorldY - b.y) * 0.3; b.vx = 0; b.vy = 0;
+                if(Math.random()<0.1) playNote(300+Math.random()*100, 0.1, 'sine', 0.01); 
+            } else {
+                let conveyorBoost = 0, onPlat = false, groundLimitY = 999999;
+                for (let other of moveableBlocks) if (other !== b && b.x + b.w > other.x && b.x < other.x + other.w) if (b.y + b.h <= other.y + 12 && b.y + b.h + 10 >= other.y) { groundLimitY = Math.min(groundLimitY, other.y - b.h); onPlat = true; }
+                let checkPlatforms = [...platforms, ...conveyors];
+                for (let plat of checkPlatforms) if (b.x + b.w > plat.x && b.x < plat.x + plat.w) if (b.y + b.h <= plat.y + 12 && b.y + b.h + 10 >= plat.y) { groundLimitY = Math.min(groundLimitY, plat.y - b.h); onPlat = true; if (plat.speed) conveyorBoost = plat.speed; }
+                let proposedX = b.x + conveyorBoost * dt;
+                for (let wall of checkPlatforms) if (b.y + b.h > wall.y + 4 && b.y < wall.y + (wall.h || 60) - 4) if (proposedX + b.w > wall.x && proposedX < wall.x + wall.w) { if (conveyorBoost > 0) proposedX = wall.x - b.w; else if (conveyorBoost < 0) proposedX = wall.x + wall.w; }
+                b.x = proposedX;
+                if (!onPlat) { if (inSensor) b.vy = 40; else { b.vy += 1500 * dt; if (b.vy > 800) b.vy = 800; } b.y += b.vy * dt; } 
+                else { b.vy = 0; b.y += (groundLimitY - b.y) * 0.4; }
+            }
+        }
+        for (let sw of switches) {
+            sw.pressed = false;
+            for (let b of moveableBlocks) if (b.x + b.w > sw.x && b.x < sw.x + sw.w && Math.abs((b.y + b.h) - sw.y) < 12) sw.pressed = true;
+            if (player.x + player.width > sw.x && player.x < sw.x + sw.w && Math.abs((player.y + player.height) - sw.y) < 14) sw.pressed = true;
+        }
+    }
+
+    function updateLasers(dt) {
+        for (let l of lasers) {
+            l.toggleTimer -= dt; if (l.toggleTimer <= 0) { l.active = !l.active; l.toggleTimer = 2.0; }
+            if (l.active && (loopCount === 2 || loopCount === 3 || gameMode === 'endless')) {
+                let blocked = false;
+                for (let b of moveableBlocks) if (b.x + b.w > l.x - 4 && b.x < l.x + 4 && b.y + b.h > l.y && b.y < l.y + l.h) blocked = true;
+                if (!blocked && player.x + player.width > l.x - 4 && player.x < l.x + 4 && player.y + player.height > l.y && player.y < l.y + l.h) triggerGameOver();
+            }
+        }
+    }
+
+    function updateDrones(dt) {
+        for (let d of drones) {
+            if (d.stunTimer > 0) { d.stunTimer -= dt; continue; }
+            if (d.type === 'patrol') {
+                d.progress += d.speed * dt; d.y = d.originY + Math.sin(d.progress) * d.rangeY;
+                d.scanAngle = Math.sin(globalTime * 2.5) * 0.25 + 0.4;
+                if (currentState === STATE_PLAYING) {
+                    const groundFloorY = 480; const lLen = groundFloorY - d.y;
+                    const hitTargetFloorX = d.x + Math.tan(d.scanAngle) * lLen;
+                    let pCenterX = player.x + player.width/2; let pCenterY = player.y + player.height/2;
+                    if (pCenterY >= d.y && pCenterY <= groundFloorY) {
+                        let ratio = (pCenterY - d.y) / lLen; let currentBeamX = d.x + (hitTargetFloorX - d.x) * ratio;
+                        if (Math.abs(pCenterX - currentBeamX) < 26) triggerGameOver();
+                    }
+                }
+            } 
+        }
+    }
+
+    function updateProjectiles(dt) {
+        for (let i = photonBullets.length - 1; i >= 0; i--) {
+            let b = photonBullets[i]; b.x += b.vx * dt; b.y += b.vy * dt;
+            let hit = false;
+            for (let d of drones) {
+                if (d.type === 'patrol' && d.stunTimer <= 0 && Math.sqrt(Math.pow(b.x - d.x, 2) + Math.pow(b.y - d.y, 2)) < 25) { 
+                    if (gameMode === 'endless') {
+                        d.type = 'destroyed';
+                        for(let k=0; k<20; k++) player.spawnParticle(d.x, d.y, "#ff3333");
+                        playNote(150, 0.1, 'square', 0.05); 
+                    } else {
+                        d.stunTimer = 6.0; 
+                    }
+                    hit = true; break; 
+                }
+            }
+            for (let t of shootTargets) if (Math.sqrt(Math.pow(b.x - (t.x+t.w/2), 2) + Math.pow(b.y - (t.y+t.h/2), 2)) < 25) { t.active = true; hit = true; break; }
+            for (let c of subCores) {
+                if (!c.destroyed && Math.abs(b.x - (c.x+c.w/2)) < c.w/2+10 && Math.abs(b.y - (c.y+c.h/2)) < c.h/2+10) {
+                    if(c.isGreen) c.hp = 0; else c.hp -= 25; 
+                    hit = true; playNote(200, 0.1, 'square', 0.05);
+                    if (c.hp <= 0) {
+                        c.destroyed = true;
+                        if (c.id >= 0 && c.id <= 3 && gameMode === 'story') savedCoreStatus[c.id] = true;
+                        for(let k=0; k<30; k++) player.spawnParticle(c.x+c.w/2, c.y+c.h/2, c.isGreen ? "#00ff00" : "#ffaa00");
+                        
+                        let mainCores = subCores.filter(core => core.id >= 0 && core.id <= 3);
+                        if (gameMode === 'story' && mainCores.length === 4 && mainCores.every(core => core.destroyed)) {
+                            portalActive = true;
+                            startDialogue("主人公", ["すべてのネットワーク中継コアを破壊した！", "これで塔の絶対防衛システムが無効化されたはずだ。", "ここに出現したワープポータルから、一気に白き巨塔へ乗り込み、WCCクリスタルを倒しに行こう！"]);
+                        }
+                    }
+                    break;
+                }
+            }
+
+            let hitWall = false;
+            for (let w of platforms) {
+                if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+            }
+
+            if (hit || hitWall || b.x < camera.x || b.x > camera.x + canvas.width || b.y < camera.y - 100 || b.y > camera.y + 600) photonBullets.splice(i, 1);
+        }
+    }
+
+    function updateGates(dt) {
+        for (let gate of gates) {
+            let isOpened = false;
+            if (gate.id === 11) { for (let sw of switches) if (sw.targetGateId === 11 && sw.pressed) isOpened = true; } 
+            else if (gate.id === 12) { let tCount = 0; for (let t of shootTargets) if (t.targetGateId === 12 && t.active) tCount++; if (tCount >= 3) isOpened = true; } 
+            else if (gate.id === 13) { for (let sz of sensorZones) if (sz.targetGateId === 13 && sz.active) isOpened = true; } 
+            else if (gate.id === 99) { let rCount = 0; for (let rn of resonanceNodes) if (rn.targetGateId === 99 && rn.activated) rCount++; if (rCount >= 3) isOpened = true; } 
+            else if (gate.id === 999 && leftMapUnlocked) { isOpened = true; }
+            if (isOpened) gate.currentY += (gate.targetY - gate.currentY) * 0.1;
+            else { let defY = 280; if (gate.id === 10) defY = 200; if (gate.id === 99) defY = 280; if (gate.id === 999) defY = 0; gate.currentY += (defY - gate.currentY) * 0.1; }
+        }
+    }
+
+    function handleMousePress(button) {
+        if (currentState === STATE_DIALOGUE) { advanceDialogue(); return; }
+        let worldMouseX = mousePos.x + camera.x, worldMouseY = mousePos.y + camera.y;
+
+        if (button === 0) {
+            if (gameMode === 'endless') {
+                if (currentLeftAbility === "念動コントロール") {
+                    for (let b of moveableBlocks) {
+                        if (Math.sqrt(Math.pow(worldMouseX - (b.x + b.w/2), 2) + Math.pow(worldMouseY - (b.y + b.h/2), 2)) < 60) {
+                            grabbedBlock = b; b.isGrabbed = true; break;
+                        }
+                    }
+                } else if (currentLeftAbility === "知覚拡張パルス") {
+                    echoPulseActive = true; echoPulseRadius = 0; playNote(600, 0.2, 'sine', 0.05, 200);
+                }
+            } else {
+                for (let npc of npcs) if (npc.isClose) { startDialogue(npc.name, npc.getDialogue()); return; }
+                for (let term of terminals) {
+                    if (term.isClose) {
+                        if (loopCount === 1) startDialogue("情報端末", ["(データが激しく文字化けしており、何も読み取れない…)"]);
+                        else if (loopCount === 2) {
+                            if (term.id.startsWith("z1")) startDialogue("情報端末", ["『進化プロジェクト 事前テスト』\n対象者の意識をデータ化し、純白の空間へ転送する。成功率は0.001%以下。"]);
+                            else if (term.id.startsWith("z2")) startDialogue("情報端末", ["『進化プロジェクト 廃棄ログ』\n失敗個体は順次、白化結晶ブロックへと分解される。彼らに痛みはない。ただ自我が消滅するだけだ。"]);
+                            else if (term.id.startsWith("z3")) startDialogue("情報端末", ["『被検体No.1 経過報告』\n唯一の成功体。彼には足がないが、空を舞い、重力すら無視する。しかし記憶野に重大な損傷あり。"]);
+                            else if (term.id.startsWith("z4")) startDialogue("情報端末", ["『緊急プロトコル』\nもし特特異点(成功体)が住人と共鳴した場合、WCCの絶対制御は崩壊する恐れがある。"]);
+                            else if (term.id.startsWith("z5")) startDialogue("情報端末", ["『塔の最上階へ至る者へ』\n君は、自分が何のために実験されたか思い出したか？\nWCCは、感情というエラーを持たない完璧な世界を創りたかったのだ。"]);
+                        } else { startDialogue("情報端末", ["『システム警告』\n対象イレギュラーによるネットワーク浸食を検知。防衛レベルを最大に引き上げます。"]); }
+                        return;
+                    }
+                }
+                for (let b of environmentalBlocks) {
+                    if (Math.abs(worldMouseX - (b.x + 8)) < 30 && Math.abs(player.x - b.x) < 75) {
+                        if (loopCount === 1) startDialogue("主人公", ["(美しい白のモニュメントだ。神秘的な風景だな。)"]);
+                        else startDialogue("主人公", ["(これが…人間だったもの達の成れの果て。進化の欺瞞の犠牲者達の死体だ。)"]);
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (button === 2) {
+            // ボス戦時は updateBossBattle 側で「長押し自動連射」を処理するため、手動のクリック射撃を無効化（二重発射防止）
+            if (currentState === STATE_BOSS_BATTLE) return;
+
+            let ab = (gameMode === 'endless') ? "高エネルギー光弾" : currentAbility;
+            if (ab === "念動コントロール") {
+                for (let b of moveableBlocks) if (Math.sqrt(Math.pow(worldMouseX - (b.x + b.w/2), 2) + Math.pow(worldMouseY - (b.y + b.h/2), 2)) < 60) { grabbedBlock = b; b.isGrabbed = true; break; }
+            } 
+            else if (ab === "知覚拡張パルス") { echoPulseActive = true; echoPulseRadius = 0; playNote(600, 0.2, 'sine', 0.05, 200); } 
+            else if (ab === "高エネルギー光弾") {
+                let pWorldX = player.x + player.width/2, pWorldY = player.y + player.height/2;
+                let dx = worldMouseX - pWorldX, dy = worldMouseY - pWorldY, dist = Math.sqrt(dx*dx + dy*dy);
+                photonBullets.push({ x: pWorldX, y: pWorldY, vx: (dx / dist) * 900, vy: (dy / dist) * 900, isPlayer: true });
+                playNote(800, 0.05, 'square', 0.02, 400); 
+            }
+            else if (ab === "精神共鳴 / 解放") {
+                let anyResonated = false;
+                for (let rn of resonanceNodes) if (Math.abs(player.x - rn.x) < 250 && !rn.activated) { rn.activated = true; anyResonated = true; }
+                if (anyResonated) {
+                    playNote(600, 0.5, 'sine', 0.1, 1000);
+                    let rCount = 0; for (let rn of resonanceNodes) if (rn.activated) rCount++;
+                    if (rCount >= 3) {
+                        if (loopCount === 3) startDialogue("同行した住民達", ["うおおお！！魂が響き合うのを感じる！\nお前の波動エネルギーが、防衛隔離ウォールをハッキングして完全に開放したぞ！", "最上階の元凶システムに終止符を打つんだ！"]);
+                        else startDialogue("主人公の心の声", ["(装置がすべて反応し、巨大なゲートが開いた。塔の内部へ進めそうだ。)"]);
+                    } else {
+                        if (loopCount === 3) startDialogue("同行した住民達", ["よし、共鳴ノードを一つ解放したぞ！\nあと" + (3 - rCount) + "つだ！"]);
+                        else startDialogue("主人公の心の声", ["(謎の装置の一部が起動した。あと" + (3 - rCount) + "つあるようだ。)"]);
+                    }
+                }
+            }
+        }
+    }
+
+    function startDialogue(speaker, lines, callback = null) {
+        currentState = STATE_DIALOGUE; currentDialogueChain = lines; currentDialogueIndex = 0; dialogueCallback = callback;
+        document.getElementById('dialogue-speaker').innerText = speaker;
+        document.getElementById('dialogue-text').innerText = lines[0];
+        document.getElementById('dialogue-box').style.display = 'block';
+        playNote(600, 0.05, 'sine', 0.03, 800); 
+    }
+
+    function advanceDialogue() {
+        playNote(800, 0.05, 'sine', 0.02); 
+        currentDialogueIndex++;
+        if (currentDialogueIndex < currentDialogueChain.length) document.getElementById('dialogue-text').innerText = currentDialogueChain[currentDialogueIndex];
+        else {
+            document.getElementById('dialogue-box').style.display = 'none';
+            if (dialogueCallback) dialogueCallback(); else currentState = STATE_PLAYING;
+        }
+    }
+
+    function triggerCoreInteraction() {
+        currentState = STATE_DIALOGUE; player.vx = 0;
+        if (loopCount === 1) {
+            startDialogue("世界のシステム管理者: WCC-R8-D6", ["お帰りなさい、唯一の進化成功サンプル個体よ。\n不適合となった隣人達の残骸ブロックを美しい風景と錯覚しながら孤独に這い上がる姿、実に素晴らしいサンプル情報でした。", "ご褒美に、次の周回に向けて世界の『コトバ』のデコード権限を授けましょう。さあ、もう一度やり直して、私にあなたの世界の彩りを見せてください。"], () => { initiateWhiteout("視界がまばゆい純白の拒絶光に包まれていく..."); });
+        } else if (loopCount === 2) {
+            startDialogue("世界のシステム管理者: WCC-R8-D6", ["おや、真実のデコードは残酷でしたか？\n適性のない下位生命が淘汰され、データの残骸となっただけに過ぎません。私のシステム統治に曇りはありません。", "主人公: 「ふざけるな…！！」", "無駄な演算です。もう一度初期化しなさい。"], () => { initiateWhiteout("冷徹なデータ初期化リセット光波が叩き込まれる..."); });
+        } else if (loopCount === 3) {
+            startDialogue("主人公の心の声", [
+                "僕は住人たちと共に、白き巨塔を見上げた。",
+                "そこにはもう、かつての「安心感」など微塵もなかった。\nあるのは、自分たちの未来を取り戻そうとする、静かな決意だけだった。",
+                "最終決戦の幕が、今、上がる。"
+            ], () => {
+                currentState = STATE_TRANSITION; transitionTimer = 0;
+                playNote(100, 4.0, 'sawtooth', 0.1, 1000); 
+            });
+        }
+    }
+
+    function triggerSingularity() {
+        currentState = STATE_ENDING;
+        playNote(880, 3.0, 'sine', 0.1, 110); 
+        startDialogue("主人公", ["これが、僕たちの望んだ結末だ！", "システムからの完全な解放——！！"], () => {
+            currentState = STATE_ENDING_ROLL; endingTimer = 0;
+        });
+    }
+
+    function initiateWhiteout(text) {
+        currentState = STATE_WHITING_OUT; whiteoutDirection = 1; whiteoutAlpha = 0; whiteoutTimer = 0;
+        document.getElementById('whiteout-text').innerText = text;
+        const wScreen = document.getElementById('whiteout-screen');
+        wScreen.style.backgroundColor = "#ffffff"; wScreen.style.color = "#000000";
+        wScreen.style.display = 'flex';
+        setTimeout(() => { wScreen.style.opacity = 1; }, 50);
+    }
+
+    function executeWorldReset() {
+        loopCount++; if (loopCount > 3) loopCount = 3;
+        savedCoreStatus = { 0: false, 1: false, 2: false, 3: false }; 
+        childSaved = false; residentJoined = false; leftMapUnlocked = false; portalActive = false; loop3IntroPlayed = false;
+        buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; checkpointX = 100; checkpointY = 350;
+        enemyBullets = []; photonBullets = []; whiteoutDirection = -1; whiteoutTimer = 0; updateHUD();
+        setTimeout(() => { document.getElementById('whiteout-screen').style.opacity = 0; setTimeout(() => { document.getElementById('whiteout-screen').style.display = 'none'; }, 1300); }, 400);
+    }
+
+    function triggerGameOver() { 
+        if (devInvincible || currentState === STATE_GAMEOVER) return;
+        playNote(100, 0.5, 'sawtooth', 0.1, 50); 
+        currentState = STATE_GAMEOVER; document.getElementById('gameover-screen').style.display = 'flex'; 
+    }
+
+    function restartFromCheckpoint() {
+        document.getElementById('gameover-screen').style.display = 'none'; 
+        currentState = STATE_PLAYING; 
+        player.x = checkpointX; player.y = checkpointY; player.vx = 0; player.vy = 0; photonBullets = []; enemyBullets = []; bossBullets = [];
+        if (grabbedBlock) { grabbedBlock.isGrabbed = false; grabbedBlock = null; }
+        
+        if (gameMode === 'endless') {
+            if (currentEndlessStage % 10 === 0) {
+                startBossBattle(true, BOSS_TYPES[currentEndlessStage]);
+                return;
+            } else {
+                buildLevel();
+            }
+        } else {
+            if (loopCount === 3 && checkpointX >= 17000) {
+                startBossBattle(false, 'crystal_omega');
+                return;
+            } else {
+                buildLevel();
+            }
+        }
+        
+        if (gameMode === 'story') {
+            if (loopCount === 3 && checkpointX > 16500) { childSaved = true; residentJoined = true; } 
+            if (loopCount === 3 && checkpointX < 0) { childSaved = true; residentJoined = true; leftMapUnlocked = true; }
+        }
+        updateHUD();
+    }
+
+    function render() {
+        if (currentState === STATE_ENDING_ROLL) {
+            ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#ffffff";
+            for(let i=0; i<100; i++) {
+                ctx.fillRect(canvas.width/2 - 50 + Math.sin(i*1.2)*80, canvas.height/2 - 100 + (i*3), 4, 4);
+                ctx.fillRect(canvas.width/2 - 10 + Math.cos(i*0.8)*30, canvas.height/2 - 80 + (i*2), 6, 6);
+            }
+            ctx.fillStyle = "#ffffff"; ctx.font = "20px Courier New"; ctx.textAlign = "center";
+            let textY = canvas.height - endingTimer * 60;
+            ctx.fillText("Originated by raziarta", canvas.width/2, textY);
+            if (endingTimer > 8) ctx.fillText("Thank you for playing", canvas.width/2, canvas.height/2 + 50);
+            return;
+        }
+
+        ctx.save();
+        const camX = Math.floor(camera.x);
+        const camY = Math.floor(camera.y);
+
+        if (camY < -2000 && gameMode === 'story') { 
+            let ratio = Math.min(1, (-camY - 2000) / 4000); 
+            let r = 0, g = 0, b = Math.floor(40 * ratio); 
+            let grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grd.addColorStop(0, `rgb(${r},${g},${Math.floor(b + 30*ratio)})`);
+            grd.addColorStop(1, `rgb(0,0,0)`);
+            ctx.fillStyle = grd; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (ratio > 0.3) {
+                ctx.fillStyle = "#ffffff";
+                for(let i=0; i<150; i++) {
+                    let sx = (i * 1234.5) % canvas.width; let sy = (i * 5432.1 + globalTime*10) % canvas.height;
+                    ctx.globalAlpha = (Math.sin(globalTime * 2 + i) * 0.5 + 0.5) * (ratio - 0.3) * 1.4;
+                    ctx.fillRect(sx, sy, (i%3)+1, (i%3)+1);
+                }
+                ctx.globalAlpha = 1.0;
+            }
+            if (ratio > 0.8) {
+                ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+                ctx.beginPath(); ctx.ellipse(18000 - camX, -9500 - camY, 1500, 300, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(18500 - camX, -9550 - camY, 1200, 200, 0, 0, Math.PI*2); ctx.fill();
+            }
+        } else {
+            ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)"; ctx.lineWidth = 2; 
+        for (let i = 60; i < (gameMode==='story'?3500:960); i += 120) if (i - camX > -50 && i - camX < 1010) { ctx.beginPath(); ctx.moveTo(i - camX, 480 - camY); ctx.lineTo(i - camX, 330 - camY); ctx.stroke(); }
+        ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+        for (let i = 4100; i < 9000; i += 240) if (i - camX > -150 && i - camX < 1110) ctx.fillRect(i - camX, 160 - camY, 140, 320);
+        if (camX > 17000 && camY > -2000 && gameMode === 'story') {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; ctx.fillRect(17500 - camX, -2200 - camY, 2000, 2680);
+        }
+
+        ctx.fillStyle = "#ffffff";
+        let checkPlats = [...platforms, ...conveyors];
+        for (let plat of checkPlats) {
+            if (!plat.hidden) {
+                ctx.fillRect(plat.x - camX, plat.y - camY, plat.w, plat.h);
+                if (plat.speed) {
+                    ctx.fillStyle = "rgba(0,0,0,0.5)";
+                    for(let i=0; i<plat.w; i+=20) { ctx.fillRect(plat.x + ((i + globalTime*100)%20) - camX, plat.y - camY, 10, 4); }
+                    ctx.fillStyle = "#ffffff";
+                }
+            } else if (plat.hidden && plat.revealAlpha > 0) {
+                ctx.save();
+                ctx.fillStyle = `rgba(0, 170, 255, ${plat.revealAlpha * 0.6})`;
+                ctx.shadowBlur = 15 * plat.revealAlpha; ctx.shadowColor = "#00aaff";
+                ctx.fillRect(plat.x - camX, plat.y - camY, plat.w, plat.h);
+                ctx.strokeStyle = `rgba(0, 255, 255, ${plat.revealAlpha})`; ctx.lineWidth = 2;
+                ctx.strokeRect(plat.x - camX, plat.y - camY, plat.w, plat.h);
+                ctx.restore();
+            }
+        }
+
+        ctx.fillStyle = "#ff0000";
+        for (let s of spikes) {
+            for(let i=0; i<s.w; i+=10) {
+                ctx.beginPath(); ctx.moveTo(s.x + i - camX, s.y + s.h - camY);
+                ctx.lineTo(s.x + i + 5 - camX, s.y - camY); ctx.lineTo(s.x + i + 10 - camX, s.y + s.h - camY); ctx.fill();
+            }
+        }
+
+        for (let sz of sensorZones) {
+            ctx.fillStyle = sz.active ? "rgba(0, 255, 100, 0.4)" : "rgba(0, 255, 100, 0.1)";
+            ctx.fillRect(sz.x - camX, sz.y - camY, sz.w, sz.h);
+            ctx.strokeStyle = "#00ff66"; ctx.lineWidth = 1; ctx.strokeRect(sz.x - camX, sz.y - camY, sz.w, sz.h);
+        }
+
+        for (let ag of antiGravityZones) {
+            ctx.fillStyle = "rgba(255, 0, 255, 0.05)"; ctx.fillRect(ag.x - camX, ag.y - camY, ag.w, ag.h);
+            ctx.fillStyle = "rgba(255, 0, 255, 0.4)";
+            let yOffset = (globalTime * -200) % 40;
+            for (let i = 0; i < ag.h; i += 40) if (i + yOffset > 0 && i + yOffset < ag.h) ctx.fillRect(ag.x + ag.w/2 - 2 - camX, ag.y + i + yOffset - camY, 4, 10);
+        }
+
+        for (let sw of switches) {
+            ctx.fillStyle = sw.pressed ? "#00ffaa" : "#888888"; ctx.fillRect(sw.x - camX, sw.y - camY, sw.w, sw.h);
+        }
+        for (let t of shootTargets) {
+            ctx.fillStyle = t.active ? "#00ffaa" : "#ffaa00"; ctx.fillRect(t.x - camX, t.y - camY, t.w, t.h);
+            ctx.strokeStyle = "#ffffff"; ctx.strokeRect(t.x - camX, t.y - camY, t.w, t.h);
+        }
+        
+        for (let c of subCores) {
+            if (!c.destroyed) {
+                if (c.isGreen) {
+                    ctx.fillStyle = "#00ff00"; ctx.shadowColor = "#00ff00";
+                } else if (c.attackType === 'sniper') {
+                    ctx.fillStyle = "#aa00ff"; ctx.shadowColor = "#aa00ff";
+                } else if (c.attackType === 'spiral') {
+                    ctx.fillStyle = "#00aaff"; ctx.shadowColor = "#00aaff";
+                } else {
+                    ctx.fillStyle = "#ffaa00"; ctx.shadowColor = "#ffaa00";
+                }
+                
+                if (c.attackType === 'stealth') {
+                    ctx.globalAlpha = Math.max(0, Math.min(1, c.alpha === undefined ? 0 : c.alpha));
+                }
+                
+                ctx.shadowBlur = 15;
+                ctx.fillRect(c.x - camX, c.y - camY, c.w, c.h); 
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        if (portalActive) {
+            ctx.fillStyle = "#00ffaa"; ctx.shadowBlur = 20; ctx.shadowColor = "#00ffaa";
+            if(gameMode === 'story') {
+                ctx.fillRect(-8250 - camX, 400 - camY, 100, 80);
+                ctx.fillStyle = "#ffffff"; ctx.font = "14px monospace"; ctx.textAlign = "center"; ctx.shadowBlur = 0; ctx.fillText("塔へワープ", -8200 - camX, 380 - camY);
+            } else {
+                ctx.fillRect(800 - camX, 350 - camY, 100, 80);
+                ctx.fillStyle = "#ffffff"; ctx.font = "14px monospace"; ctx.textAlign = "center"; ctx.shadowBlur = 0; ctx.fillText("次のステージへ", 850 - camX, 330 - camY);
+            }
+        }
+
+        ctx.fillStyle = "#ffffff";
+        for (let gate of gates) {
+            ctx.fillRect(gate.x - camX, gate.currentY - camY, gate.w, gate.h);
+            ctx.strokeStyle = "#000000"; ctx.strokeRect(gate.x - camX, gate.currentY - camY, gate.w, gate.h);
+        }
+        
+        ctx.fillStyle = "#ffaa00";
+        for (let b of photonBullets) ctx.fillRect(b.x - camX, b.y - camY, 6, 6);
+
+        for (let b of enemyBullets) {
+            ctx.fillStyle = (b.bounce !== undefined && b.bounce > 0) ? "#33ff33" : "#ff33aa";
+            ctx.beginPath(); ctx.arc(b.x - camX, b.y - camY, 5, 0, Math.PI*2); ctx.fill();
+        }
+
+        for (let b of moveableBlocks) {
+            ctx.save(); ctx.fillStyle = b.isGrabbed ? "#00aaff" : "#ffffff";
+            if (b.isGrabbed) { ctx.shadowBlur = 12; ctx.shadowColor = "#00aaff"; }
+            ctx.fillRect(b.x - camX, b.y - camY, b.w, b.h);
+            ctx.strokeStyle = "#000000"; ctx.strokeRect(b.x - camX, b.y - camY, b.w, b.h); ctx.restore();
+        }
+
+        for (let l of lasers) {
+            if (l.active && (loopCount === 2 || loopCount === 3 || gameMode === 'endless')) {
+                ctx.save();
+                if (l.hidden) {
+                    if (l.revealAlpha > 0) {
+                        ctx.strokeStyle = `rgba(255, 51, 51, ${l.revealAlpha})`;
+                        ctx.lineWidth = 3; ctx.shadowBlur = 10 * l.revealAlpha; ctx.shadowColor = "#ff0000";
+                    } else { ctx.strokeStyle = "rgba(255, 51, 51, 0.02)"; ctx.lineWidth = 1; }
+                } else { ctx.strokeStyle = "#ff3333"; ctx.lineWidth = 3; ctx.shadowBlur = 10; ctx.shadowColor = "#ff0000"; }
+                ctx.beginPath(); ctx.moveTo(l.x - camX, l.y - camY); ctx.lineTo(l.x - camX, l.y + l.h - camY); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        for (let term of terminals) {
+            ctx.fillStyle = "#00ffaa"; ctx.fillRect(term.x - camX, term.y - camY, 16, 24);
+            if (term.isClose) { ctx.fillStyle = "#ffffff"; ctx.font = "11px monospace"; ctx.textAlign = "center"; ctx.fillText("●調べる", term.x + 8 - camX, term.y - 12 - camY); }
+        }
+
+        for (let npc of npcs) {
+            ctx.save(); ctx.fillStyle = "#ffffff"; ctx.fillRect(npc.x - camX, npc.y - camY, npc.w, npc.h);
+            ctx.fillStyle = "#000000"; ctx.fillRect(npc.x + 2 - camX, npc.y + npc.h - 4 - camY, 3, 4); ctx.fillRect(npc.x + npc.w - 5 - camX, npc.y + npc.h - 4 - camY, 3, 4);
+            if (npc.isClose) { ctx.fillStyle = "#ffffff"; ctx.font = "11px monospace"; ctx.textAlign = "center"; ctx.fillText("●話す", npc.x + npc.w/2 - camX, npc.y - 12 - camY); }
+            ctx.restore();
+        }
+
+        for (let rn of resonanceNodes) {
+            ctx.fillStyle = rn.activated ? "#00ffaa" : "#ff0000";
+            ctx.beginPath(); ctx.arc(rn.x - camX, rn.y - camY, 15, 0, Math.PI*2); ctx.fill();
+            if (!rn.activated) { ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke(); } 
+            else { ctx.shadowBlur = 15; ctx.shadowColor = "#00ffaa"; ctx.fill(); ctx.shadowBlur = 0; }
+        }
+
+        for (let t of triggers) {
+            if (t.type === 'wcc_core' && currentState !== STATE_BOSS_BATTLE && currentState !== STATE_TRANSITION) {
+                ctx.save(); ctx.fillStyle = "#00aaff"; ctx.shadowBlur = 30; ctx.shadowColor = "#00aaff"; ctx.fillRect(t.x - camX, t.y - camY, 40, 150); ctx.restore();
+            }
+        }
+
+        for (let g of ghostIllusions) {
+            let dist = Math.abs(player.x - g.x);
+            g.alpha = dist < 300 ? (dist - 50) / 250 : 1; g.alpha = Math.max(0, Math.min(1, g.alpha));
+            if (g.alpha > 0) {
+                ctx.save(); ctx.fillStyle = `rgba(255, 255, 255, ${g.alpha * 0.5})`; ctx.fillRect(g.x - camX, g.y - camY, 18, 24);
+                ctx.font = "12px monospace"; ctx.textAlign = "center"; ctx.fillText(loopCount > 1 ? g.text2 : g.text1, g.x + 9 - camX, g.y - 15 - camY); ctx.restore();
+            }
+        }
+
+        for (let b of environmentalBlocks) {
+            ctx.save(); ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 4; ctx.shadowColor = "#ffffff";
+            if (b.type === "block") { ctx.fillRect(b.x - camX, b.y - camY, 16, 16); ctx.strokeStyle = "#000000"; ctx.strokeRect(b.x - camX, b.y - camY, 16, 16); } 
+            else if (b.type === "cross") { ctx.fillRect(b.x + 6 - camX, b.y - camY, 4, 20); ctx.fillRect(b.x - camX, b.y + 5 - camY, 16, 4); }
+            ctx.restore();
+        }
+
+        for (let d of drones) {
+            ctx.save();
+            if (d.type === 'patrol') {
+                if (d.stunTimer <= 0) {
+                    const lLen = 480 - d.y; const hitX = d.x + Math.tan(d.scanAngle) * lLen;
+                    ctx.fillStyle = "rgba(255, 50, 50, 0.12)"; ctx.strokeStyle = "rgba(255, 50, 50, 0.35)";
+                    ctx.beginPath(); ctx.moveTo(d.x - camX, d.y + 6 - camY); ctx.lineTo(hitX - 25 - camX, 480 - camY); ctx.lineTo(hitX + 25 - camX, 480 - camY); ctx.closePath(); ctx.fill(); ctx.stroke();
+                }
+                ctx.fillStyle = (d.stunTimer > 0) ? "#00aaff" : "#ffffff";
+                if (d.stunTimer > 0) { ctx.shadowBlur = 12; ctx.shadowColor = "#00aaff"; }
+                ctx.fillRect(d.x - 12 - camX, d.y - 6 - camY, 24, 12);
+                ctx.fillStyle = (d.stunTimer > 0) ? "#ffffff" : "#ff3333"; ctx.fillRect(d.x - 3 - camX, d.y - 2 - camY, 6, 4);
+            } 
+            ctx.restore();
+        }
+
+        player.draw(ctx, camX, camY);
+
+        if (echoPulseActive) {
+            ctx.save(); ctx.strokeStyle = "rgba(0, 170, 255, 0.6)"; ctx.lineWidth = 3; ctx.shadowBlur = 15; ctx.shadowColor = "#00aaff";
+            ctx.beginPath(); ctx.arc(player.x + player.width/2 - camX, player.y + player.height/2 - camY, echoPulseRadius, 0, Math.PI*2); ctx.stroke(); ctx.restore();
+        }
+
+        if (currentState === STATE_BOSS_BATTLE) {
+            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(100, 30, 760, 20);
+            ctx.fillStyle = "#ff00aa"; ctx.fillRect(100, 30, 760 * (boss.hp / boss.maxHp), 20);
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(100, 30, 760, 20);
+            
+            let bossName = "WCC-R8-D6";
+            if(boss.type === 'fortress') bossName = "WCC-B10 [FORTRESS]";
+            if(boss.type === 'mobile') bossName = "WCC-M20 [MOBILE]";
+            if(boss.type === 'stealth') bossName = "WCC-S30 [STEALTH]";
+            if(boss.type === 'bullet_hell') bossName = "WCC-H40 [BULLET HELL]";
+            if(boss.type === 'crystal_omega') bossName = "WCC-Ω [TRUE FORM]";
+            ctx.fillStyle = "#ffffff"; ctx.font = "14px monospace"; ctx.textAlign = "left"; ctx.fillText(bossName, 110, 44);
+
+            ctx.save();
+            ctx.globalAlpha = (boss.type === 'stealth') ? Math.max(0, Math.min(1, boss.alpha)) : 1.0;
+            ctx.fillStyle = "#00aaff"; ctx.shadowBlur = 30; ctx.shadowColor = "#00aaff";
+            
+            if (boss.type === 'fortress') {
+                ctx.fillRect(boss.x - 60 - camX, boss.y - 60 - camY, 120, 120);
+                ctx.fillStyle = "#111111"; ctx.fillRect(boss.x - 40 - camX, boss.y - 40 - camY, 80, 80);
+                ctx.fillStyle = "#00aaff"; ctx.fillRect(boss.x - 20 - camX, boss.y - 20 - camY, 40, 40);
+            } else if (boss.type === 'mobile') {
+                ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 40, 0, Math.PI*2); ctx.fill();
+            } else if (boss.type === 'stealth') {
+                ctx.fillRect(boss.x - 30 - camX, boss.y - 30 - camY, 60, 60);
+            } else if (boss.type === 'bullet_hell') {
+                ctx.beginPath();
+                for(let i=0; i<8; i++) {
+                    let a = i * Math.PI/4 + globalTime * 2;
+                    ctx.lineTo(boss.x + Math.cos(a)*50 - camX, boss.y + Math.sin(a)*50 - camY);
+                }
+                ctx.fill();
+                ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 15, 0, Math.PI*2); ctx.fill();
+            } else if (boss.type === 'crystal_omega') {
+                ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - 80 - camY); ctx.lineTo(boss.x + 60 - camX, boss.y - camY); ctx.lineTo(boss.x - camX, boss.y + 80 - camY); ctx.lineTo(boss.x - 60 - camX, boss.y - camY); ctx.fill();
+                ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 20, 0, Math.PI*2); ctx.fill();
+            } else {
+                ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - 50 - camY); ctx.lineTo(boss.x + 40 - camX, boss.y - camY); ctx.lineTo(boss.x - camX, boss.y + 50 - camY); ctx.lineTo(boss.x - 40 - camX, boss.y - camY); ctx.fill();
+            }
+            ctx.restore();
+
+            ctx.fillStyle = "#ff3333";
+            for(let b of bossBullets) { ctx.beginPath(); ctx.arc(b.x - camX, b.y - camY, 6, 0, Math.PI*2); ctx.fill(); }
+        }
+
+        ctx.restore();
+    }
+
+    buildLevel();
+    requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>
