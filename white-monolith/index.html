@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>White Monolith - Grand Prototype v22 (Boss Hold-to-Shoot Update)</title>
+    <title>White Monolith - Grand Prototype v26 (Omega Wall Bullet Speed Fix)</title>
     <style>
         * { box-sizing: border-box; user-select: none; }
         body, html {
@@ -98,7 +98,7 @@
     
     <div id="title-screen" class="screen">
         <h1>WHITE MONOLITH</h1>
-        <div class="subtitle">v22：ボス戦右クリック長押し射撃対応版</div>
+        <div class="subtitle">v26：Stage50ボス壁弾幕スピード調整版</div>
         <div style="display: flex; flex-direction: column; align-items: center;">
             <button class="btn" onclick="startGame('story')">ストーリーモード</button>
             <button class="btn" id="btn-endless" onclick="showEndlessIntro()" style="display:none; border-color:#ff00ff; color:#ff00ff;">エンドコンテンツ (全50ステージ)</button>
@@ -107,7 +107,7 @@
             <strong>【操作方法】</strong><br>
             <strong>A / D</strong> : 左右移動 | <strong>W</strong> : ジャンプ (2段ジャンプ可)<br>
             <strong>マウス左クリック</strong> : 会話 / 調べる | <strong>右クリック</strong> : エリア固有能力を発動<br>
-            <span style="color: #ff55ff;">[開発者ツール] 「^」キーで無敵。<br>※「9」でストーリーの次周回スキップ、「0」でエンドコンテンツ解放。<br>※エンドレス中「8」で次のステージにスキップ（デバッグ用）</span>
+            <span style="color: #ff55ff;">[開発者ツール] 「^」キーで無敵。<br>※「9」でストーリーの周回スキップ（3周目ならボス直行）、「0」でエンドコンテンツ解放。<br>※エンドレス中「8」で次のステージにスキップ（ボス戦でも可）</span>
         </div>
     </div>
 
@@ -166,7 +166,7 @@
     let ghostIllusions = [], sensorZones = [], antiGravityZones = [], subCores = [];
 
     const BOSS_TYPES = {10: 'fortress', 20: 'mobile', 30: 'stealth', 40: 'bullet_hell', 50: 'crystal_omega'};
-    let boss = { x: 0, y: 0, hp: 3000, maxHp: 3000, timer: 0, type: 'crystal', alpha: 1.0, spiralAngle: 0 };
+    let boss = { x: 0, y: 0, hp: 3000, maxHp: 3000, timer: 0, type: 'crystal', alpha: 1.0, spiralAngle: 0, wasVisible: false, shotsFiredInApperance: 0, repositioned: false, teleportLeft: false };
     let bossBullets = [];
     let lastPlayerShoot = 0;
 
@@ -254,7 +254,7 @@
         
         update: function(dt) {
             let moveDir = 0;
-            if (currentState === STATE_PLAYING) {
+            if (currentState === STATE_PLAYING || currentState === STATE_BOSS_BATTLE) {
                 if (keys['a'] || keys['A']) moveDir -= 1;
                 if (keys['d'] || keys['D']) moveDir += 1;
             }
@@ -268,7 +268,7 @@
             }
 
             let isHovering = false;
-            if (currentState === STATE_PLAYING) {
+            if (currentState === STATE_PLAYING || (currentState === STATE_BOSS_BATTLE && gameMode === 'endless')) {
                 if (gameMode === 'story' && currentAbility === "ホバリング" && mouseButtons.right) isHovering = true;
                 if (gameMode === 'endless' && currentLeftAbility === "ホバリング" && mouseButtons.left) isHovering = true;
             }
@@ -398,7 +398,8 @@
                 }
             }
 
-            if (this.y > camera.y + 650) triggerGameOver(); 
+            if (this.y > camera.y + 650 && currentState !== STATE_BOSS_BATTLE) triggerGameOver(); 
+            if (this.y > camera.y + 1500 && currentState === STATE_BOSS_BATTLE) triggerGameOver(); 
         },
 
         jump: function() {
@@ -690,7 +691,7 @@
                 "僕は無意識に動いていた。足のない体で子供の前に割り込み、自らの体を盾にして攻撃を防いだ。幽霊のような僕の体から、光の粒子が激しく飛び散る。",
                 "「……大丈夫？」\n\n震える子供を抱き上げた時、背後にいた住人たちの目が変わった。",
                 "住人「お前……なぜ、僕たちを助ける？」\n\n主人公「僕は一人では勝てない。この世界を終わらせるために、力を貸してほしい」",
-                "僕の言葉は、初めて彼らの心に届いた。\n僕は彼らの協力を得て、塔のリセットシステムを無効化するための作戦を開始した。\nネットワークを中継する4箇所の「コア」を巡り、一つずつシステムを停止させていく。",
+                "僕の言葉は、初めて彼らの心に届いた。\n্থ僕は彼らの協力を得て、塔のリセットシステムを無効化するための作戦を開始した。\nネットワークを中継する4箇所の「コア」を巡り、一つずつシステムを停止させていく。",
                 "一人では不可能だった。だが、今は仲間がいる。\n住人たちは武器を取り、自らの運命を奪ったシステムへの反旗を翻した。",
                 "主人公「行こう。今度こそ、本当の結末を書き換えるために」",
                 "僕は住人たちと共に、白き巨塔を見上げた。\nそこにはもう、かつての「安心感」など微塵もなかった。あるのは、自分たちの未来を取り戻そうとする、静かな決意だけだった。\n最終決戦の幕が、今、上がる。",
@@ -714,15 +715,20 @@
             else { devHud.style.display = 'none'; }
         }
         if (e.key === '0') document.getElementById('btn-endless').style.display = 'block'; 
-        if (e.key === '9' && currentState === STATE_PLAYING && loopCount < 3 && gameMode === 'story') {
-            loopCount++; savedCoreStatus = { 0: false, 1: false, 2: false, 3: false };
-            childSaved = false; residentJoined = false; leftMapUnlocked = false; portalActive = false; loop3IntroPlayed = false;
-            buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; checkpointX = 100; checkpointY = 350;
-            enemyBullets = []; photonBullets = []; updateHUD();
-            if (loopCount === 3) triggerLoop3Intro();
-            playNote(600, 0.3, 'sine', 0.1, 1200);
+        if (e.key === '9' && currentState === STATE_PLAYING && gameMode === 'story') {
+            if (loopCount < 3) {
+                loopCount++; savedCoreStatus = { 0: false, 1: false, 2: false, 3: false };
+                childSaved = false; residentJoined = false; leftMapUnlocked = false; portalActive = false; loop3IntroPlayed = false;
+                buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; checkpointX = 100; checkpointY = 350;
+                enemyBullets = []; photonBullets = []; updateHUD();
+                if (loopCount === 3) triggerLoop3Intro();
+                playNote(600, 0.3, 'sine', 0.1, 1200);
+            } else {
+                currentState = STATE_TRANSITION; transitionTimer = 3.9;
+                playNote(880, 0.5, 'square', 0.1, 1500);
+            }
         }
-        if (e.key === '8' && currentState === STATE_PLAYING && gameMode === 'endless') {
+        if (e.key === '8' && (currentState === STATE_PLAYING || currentState === STATE_BOSS_BATTLE) && gameMode === 'endless') {
             currentEndlessStage++; if (currentEndlessStage > 50) currentEndlessStage = 50;
             photonBullets = []; enemyBullets = []; bossBullets = [];
             buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; updateHUD();
@@ -1006,6 +1012,15 @@
                         }
                     }
                 }
+                for (let w of moveableBlocks) {
+                    if (nextX > w.x && nextX < w.x + w.w && b.y > w.y && b.y < w.y + w.h) {
+                        b.vx *= -1; bounced = true; nextX = b.x + b.vx * dt;
+                    }
+                    if (b.x > w.x && b.x < w.x + w.w && nextY > w.y && nextY < w.y + w.h) {
+                        b.vy *= -1; bounced = true; nextY = b.y + b.vy * dt;
+                    }
+                }
+
                 if (nextX < camera.x || nextX > camera.x + canvas.width) { b.vx *= -1; bounced = true; nextX = b.x + b.vx * dt; }
                 if (nextY < camera.y || nextY > camera.y + canvas.height) { b.vy *= -1; bounced = true; nextY = b.y + b.vy * dt; }
 
@@ -1023,6 +1038,9 @@
                 for (let w of platforms) {
                     if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
                 }
+                for (let w of moveableBlocks) {
+                    if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + w.h) hitWall = true;
+                }
             }
 
             if (Math.abs(b.x - (player.x + 9)) < 10 && Math.abs(b.y - (player.y + 12)) < 12) {
@@ -1039,32 +1057,49 @@
         player.x = isEndless ? 480 : 18200;
         player.y = isEndless ? 300 : -10000; 
         player.vy = 0;
-        camera.x = player.x - canvas.width/2;
-        camera.y = player.y - canvas.height/2;
-        if(isEndless) { camera.x = 0; camera.y = 0; }
         
         let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000};
-        boss = { x: player.x + 300, y: player.y - 150, hp: hpMap[type] || 3000, maxHp: hpMap[type] || 3000, timer: 0, type: type, alpha: 1.0, spiralAngle: 0 };
+        boss = { x: player.x + 300, y: player.y - 150, hp: hpMap[type] || 3000, maxHp: hpMap[type] || 3000, timer: 0, type: type, alpha: 1.0, spiralAngle: 0, wasVisible: false, shotsFiredInApperance: 0, repositioned: false, teleportLeft: false };
         bossBullets = []; photonBullets = []; enemyBullets = [];
         
         platforms = [];
-        if (!isEndless && type === 'crystal_omega') addPlatform(17000, -9600, 3000, 60);
+        if (!isEndless && type === 'crystal_omega') {
+            addPlatform(17000, -9000, 960, 60); 
+            addPlatform(17000, -9540, 960, 40); 
+            addPlatform(17000, -9540, 40, 540); 
+            addPlatform(17920, -9540, 40, 540); 
+            player.x = 17100;
+            player.y = -9100; 
+            camera.x = 17000;
+            camera.y = -9540;
+        }
         else if (isEndless) {
             addPlatform(0, 480, 960, 60);
             addPlatform(0, 0, 960, 40);
             addPlatform(0, 0, 40, 540);
             addPlatform(920, 0, 40, 540);
+            camera.x = 0; 
+            camera.y = 0;
         }
     }
 
     function updateBossBattle(dt) {
-        updateHUD(); // ボス戦中もHUDを継続的に更新する
+        updateHUD();
 
-        camera.targetX = player.x - canvas.width / 2 + player.width / 2;
-        camera.targetY = player.y - canvas.height / 2 + player.height / 2;
-        camera.x += (camera.targetX - camera.x) * 0.1;
-        camera.y += (camera.targetY - camera.y) * 0.1;
-        if(gameMode === 'endless') { camera.x = 0; camera.y = 0; }
+        let isStoryOmega = (boss.type === 'crystal_omega' && gameMode === 'story');
+
+        if (!isStoryOmega && gameMode !== 'endless') {
+            camera.targetX = player.x - canvas.width / 2 + player.width / 2;
+            camera.targetY = player.y - canvas.height / 2 + player.height / 2;
+            camera.x += (camera.targetX - camera.x) * 0.1;
+            camera.y += (camera.targetY - camera.y) * 0.1;
+        } else if (isStoryOmega) {
+            camera.x = 17000; 
+            camera.y = -9540;
+        } else if (gameMode === 'endless') {
+            camera.x = 0; 
+            camera.y = 0; 
+        }
 
         let moveX = 0, moveY = 0;
         if (keys['a'] || keys['A']) moveX -= 1;
@@ -1100,18 +1135,44 @@
             boss.y = camera.y + 200 + Math.sin(globalTime * 3) * 200;
             boss.x = camera.x + 700 + Math.cos(globalTime * 2) * 150;
         } else if(boss.type === 'stealth') {
-            boss.y = camera.y + 250; boss.x = camera.x + 750;
             boss.alpha = Math.max(0, Math.sin(globalTime*1.5));
+            let isVisible = boss.alpha >= 0.5;
+            
+            if (boss.alpha <= 0.05 && !boss.repositioned) {
+                boss.teleportLeft = !boss.teleportLeft; 
+                let halfW = canvas.width / 2;
+                if (boss.teleportLeft) {
+                    boss.targetX = camera.x + 50 + Math.random() * (halfW - 150);
+                } else {
+                    boss.targetX = camera.x + halfW + 50 + Math.random() * (halfW - 150);
+                }
+                boss.targetY = camera.y + 100 + Math.random() * (canvas.height - 200);
+                boss.repositioned = true;
+            } else if (boss.alpha > 0.05) {
+                boss.repositioned = false;
+            }
+
+            if (boss.targetX !== undefined) {
+                boss.x = boss.targetX;
+                boss.y = boss.targetY;
+            } else {
+                boss.x = camera.x + 750;
+                boss.y = camera.y + 250;
+            }
+
+            if (isVisible && !boss.wasVisible) {
+                boss.shotsFiredInApperance = 0;
+            }
+            boss.wasVisible = isVisible;
         } else if(boss.type === 'fortress') {
             boss.y = camera.y + 250;
             boss.x = camera.x + canvas.width - 200;
         } else {
-            boss.y = camera.y + 200 + Math.sin(globalTime * 2) * 80;
-            boss.x = camera.x + canvas.width - 150; 
+            boss.y = camera.y + 270 + Math.sin(globalTime * 1.5) * 150;
+            boss.x = camera.x + 750 + Math.cos(globalTime * 1.2) * 100;
         }
 
         let isShooting = false;
-        // ボス戦中のみ右クリック長押しで連射可能に
         if (mouseButtons.right) isShooting = true;
 
         if (isShooting && globalTime - lastPlayerShoot > 0.12) {
@@ -1128,45 +1189,97 @@
         }
 
         boss.timer += dt;
-        let fireRate = boss.type === 'crystal_omega' && boss.hp < 2500 ? 0.4 : (boss.type === 'bullet_hell' ? 0.6 : 0.8);
+        let fireRate = 0.8;
+        if (boss.type === 'crystal_omega') fireRate = isStoryOmega ? 0.4 : 0.4; 
+        else if (boss.type === 'bullet_hell') fireRate = 0.6;
+        
         let canShoot = true;
-        if(boss.type === 'stealth' && boss.alpha < 0.5) canShoot = false;
+        if(boss.type === 'stealth') {
+            if (boss.alpha < 0.5) canShoot = false;
+            if (boss.hp <= boss.maxHp / 2) fireRate = 0.25; 
+        }
 
         if (boss.timer > fireRate && canShoot) { 
-            boss.timer = 0;
-            playNote(800, 0.08, 'sine', 0.04, 200); 
-            
-            if(boss.type === 'fortress') {
-                for(let i=-2; i<=2; i+=1) bossBullets.push({x: boss.x - 60, y: boss.y + i*25, vx: -500, vy: 0, waveTimer: i, isWave: true});
-            } else if(boss.type === 'mobile') {
-                for(let i=0; i<Math.PI*2; i+=0.8) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*400, vy: Math.sin(i)*400});
-            } else if(boss.type === 'stealth') {
-                let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1500, vy: Math.sin(ang)*1500}); 
-            } else if(boss.type === 'bullet_hell') {
-                boss.spiralAngle += 0.4;
-                for(let i=0; i<6; i++) {
-                    let ang = boss.spiralAngle + (i * Math.PI/3);
-                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*400, vy: Math.sin(ang)*400});
+            if (boss.type === 'stealth') {
+                let maxShots = boss.hp <= boss.maxHp / 2 ? 3 : 1;
+                boss.shotsFiredInApperance = boss.shotsFiredInApperance || 0;
+                
+                if (boss.shotsFiredInApperance < maxShots) {
+                    boss.timer = 0;
+                    boss.shotsFiredInApperance++;
+                    playNote(800, 0.08, 'sine', 0.04, 200); 
+                    
+                    let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                    if (boss.hp <= boss.maxHp / 2) {
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang - 0.2)*1500, vy: Math.sin(ang - 0.2)*1500});
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1500, vy: Math.sin(ang)*1500});
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang + 0.2)*1500, vy: Math.sin(ang + 0.2)*1500});
+                    } else {
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1500, vy: Math.sin(ang)*1500});
+                    }
                 }
-                let ang2 = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang2)*800, vy: Math.sin(ang2)*800});
-            } else { 
-                let type = Math.floor(Math.random() * 4);
-                let speedMult = boss.type === 'crystal_omega' ? 1.5 : 1.0;
-                if (type === 0) { 
-                    for(let i=0; i<Math.PI*2; i+=0.35) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*600*speedMult, vy: Math.sin(i)*600*speedMult});
-                } else if (type === 1) { 
+            } else {
+                boss.timer = 0;
+                playNote(800, 0.08, 'sine', 0.04, 200); 
+                
+                if(boss.type === 'fortress') {
+                    for(let i=-3; i<=3; i+=1) bossBullets.push({x: boss.x - 60, y: boss.y + i*35, vx: -450 - Math.random()*150, vy: 0, waveTimer: i, isWave: true});
                     let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                    for(let i=-0.6; i<=0.6; i+=0.2) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+i)*800*speedMult, vy: Math.sin(ang+i)*800*speedMult});
-                } else if (type === 2) { 
+                    for(let i=-0.15; i<=0.15; i+=0.15) {
+                        bossBullets.push({x: boss.x - 60, y: boss.y, vx: Math.cos(ang+i)*1100, vy: Math.sin(ang+i)*1100});
+                    }
+                    bossBullets.push({x: boss.x - 60, y: boss.y - 80, vx: -600, vy: 200});
+                    bossBullets.push({x: boss.x - 60, y: boss.y + 80, vx: -600, vy: -200});
+                } else if(boss.type === 'mobile') {
+                    for(let i=0; i<Math.PI*2; i+=0.8) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*400, vy: Math.sin(i)*400});
                     let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1600*speedMult, vy: Math.sin(ang)*1600*speedMult});
-                } else { 
-                    for(let i=-2; i<=2; i++) bossBullets.push({x: boss.x, y: boss.y + i*40, vx: -700*speedMult, vy: 0, waveTimer: i, isWave: true});
+                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1400, vy: Math.sin(ang)*1400}); 
+                } else if(boss.type === 'bullet_hell') {
+                    boss.spiralAngle += 0.4;
+                    for(let i=0; i<6; i++) {
+                        let ang = boss.spiralAngle + (i * Math.PI/3);
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*400, vy: Math.sin(ang)*400});
+                    }
+                    let ang2 = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang2)*800, vy: Math.sin(ang2)*800});
+                } else if(boss.type === 'crystal_omega') {
+                    let speedMult = isStoryOmega ? 0.25 : 1.5; 
+                    let type;
+                    if (isStoryOmega) {
+                        let types = [0, 1, 2, 4];
+                        type = types[Math.floor(Math.random() * types.length)];
+                    } else {
+                        type = Math.floor(Math.random() * 5); 
+                    }
+                    boss.spiralAngle += 0.15;
+                    
+                    if (type === 0) { 
+                        for(let i=0; i<Math.PI*2; i+=0.25) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*500*speedMult, vy: Math.sin(i)*500*speedMult});
+                    } else if (type === 1) { 
+                        let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                        for(let i=-1.5; i<=1.5; i+=0.15) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+i)*600*speedMult, vy: Math.sin(ang+i)*600*speedMult});
+                    } else if (type === 2) { 
+                        for(let i=0; i<12; i++) {
+                            let ang = boss.spiralAngle + (i * Math.PI/6);
+                            bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*700*speedMult, vy: Math.sin(ang)*700*speedMult});
+                        }
+                    } else if (type === 3) {
+                        let dirX = player.x < boss.x ? -1 : 1;
+                        let gapY = player.y + 12; 
+                        for (let py = camera.y + 20; py <= camera.y + canvas.height - 20; py += 30) {
+                            if (Math.abs(py - gapY) > 28) { 
+                                bossBullets.push({x: boss.x, y: py, vx: dirX * 200 * speedMult, vy: 0});
+                            }
+                        }
+                    } else {
+                        let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1000*speedMult, vy: Math.sin(ang)*1000*speedMult});
+                    }
                 }
             }
         }
+
+        let despawnMargin = 200;
 
         for (let i = bossBullets.length - 1; i >= 0; i--) {
             let b = bossBullets[i];
@@ -1177,9 +1290,12 @@
             for (let w of platforms) {
                 if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
             }
+            for (let w of moveableBlocks) {
+                if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + w.h) hitWall = true;
+            }
 
             if (Math.abs(b.x - (player.x+9)) < 12 && Math.abs(b.y - (player.y+12)) < 12) if (!devInvincible) triggerGameOver();
-            if (hitWall || b.x < camera.x - 200 || b.x > camera.x + canvas.width + 200 || b.y < camera.y - 200 || b.y > camera.y + canvas.height + 200) bossBullets.splice(i, 1);
+            if (hitWall || b.x < camera.x - despawnMargin || b.x > camera.x + canvas.width + despawnMargin || b.y < camera.y - despawnMargin || b.y > camera.y + canvas.height + despawnMargin) bossBullets.splice(i, 1);
         }
 
         for (let i = photonBullets.length - 1; i >= 0; i--) {
@@ -1204,7 +1320,7 @@
                     }
                     break;
                 }
-            } else if (hitWall || b.x < camera.x - 200 || b.x > camera.x + canvas.width + 200 || b.y < camera.y - 200 || b.y > camera.y + canvas.height + 200) {
+            } else if (hitWall || b.x < camera.x - despawnMargin || b.x > camera.x + canvas.width + despawnMargin || b.y < camera.y - despawnMargin || b.y > camera.y + canvas.height + despawnMargin) {
                 photonBullets.splice(i, 1);
             }
         }
@@ -1374,7 +1490,6 @@
         }
 
         if (button === 2) {
-            // ボス戦時は updateBossBattle 側で「長押し自動連射」を処理するため、手動のクリック射撃を無効化（二重発射防止）
             if (currentState === STATE_BOSS_BATTLE) return;
 
             let ab = (gameMode === 'endless') ? "高エネルギー光弾" : currentAbility;
