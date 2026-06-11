@@ -1182,7 +1182,7 @@
         player.y = isEndless ? 300 : -10000; 
         player.vy = 0;
         
-        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000, 'prototype': 1000, 'origin': 3000, 'heavy_carrier': 3000, 'phantom_swarm': 2500, 'green_hive': 3000, 'absolute': 1000};
+        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000, 'prototype': 1000, 'origin': 3000, 'heavy_carrier': 3000, 'phantom_swarm': 2500, 'green_hive': 3000, 'absolute': 3000};
         boss = { x: player.x + 300, y: player.y - 150, hp: hpMap[type] || 3000, maxHp: hpMap[type] || 3000, timer: 0, type: type, alpha: 1.0, spiralAngle: 0, wasVisible: false, shotsFiredInApperance: 0, repositioned: false, teleportLeft: false, phase: 0 };
         bossBullets = []; photonBullets = []; enemyBullets = []; subCores = []; explosions = [];
         
@@ -1350,6 +1350,7 @@
         else if (boss.type === 'bullet_hell') fireRate = 0.6;
         else if (boss.type === 'prototype') fireRate = 1.0;
         else if (boss.type === 'green_hive') fireRate = 1.2;
+        else if (boss.type === 'heavy_carrier') fireRate = 0.8 / 1.5;
         else if (boss.type === 'absolute') {
             boss.absoluteCount = boss.absoluteCount || 0;
             fireRate = boss.absoluteCount >= 10 ? 0.05 : 0.6;
@@ -1374,9 +1375,23 @@
                     if (boss.type === 'phantom_swarm') {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
                         bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1000, vy: Math.sin(ang)*1000});
-                        let numMines = boss.hp <= boss.maxHp / 2 ? 10 : 3;
-                        for(let m=0; m<numMines; m++) {
-                            bossBullets.push({x: boss.x, y: boss.y, vx: (Math.random()-0.5)*200, vy: (Math.random()-0.5)*200, isMine: true, bounce: 9999});
+                        
+                        // 機雷は出現毎の最初の射撃（1発目）のタイミングのみで生成する
+                        if (boss.shotsFiredInApperance === 1) {
+                            let numMines = 3;
+                            if (boss.hp <= boss.maxHp * 0.4) {
+                                numMines = 5;
+                            } else if (boss.hp <= boss.maxHp * 0.5) {
+                                if (!boss.enragedMinesFired) {
+                                    boss.enragedMinesFired = true;
+                                    numMines = 10;
+                                } else {
+                                    numMines = 5;
+                                }
+                            }
+                            for(let m=0; m<numMines; m++) {
+                                bossBullets.push({x: boss.x, y: boss.y, vx: (Math.random()-0.5)*200, vy: (Math.random()-0.5)*200, isMine: true, bounce: 9999});
+                            }
                         }
                     } else {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
@@ -1439,7 +1454,7 @@
                         for(let i=-2; i<=2; i++) bossBullets.push({x: boss.x, y: boss.y + i*40, vx: dir*800, vy: 0, waveTimer: i, isWave: true, countdown: 3.0, isFloatBullet: true});
                     } else {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                        for(let i=-0.2; i<=0.2; i+=0.2) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+i)*1200, vy: Math.sin(ang+i)*1200});
+                        for(let i=-0.2; i<=0.2; i+=0.2) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+i)*600, vy: Math.sin(ang+i)*600});
                         if (!boss.lastCubeSpawn || globalTime - boss.lastCubeSpawn > 10.0) {
                             if (subCores.length < 3) {
                                 boss.lastCubeSpawn = globalTime;
@@ -1449,7 +1464,7 @@
                     }
                 } else if(boss.type === 'green_hive') {
                     let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                    for(let i=0; i<3; i++) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+(i-1)*0.5)*400, vy: Math.sin(ang+(i-1)*0.5)*400, bounce: 2});
+                    for(let i=0; i<3; i++) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+(i-1)*0.5)*400, vy: Math.sin(ang+(i-1)*0.5)*400, bounce: 2, destructible: true});
                     if (Math.random() < 0.4) {
                         bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*750, vy: Math.sin(ang)*750});
                         if (subCores.length < 5) {
@@ -1462,7 +1477,7 @@
                 } else if(boss.type === 'absolute') {
                     if (boss.absoluteCount < 10) {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1200, vy: Math.sin(ang)*1200});
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*600, vy: Math.sin(ang)*600});
                     } else {
                         let speed = 120;
                         boss.spiralAngle = (boss.spiralAngle || 0) + 0.3;
@@ -1540,7 +1555,8 @@
             if (c.timer > subFireRate) {
                 c.timer = 0;
                 if (boss.type === 'absolute') {
-                    c.shootAngle = (c.shootAngle || 0) + 0.2;
+                    if (c.shootAngle === undefined) c.shootAngle = 0;
+                    else c.shootAngle += 0.2;
                     for(let i=0; i<4; i++) {
                         let a = c.shootAngle + (i * Math.PI/2);
                         bossBullets.push({x: c.x+c.w/2, y: c.y+c.h/2, vx: Math.cos(a)*600, vy: Math.sin(a)*600});
@@ -1601,7 +1617,7 @@
             exp.life -= dt * 2.5;
             exp.radius = exp.maxRadius * (1 - exp.life);
             if (exp.radius > exp.maxRadius) exp.radius = exp.maxRadius;
-            if (Math.sqrt(Math.pow(exp.x - (player.x+9), 2) + Math.pow(exp.y - (player.y+12), 2)) < exp.radius) {
+            if (exp.life > 0.8 && Math.sqrt(Math.pow(exp.x - (player.x+9), 2) + Math.pow(exp.y - (player.y+12), 2)) < exp.maxRadius) {
                 if (!devInvincible) triggerGameOver();
             }
             if (exp.life <= 0) explosions.splice(i, 1);
@@ -1617,7 +1633,8 @@
                 if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
             }
 
-            if (b.isPlayer && !isStealthInvincible && Math.abs(b.x - boss.x) < 60 && Math.abs(b.y - boss.y) < 60) {
+            let hitRadius = boss.type === 'green_hive' ? 100 : 60;
+            if (b.isPlayer && !isStealthInvincible && Math.abs(b.x - boss.x) < hitRadius && Math.abs(b.y - boss.y) < hitRadius) {
                 let damage = 25;
                 if (boss.type === 'absolute') {
                     let numCores = subCores.filter(c => !c.destroyed).length;
@@ -1649,7 +1666,7 @@
                         explosions.push({x: mx, y: my, radius: 0, maxRadius: 100, life: 1.0});
                         playNote(200, 0.1, 'square', 0.05);
                         break;
-                    } else if (bossBullets[j].isFloatBullet && !bossBullets[j].launched && Math.abs(b.x - bossBullets[j].x) < 20 && Math.abs(b.y - bossBullets[j].y) < 20) {
+                    } else if ((bossBullets[j].destructible || (bossBullets[j].isFloatBullet && !bossBullets[j].launched)) && Math.abs(b.x - bossBullets[j].x) < 20 && Math.abs(b.y - bossBullets[j].y) < 20) {
                         bossBullets.splice(j, 1);
                         hitFloat = true;
                         playNote(200, 0.1, 'square', 0.05);
@@ -2251,7 +2268,8 @@
                 ctx.fillStyle = "#111111"; ctx.fillRect(boss.x - 40 - camX, boss.y - 40 - camY, 80, 80);
                 ctx.fillStyle = "#00aaff"; ctx.fillRect(boss.x - 20 - camX, boss.y - 20 - camY, 40, 40);
             } else if (boss.type === 'mobile' || boss.type === 'green_hive') {
-                ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 40, 0, Math.PI*2); ctx.fill();
+                let r = boss.type === 'green_hive' ? 80 : 40;
+                ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, r, 0, Math.PI*2); ctx.fill();
             } else if (boss.type === 'stealth' || boss.type === 'phantom_swarm') {
                 ctx.fillRect(boss.x - 30 - camX, boss.y - 30 - camY, 60, 60);
             } else if (boss.type === 'bullet_hell') {
