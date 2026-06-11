@@ -1182,7 +1182,7 @@
         player.y = isEndless ? 300 : -10000; 
         player.vy = 0;
         
-        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000, 'prototype': 1000, 'origin': 3000, 'heavy_carrier': 3000, 'phantom_swarm': 2500, 'green_hive': 3000, 'absolute': 500};
+        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000, 'prototype': 1000, 'origin': 3000, 'heavy_carrier': 3000, 'phantom_swarm': 2500, 'green_hive': 3000, 'absolute': 1000};
         boss = { x: player.x + 300, y: player.y - 150, hp: hpMap[type] || 3000, maxHp: hpMap[type] || 3000, timer: 0, type: type, alpha: 1.0, spiralAngle: 0, wasVisible: false, shotsFiredInApperance: 0, repositioned: false, teleportLeft: false, phase: 0 };
         bossBullets = []; photonBullets = []; enemyBullets = []; subCores = []; explosions = [];
         
@@ -1274,7 +1274,24 @@
             boss.y = camera.y + 200 + Math.sin(globalTime * 3) * 200;
             boss.x = camera.x + 700 + Math.cos(globalTime * 2) * 150;
         } else if(boss.type === 'stealth' || boss.type === 'phantom_swarm') {
-            boss.alpha = Math.max(0, Math.sin(globalTime*(boss.type==='phantom_swarm'?2.5:1.5)));
+            boss.phaseTimer = (boss.phaseTimer || 0) + dt;
+            let speed = boss.type === 'phantom_swarm' ? 4.0 : 1.5;
+            let fadeTime = (Math.PI / 2) / speed;
+            let invisibleTime = fadeTime * 2;
+            let extraVisibleTime = boss.type === 'phantom_swarm' ? invisibleTime * 2 : 0; 
+            let totalCycle = invisibleTime * 2 + extraVisibleTime;
+            boss.phaseTimer %= totalCycle;
+
+            if (boss.phaseTimer < fadeTime) {
+                boss.alpha = Math.sin((boss.phaseTimer / fadeTime) * (Math.PI / 2));
+            } else if (boss.phaseTimer < fadeTime + extraVisibleTime) {
+                boss.alpha = 1.0;
+            } else if (boss.phaseTimer < fadeTime * 2 + extraVisibleTime) {
+                boss.alpha = Math.sin((Math.PI / 2) + ((boss.phaseTimer - fadeTime - extraVisibleTime) / fadeTime) * (Math.PI / 2));
+            } else {
+                boss.alpha = 0;
+            }
+            
             let isVisible = boss.alpha >= 0.5;
             
             if (boss.alpha <= 0.05 && !boss.repositioned) {
@@ -1330,8 +1347,13 @@
         boss.timer += dt;
         let fireRate = 0.8;
         if (boss.type === 'crystal_omega' || boss.type === 'origin') fireRate = 0.4; 
-        else if (boss.type === 'bullet_hell' || boss.type === 'absolute') fireRate = 0.6;
+        else if (boss.type === 'bullet_hell') fireRate = 0.6;
         else if (boss.type === 'prototype') fireRate = 1.0;
+        else if (boss.type === 'green_hive') fireRate = 1.2;
+        else if (boss.type === 'absolute') {
+            boss.absoluteCount = boss.absoluteCount || 0;
+            fireRate = boss.absoluteCount >= 10 ? 0.05 : 0.6;
+        }
         
         let canShoot = true;
         if(boss.type === 'stealth' || boss.type === 'phantom_swarm') {
@@ -1351,10 +1373,10 @@
                     
                     if (boss.type === 'phantom_swarm') {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*2000, vy: Math.sin(ang)*2000});
-                        bossBullets.push({x: boss.x, y: boss.y, vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100, isMine: true});
-                        if (boss.shotsFiredInApperance === 1 && subCores.length < 4) {
-                            addSubCore(301, boss.x, boss.y, 'circle'); 
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1000, vy: Math.sin(ang)*1000});
+                        let numMines = boss.hp <= boss.maxHp / 2 ? 10 : 3;
+                        for(let m=0; m<numMines; m++) {
+                            bossBullets.push({x: boss.x, y: boss.y, vx: (Math.random()-0.5)*200, vy: (Math.random()-0.5)*200, isMine: true, bounce: 9999});
                         }
                     } else {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
@@ -1414,36 +1436,63 @@
                 } else if(boss.type === 'heavy_carrier') {
                     if (Math.random() < 0.5) {
                         let dir = player.x < boss.x ? -1 : 1;
-                        for(let i=-2; i<=2; i++) bossBullets.push({x: boss.x, y: boss.y + i*40, vx: dir*800, vy: 0, waveTimer: i, isWave: true, countdown: 2.0});
+                        for(let i=-2; i<=2; i++) bossBullets.push({x: boss.x, y: boss.y + i*40, vx: dir*800, vy: 0, waveTimer: i, isWave: true, countdown: 3.0, isFloatBullet: true});
                     } else {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
                         for(let i=-0.2; i<=0.2; i+=0.2) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+i)*1200, vy: Math.sin(ang+i)*1200});
-                        if (subCores.length < 3) addSubCore(201, camera.x + 100 + Math.random()*600, camera.y + 50 + Math.random()*400, 'straight');
+                        if (!boss.lastCubeSpawn || globalTime - boss.lastCubeSpawn > 10.0) {
+                            if (subCores.length < 3) {
+                                boss.lastCubeSpawn = globalTime;
+                                addSubCore(201, camera.x + 100 + Math.random()*600, camera.y + 50 + Math.random()*400, 'straight');
+                            }
+                        }
                     }
                 } else if(boss.type === 'green_hive') {
                     let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                    for(let i=0; i<3; i++) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+(i-1)*0.5)*600, vy: Math.sin(ang+(i-1)*0.5)*600, bounce: 2});
+                    for(let i=0; i<3; i++) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang+(i-1)*0.5)*400, vy: Math.sin(ang+(i-1)*0.5)*400, bounce: 2});
                     if (Math.random() < 0.4) {
-                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1500, vy: Math.sin(ang)*1500});
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*750, vy: Math.sin(ang)*750});
                         if (subCores.length < 5) {
-                            addSubCore(401, camera.x + 100 + Math.random()*600, camera.y + 50 + Math.random()*400, 'straight', true);
-                            addSubCore(402, camera.x + 100 + Math.random()*600, camera.y + 50 + Math.random()*400, 'straight', true);
-                            addSubCore(403, camera.x + 100 + Math.random()*600, camera.y + 50 + Math.random()*400, 'straight', true);
+                            let count = Math.floor(Math.random() * 3) + 1;
+                            for (let c=0; c<count && subCores.length < 5; c++) {
+                                addSubCore(401+subCores.length, camera.x + 100 + Math.random()*600, camera.y + 50 + Math.random()*400, 'straight', true);
+                            }
                         }
                     }
                 } else if(boss.type === 'absolute') {
-                    let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
-                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1200, vy: Math.sin(ang)*1200});
+                    if (boss.absoluteCount < 10) {
+                        let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*1200, vy: Math.sin(ang)*1200});
+                    } else {
+                        let speed = 120;
+                        boss.spiralAngle = (boss.spiralAngle || 0) + 0.3;
+                        let ang = boss.spiralAngle;
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*speed, vy: Math.sin(ang)*speed});
+                    }
+                    boss.absoluteCount++;
+                    if (boss.absoluteCount > 110) boss.absoluteCount = 0;
                 } else if(boss.type === 'crystal_omega') {
-                    let speedMult = isStoryOmega ? 0.25 : 1.0; 
+                    let baseSpeedMult = isStoryOmega ? 0.25 : 1.0; 
                     let type;
+                    boss.verticalCooldown = (boss.verticalCooldown || 0) - dt;
                     if (isStoryOmega) {
                         let types = [0, 1, 2, 4];
                         type = types[Math.floor(Math.random() * types.length)];
                     } else {
-                        type = Math.floor(Math.random() * 5); 
+                        if (boss.verticalWaveCount > 0) {
+                            type = 3;
+                            boss.verticalWaveCount--;
+                            if (boss.verticalWaveCount <= 0) boss.verticalCooldown = 10.0;
+                        } else {
+                            type = Math.floor(Math.random() * 5); 
+                            while (type === 3 && boss.verticalCooldown > 0) {
+                                type = Math.floor(Math.random() * 5); 
+                            }
+                            if (type === 3) boss.verticalWaveCount = 4;
+                        }
                     }
                     boss.spiralAngle += 0.15;
+                    let speedMult = type === 3 ? baseSpeedMult : baseSpeedMult * 0.75;
                     
                     if (type === 0) { 
                         for(let i=0; i<Math.PI*2; i+=0.25) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*500*speedMult, vy: Math.sin(i)*500*speedMult});
@@ -1572,7 +1621,7 @@
                 let damage = 25;
                 if (boss.type === 'absolute') {
                     let numCores = subCores.filter(c => !c.destroyed).length;
-                    if (numCores > 0) damage = 1; 
+                    if (numCores > 0) damage = 0; 
                 }
                 boss.hp -= damage; photonBullets.splice(i, 1);
                 playNote(100, 0.1, 'square', 0.05);
@@ -1591,6 +1640,7 @@
                 }
             } else {
                 let hitMine = false;
+                let hitFloat = false;
                 for (let j = bossBullets.length - 1; j >= 0; j--) {
                     if (bossBullets[j].isMine && Math.abs(b.x - bossBullets[j].x) < 15 && Math.abs(b.y - bossBullets[j].y) < 15) {
                         let mx = bossBullets[j].x, my = bossBullets[j].y;
@@ -1599,9 +1649,31 @@
                         explosions.push({x: mx, y: my, radius: 0, maxRadius: 100, life: 1.0});
                         playNote(200, 0.1, 'square', 0.05);
                         break;
+                    } else if (bossBullets[j].isFloatBullet && !bossBullets[j].launched && Math.abs(b.x - bossBullets[j].x) < 20 && Math.abs(b.y - bossBullets[j].y) < 20) {
+                        bossBullets.splice(j, 1);
+                        hitFloat = true;
+                        playNote(200, 0.1, 'square', 0.05);
+                        break;
                     }
                 }
-                if (hitMine) { photonBullets.splice(i, 1); continue; }
+
+                let hitSubCore = false;
+                for (let c of subCores) {
+                    if (!c.destroyed && Math.abs(b.x - (c.x+c.w/2)) < c.w/2+10 && Math.abs(b.y - (c.y+c.h/2)) < c.h/2+10) {
+                        if(c.isGreen || boss.type === 'absolute') c.hp = 0; else c.hp -= 25; 
+                        hitSubCore = true; playNote(200, 0.1, 'square', 0.05);
+                        if (c.hp <= 0) {
+                            c.destroyed = true;
+                            let pColor = c.isGreen ? "#00ff00" : (boss.type === 'absolute' ? "#0055ff" : "#ffaa00");
+                            if (c.attackType === 'sniper') pColor = "#aa00ff";
+                            else if (c.attackType === 'spiral') pColor = "#00aaff";
+                            for(let k=0; k<30; k++) player.spawnParticle(c.x+c.w/2, c.y+c.h/2, pColor);
+                        }
+                        break;
+                    }
+                }
+
+                if (hitMine || hitSubCore || hitFloat) { photonBullets.splice(i, 1); continue; }
                 
                 if (hitWall || b.x < camera.x - despawnMargin || b.x > camera.x + canvas.width + despawnMargin || b.y < camera.y - despawnMargin || b.y > camera.y + canvas.height + despawnMargin) {
                     photonBullets.splice(i, 1);
@@ -2203,7 +2275,15 @@
                 }
                 ctx.closePath();
                 ctx.fill();
-                ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
+                let numCores = subCores.filter(c => !c.destroyed).length;
+                if (numCores === 0) {
+                    ctx.fillStyle = `hsl(${(globalTime * 300) % 360}, 100%, 50%)`;
+                    ctx.shadowColor = ctx.fillStyle;
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.fillStyle = "#000000"; 
+                }
+                ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
                 ctx.restore();
             } else if (boss.type === 'crystal_omega' || boss.type === 'prototype' || boss.type === 'origin') {
                 ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - 80 - camY); ctx.lineTo(boss.x + 60 - camX, boss.y - camY); ctx.lineTo(boss.x - camX, boss.y + 80 - camY); ctx.lineTo(boss.x - 60 - camX, boss.y - camY); ctx.fill();
@@ -2216,6 +2296,7 @@
             for(let b of bossBullets) { 
                 if (b.bounce !== undefined && b.bounce > 0) ctx.fillStyle = "#33ff33";
                 else if (b.isMine) ctx.fillStyle = "#ffaa00";
+                else if (b.isFloatBullet && !b.launched) ctx.fillStyle = "#00ffff";
                 else ctx.fillStyle = "#ff3333";
                 ctx.beginPath(); 
                 if (b.isMine) {
