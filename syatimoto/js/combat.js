@@ -4,7 +4,7 @@
 'use strict';
 
 function requestFire(type) {
-    if (!G.isStarted || G.isDead || config.raceType === 'TIME TRIAL') {
+    if (!G.isStarted || G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial')) {
         return;
     }
 
@@ -369,8 +369,17 @@ function updateSoapBubbles(dt = 0.016) {
 
         const exploded = b._hitFlag || false;
         const curY = b.body ? b.body.position.y : b.mesh.position.y;
-        const tooHigh = curY - b.spawnY > 100;
-        const tooOld = Date.now() - b.spawnTime > 15000; // 安全タイムアウト
+        const traveled = curY - b.spawnY;
+        const age = Date.now() - b.spawnTime;
+
+        // [DEBUG-3] シャボン玉の距離・経過時間を確認（1秒に1回程度）
+        if (!b._debugLogTime || Date.now() - b._debugLogTime > 1000) {
+            b._debugLogTime = Date.now();
+            console.log(`[BUBBLE] traveled=${traveled.toFixed(1)}m, age=${(age/1000).toFixed(1)}s, spawnY=${b.spawnY.toFixed(1)}`);
+        }
+
+        const tooHigh = traveled > 250;
+        const tooOld = age > 55000; // 安全タイムアウト
 
         if (exploded || tooHigh || tooOld) {
             if (exploded && b._hitBody && (G.isHost || !G.isOnline)) {

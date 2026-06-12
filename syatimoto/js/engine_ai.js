@@ -604,6 +604,23 @@ function animateProjectiles(dt) {
                 });
             }
 
+            // 膜との衝突判定 (クライアント視覚用)
+            if (!exploded) {
+                for (const m of G.membranes) {
+                    const halfW = m.w / 2;
+                    const cx = m.mesh ? m.mesh.position.x : config.areaSize / 2;
+                    const cz = m.mesh ? m.mesh.position.z : config.areaSize / 2;
+                    if (cPos.x >= cx - halfW && cPos.x <= cx + halfW &&
+                        cPos.z >= cz - halfW && cPos.z <= cz + halfW) {
+                        // 弾が膜のY面を跨いだか判定
+                        if ((p.position.y <= m.y && cPos.y >= m.y) ||
+                            (p.position.y >= m.y && cPos.y <= m.y)) {
+                            p._hitFlag = true; exploded = true; break;
+                        }
+                    }
+                }
+            }
+
             if (!exploded) p.position.copy(cPos);
             else p.position.copy(cPos);
         }

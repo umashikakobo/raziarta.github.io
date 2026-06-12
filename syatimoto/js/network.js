@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-//  network.js — マルチプレイ (PeerJS) 
+//  network.js — マルチプレイ (PeerJS)
 // ═══════════════════════════════════════════════════════
 'use strict';
 
@@ -448,12 +448,15 @@ const NETWORK_EVENT_HANDLERS = {
         updateNetworkEntity(data, sourceConn);
     },
     5: (data, sourceConn, from) => {
+        console.log(`[Multiplayer] Event 5 (Name Sync): received name '${data.name}' for id '${data.id}'`);
         G.peerNames.set(data.id, data.name);
         if (G.networkEntities.has(data.id)) {
+            console.log(`[Multiplayer] Event 5: Updating existing network entity for id '${data.id}'`);
             const ent = G.networkEntities.get(data.id);
             if (ent.sprite) ent.mesh.remove(ent.sprite);
             ent.sprite = createNameSprite(data.name);
             ent.mesh.add(ent.sprite);
+            ent.name = data.name;
         }
        if (!G.isHost) {
     G.peerNames.set(data.id, data.name);
@@ -924,6 +927,7 @@ function createNetworkPlayer(id) {
     container.add(mesh);
 
     const pName = G.peerNames.get(id) || (isAINet ? "RIVAL AI" : id);
+    console.log(`[Multiplayer] createNetworkPlayer: created player '${id}' with name '${pName}'. (G.peerNames.has: ${G.peerNames.has(id)})`);
     const sprite = createNameSprite(pName);
     container.add(sprite);
     if (G.scene) G.scene.add(container);

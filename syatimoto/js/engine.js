@@ -104,7 +104,26 @@ function updateFixedLogic(dt) {
         });
     }
 
-    if (G.isDead || !G.playerBody) return;
+    // 死亡処理（タイマー更新と物理停止）
+    if (G.isDead) {
+        G.deathTimer -= dt;
+        if (!G._deathDebugFrame) G._deathDebugFrame = 0;
+        G._deathDebugFrame++;
+        if (G._deathDebugFrame % 30 === 0) {
+            console.log(`[DEATH] timer=${G.deathTimer.toFixed(3)}, isDead=${G.isDead}`);
+        }
+        if (G.deathTimer <= 0) {
+            respawnPlayer();
+        } else if (G.deathTextEl) {
+            G.deathTextEl.innerText = 'YOU DIED\n' + G.deathTimer.toFixed(1) + 's';
+        }
+        if (G.playerBody) {
+            G.playerBody.linearVelocity.set(0, 0, 0);
+            if (G.playerBody.angularVelocity) { G.playerBody.angularVelocity.x=0; G.playerBody.angularVelocity.y=0; G.playerBody.angularVelocity.z=0; }
+        }
+    }
+
+    if (!G.playerBody) return;
 
     const pos = G.playerBody.position;
     const vel = G.playerBody.linearVelocity;
@@ -127,7 +146,7 @@ function updateFixedLogic(dt) {
     if (!_rewardScreenEl) _rewardScreenEl = document.getElementById('reward-screen');
     const isRewarding = _rewardScreenEl ? !_rewardScreenEl.classList.contains('hidden') : false;
 
-    if (!isRewarding) handleJump(G.keys.space);
+    if (!isRewarding && !G.isDead) handleJump(G.keys.space);
     if (G.isGrounded) { G.jumpCount = 0; G.isJumping = false; }
 
     _tmpFwd.set(0,0,-1).applyQuaternion(G.camera.quaternion); _tmpFwd.y=0; _tmpFwd.normalize();
@@ -168,19 +187,36 @@ function updateFixedLogic(dt) {
 
         if (ent.maxMembraneY===undefined) ent.maxMembraneY=-Infinity;
         const entBot=epos.y-0.37;
+        const isEntDead=ent.isAI?ent.isDead:G.isDead;
+
         G.membranes.forEach(m => {
-            const isAbove=(entBot>=m.y-0.8 && evel.y<=0.1);
-            const isEntDead=ent.isAI?ent.isDead:G.isDead;
-            if (isAbove && !isEntDead) {
-                if (ent.currentMembraneY!==m.y) {
+            // Hysteresis thresholds for membrane floor activation/deactivation
+            const activateThreshold = m.y - 0.8; // Activate when entity bottom is above this (and moving slowly downwards)
+            const deactivateThreshold = m.y - 1.5; // Deactivate when entity bottom falls below this (or moves rapidly upwards)
+
+            // Check if the dedicated floor for this membrane is currently active for this entity
+            const isFloorActive = (ent.currentMembraneY === m.y && ent.dedicatedMembraneFloor !== null);
+
+            if (!isEntDead) { // Only consider if entity is not dead
+                if (!isFloorActive && entBot >= activateThreshold && evel.y <= 0.1) {
+                    // Activate the floor: Player is above the activation threshold and moving slowly downwards/still
                     if (ent.dedicatedMembraneFloor) G.world.removeRigidBody(ent.dedicatedMembraneFloor);
+                    ent.dedicatedMembraneFloor = null; // Ensure old one is fully cleared
+                    ent.currentMembraneY = -Infinity; // Ensure old one is fully cleared
+
                     const mw=m.w||config.areaSize, mPos=m.mesh.position;
                     ent.dedicatedMembraneFloor=G.world.add({type:'box',size:[mw,5.0,mw],pos:[mPos.x,m.y-2.5,mPos.z],move:false,belongsTo:1<<(ent.entIndex+17),collidesWith:1<<(ent.entIndex+1),restitution:0,friction:0.5});
                     ent.currentMembraneY=m.y;
+                } else if (isFloorActive && (entBot < deactivateThreshold || evel.y > 0.1)) {
+                    // Deactivate the floor: Player has fallen below deactivation threshold OR is moving rapidly upwards
+                    if (ent.dedicatedMembraneFloor) { G.world.removeRigidBody(ent.dedicatedMembraneFloor); ent.dedicatedMembraneFloor=null; }
+                    ent.currentMembraneY=-Infinity;
                 }
-            } else if (ent.currentMembraneY===m.y) {
-                if (ent.dedicatedMembraneFloor) { G.world.removeRigidBody(ent.dedicatedMembraneFloor); ent.dedicatedMembraneFloor=null; }
-                ent.currentMembraneY=-Infinity;
+            } else { // If entity is dead, ensure any active membrane floor is removed
+                if (isFloorActive) {
+                    if (ent.dedicatedMembraneFloor) { G.world.removeRigidBody(ent.dedicatedMembraneFloor); ent.dedicatedMembraneFloor=null; }
+                    ent.currentMembraneY=-Infinity;
+                }
             }
         });
         // 物理的な接触判定(contactFloor)とグリッド判定(isEntGrounded)を統合
@@ -317,7 +353,7 @@ function updateFixedLogic(dt) {
     }
 
     // 弾丸自動発射
-    if (G.isStarted && config.projectileAutoFire && G.controls && G.controls.isLocked && !isRewarding) {
+    if (G.isStarted && !G.isDead && config.projectileAutoFire && G.controls && G.controls.isLocked && !isRewarding) {
         if (G.keys.shift || G.keys.rightClick) {
             const now = Date.now();
             const projCooldown = 500 / (config.projectileRecoveryRate || 1);
@@ -351,7 +387,7 @@ function updateFixedLogic(dt) {
                     sl.push(b.netId, Math.round(b.body.position.x*100)/100, Math.round(b.body.position.y*100)/100, Math.round(b.body.position.z*100)/100);
                 }
             });
-            if (sl.length>0) broadcastEvent(12,{list:sl});
+            broadcastEvent(12,{list:sl});
         }
     }
 
@@ -361,14 +397,6 @@ function updateFixedLogic(dt) {
         if (_posSyncCounter % 2 === 0) {
             broadcastEvent(1,{id:G.myPeerId,x:pos.x,y:pos.y,z:pos.z,jumps:G.jumpCount});
         }
-    }
-
-    // 死亡処理
-    if (G.isDead) {
-        G.deathTimer-=dt;
-        if (G.deathTimer<=0) respawnPlayer();
-        else G.deathTextEl.innerText='YOU DIED\n'+Math.ceil(G.deathTimer);
-        G.playerBody.linearVelocity.set(0,0,0);
     }
 
     // 無敵更新

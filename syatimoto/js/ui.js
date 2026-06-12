@@ -165,8 +165,10 @@ function addKillLog(killer, victim) {
 window.addKillLog = addKillLog;
 
 function startDeathSequence() {
+    console.log('[DEATH] startDeathSequence called. isDead before:', G.isDead, 'deathTimer:', G.deathTimer);
     G.isDead = true;
     G.deathTimer = 8.0;
+    G._deathDebugFrame = 0; // デバッグカウンタリセット
     G.playerLives = 0;
     G.deathPositionY = G.playerBody.position.y;
 
@@ -272,6 +274,7 @@ function startDeathSequence() {
 }
 
 function respawnPlayer() {
+    console.log('[DEATH] respawnPlayer called. isDead:', G.isDead);
     G.isDead = false;
     if (G.deathTextEl) G.deathTextEl.style.display = 'none';
     // 自機を再表示
@@ -517,6 +520,11 @@ window.applyUpgrade = function(index) {
             config.projectileAutoFire = false;
             config.projectileIsNeedle = false;
             config.projectileRequiresScope = false;
+
+            // スコープ状態をリセット
+            G.isScopedIn = false;
+            const overlay = document.getElementById('scope-overlay');
+            if (overlay) overlay.style.display = 'none';
         } else if (opt.id.startsWith('b')) {
             config.bubbleRecoveryRate = 0.108;
             config.damageBubble = 2;
@@ -629,10 +637,12 @@ function initGUI() {
     fDebug.add(config, 'showHitboxes').name('Show Hitboxes');
     
     const testActions = {
-        showRandomReward: () => showRewardScreen()
+        showRandomReward: () => showRewardScreen(),
+        die: () => takeDamage(G.playerLives)
     };
     const fRewards = fDebug.addFolder('Test Rewards');
     fRewards.add(testActions, 'showRandomReward').name('Open Reward Screen');
+    fRewards.add(testActions, 'die').name('Die (HP to 0)');
     
     ['movement', 'projectile', 'bubble'].forEach(category => {
         const catFolder = fRewards.addFolder(category.toUpperCase());

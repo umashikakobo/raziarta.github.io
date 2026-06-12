@@ -154,7 +154,11 @@ function _onKeyUp(e) {
 function _onMouseDown(e) {
     if (e.button === 0 && G.controls.isLocked) G.keys.space = true;
     if (e.button === 2 && G.controls.isLocked) {
-        if (config.raceType === 'TIME TRIAL') return;
+        console.log(`[FIRE] rightclick. raceType=${config.raceType}, currentMode=${G.currentMode}`);
+        if (G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial')) {
+            console.log('[FIRE] Blocked by TIME TRIAL guard.');
+            return;
+        }
         G.keys.rightClick = true;
         if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
         if (config.projectileRequiresScope) {
@@ -173,6 +177,7 @@ function _onMouseDown(e) {
                 }
                 const now = Date.now();
                 const projCooldown = 500 / (config.projectileRecoveryRate || 1);
+                console.log(`[PROJ] cooldown=${projCooldown.toFixed(0)}ms, elapsed=${(now - G.lastFireTimeProjectile).toFixed(0)}ms, stock=${G.playerProjectileStock.toFixed(2)}`);
                 if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
                     G.lastFireTimeProjectile = now;
                     G.playerProjectileStock -= 1.0;
@@ -186,6 +191,7 @@ function _onMouseDown(e) {
         } else {
             const now = Date.now();
             const projCooldown = 500 / (config.projectileRecoveryRate || 1);
+            console.log(`[PROJ] cooldown=${projCooldown.toFixed(0)}ms, elapsed=${(now - G.lastFireTimeProjectile).toFixed(0)}ms, stock=${G.playerProjectileStock.toFixed(2)}`);
             if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
                 requestFire(0);
                 G.lastFireTimeProjectile = now;
@@ -214,11 +220,15 @@ function _onKeyDown(e) {
     if (e.code === 'Space') { e.preventDefault(); G.keys.space = true; }
     if (G.controls.isLocked) {
         if (e.key === 'b' || e.key === 'B' || e.key === 'q' || e.key === 'Q') {
+            console.log(`[FIRE] bubble key. raceType=${config.raceType}, currentMode=${G.currentMode}`);
+            if (G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial')) {
+                console.log('[FIRE] Bubble blocked by TIME TRIAL guard.');
+                return;
+            }
             if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
-            if (config.raceType === 'TIME TRIAL') return;
             const now = Date.now();
-            const bubbleCooldown = 500 / (config.bubbleRecoveryRate || 1);
-            if (now - G.lastFireTimeBubble >= bubbleCooldown && G.playerBubbleStock >= 1.0) {
+            console.log(`[BUBBLE] cooldown=300ms, elapsed=${(now - G.lastFireTimeBubble).toFixed(0)}ms, stock=${G.playerBubbleStock.toFixed(2)}`);
+            if (now - G.lastFireTimeBubble >= 300 && G.playerBubbleStock >= 1.0) {
                 G.lastFireTimeBubble = now;
                 G.playerBubbleStock -= 1.0;
                 updateAmmoHUD();

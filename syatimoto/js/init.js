@@ -44,6 +44,11 @@ function resetConfigToDefaults() {
     G.isInvincible = false;
     G.invincibilityTimer = 0;
     if (typeof resetUpgradeDisplay === 'function') resetUpgradeDisplay();
+
+    // スコープ状態をリセット
+    G.isScopedIn = false;
+    const overlay = document.getElementById('scope-overlay');
+    if (overlay) overlay.style.display = 'none';
 }
 
 function resetToHome() {
@@ -104,7 +109,7 @@ function resetToHome() {
         if (ent.mesh && G.scene) G.scene.remove(ent.mesh);
     });
     G.networkEntities.clear();
-    G.peerNames.clear();
+    // G.peerNames.clear(); // ロビーで再接続なしにプレイを続けるため、名前は保持する
     G._netEntIndexCounter = 11;
     G.netIdCounter = 0;
     if (G.mapInstancedMesh) { G.scene.remove(G.mapInstancedMesh); G.mapInstancedMesh = null; }
