@@ -227,8 +227,8 @@ function _onKeyDown(e) {
             }
             if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
             const now = Date.now();
-            console.log(`[BUBBLE] cooldown=300ms, elapsed=${(now - G.lastFireTimeBubble).toFixed(0)}ms, stock=${G.playerBubbleStock.toFixed(2)}`);
-            if (now - G.lastFireTimeBubble >= 300 && G.playerBubbleStock >= 1.0) {
+            console.log(`[BUBBLE] cooldown=180ms, elapsed=${(now - G.lastFireTimeBubble).toFixed(0)}ms, stock=${G.playerBubbleStock.toFixed(2)}`);
+            if (now - G.lastFireTimeBubble >= 180 && G.playerBubbleStock >= 1.0) {
                 G.lastFireTimeBubble = now;
                 G.playerBubbleStock -= 1.0;
                 updateAmmoHUD();
