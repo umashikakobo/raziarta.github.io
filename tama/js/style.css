@@ -1,0 +1,849 @@
+/* ========== フォントの統一と太字の完全排除 ========== */
+        * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            font-family: 'VT323', 'DotGothic16', monospace !important;
+            font-weight: 400 !important;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+        }
+
+        input, textarea { text-transform: none; }
+
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #dddddd;
+            touch-action: none;
+        }
+
+        /* ========== 復元：モバイル用コントロールUI（フラット化） ========== */
+        .dpad-container {
+            position: absolute;
+            z-index: 2000;
+            display: none;
+            pointer-events: none;
+        }
+
+        #dpad-type1 {
+            top: 55%;
+            right: 20px;
+            width: 190px;
+            height: auto;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #dpad-type2-left {
+            bottom: 40%;
+            left: 20px;
+            width: 70px;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #dpad-type2-right {
+            top: 100px;
+            right: 130px;
+            width: 140px;
+            flex-direction: row;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .dpad-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .dpad-btn {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0;
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            box-shadow: none;
+        }
+
+        .dpad-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            color: #000;
+        }
+
+        .drag-handle {
+            width: 60px;
+            height: 25px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0;
+            color: #fff;
+            font-size: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 75px;
+            pointer-events: auto;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        #joystick-outer {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            z-index: 999;
+            display: none;
+            pointer-events: none;
+            touch-action: none;
+        }
+
+        #joystick-inner {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            left: 45px;
+            top: 45px;
+        }
+
+        #cam-joystick-container {
+            position: absolute;
+            top: calc(20% + 50px);
+            right: 20px;
+            z-index: 1500;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        #cam-joystick-outer {
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            pointer-events: auto;
+            touch-action: none;
+            position: relative;
+        }
+
+        #cam-joystick-inner {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            left: 35px;
+            top: 35px;
+            pointer-events: none;
+        }
+        /* ========================================================= */
+
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 1.5vh;
+            background: #000;
+            color: #ffffff;
+            border-radius: 0;
+            width: 180px;
+            max-width: 40vw;
+            max-height: 90vh;
+            border: 1px solid #333;
+            z-index: 1000;
+            font-size: 14px;
+            pointer-events: auto;
+            overflow-y: auto;
+        }
+
+        #ui-toggle-btn {
+            width: 20px;
+            height: 20px;
+            background: #000;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 0;
+            cursor: pointer;
+            line-height: 18px;
+            text-align: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        #kill-leaderboard {
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            max-height: 25vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+            font-size: 8px;
+        }
+
+        .kill-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            gap: 4px;
+        }
+
+        #kill-log {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 160px;
+            height: 40vh;
+            background: #000;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            font-size: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            pointer-events: auto;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        #kill-log::-webkit-scrollbar {
+            display: none;
+        }
+
+        #speed-stats {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px black;
+            z-index: 5000;
+            pointer-events: none;
+            text-align: center;
+            display: none;
+        }
+
+        #zoom-toggle-btn {
+            position: absolute;
+            top: 10px;
+            left: calc(50% + 70px);
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0;
+            font-size: 10px;
+            padding: 4px 8px;
+            cursor: pointer;
+            z-index: 5000;
+            display: none;
+            box-shadow: none;
+        }
+
+        #zoom-toggle-btn.active {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 18, 22, 0.9);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            z-index: 3000;
+            width: 320px;
+            text-align: center;
+        }
+
+        #settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2999;
+        }
+
+        #full-log-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 18, 22, 0.9);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            z-index: 5000;
+            width: 80vw;
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #full-log-list {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: left;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        #bottom-left-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 5px;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #444;
+            border-radius: 0;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ========== ボタンのフラット化・色付け ========== */
+        #restart-btn {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8) !important;
+            color: #ffffff !important;
+            border: 1px solid #555 !important;
+            border-radius: 0;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 20px;
+            box-shadow: none !important;
+        }
+
+        #self-reset-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8) !important;
+            color: #ffffff !important;
+            border: 1px solid #555 !important;
+            border-radius: 0;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 20px;
+            box-shadow: none !important;
+        }
+
+        #restart-btn:hover, #self-reset-btn:hover {
+            background: rgba(255, 255, 255, 1) !important;
+            color: #000000 !important;
+        }
+
+        #exit-btn-main {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 0;
+            cursor: pointer;
+        }
+
+        .title {
+            color: #fff;
+            text-align: center;
+            flex: 1;
+            font-size: 20px;
+            margin-bottom: 0;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 5px;
+        }
+
+        button.add-btn {
+            cursor: pointer;
+            background: #000;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 0;
+            width: 22px;
+            height: 22px;
+            font-size: 28px;
+            line-height: 22px;
+            flex-shrink: 0;
+            border-radius: 0;
+            overflow: visible;
+        }
+
+        button.remove-btn {
+            cursor: pointer;
+            background: #000;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 0;
+            width: 22px;
+            height: 22px;
+            font-size: 28px;
+            line-height: 22px;
+            flex-shrink: 0;
+            border-radius: 0;
+            overflow: visible;
+        }
+
+        button.custom-btn {
+            cursor: pointer;
+            background: #000;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 0 6px;
+            height: 22px;
+            line-height: 22px;
+            font-size: 18px;
+            border-radius: 0;
+            overflow: visible;
+        }
+
+        .stop-match-btn {
+            font-size: 8px !important; /* リーダーボードと同じサイズまで縮小 */
+            height: 24px;
+            width: auto !important;
+            line-height: normal; /* 行の高さをリセットして文字が中央にくるように */
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        button:hover, .mode-btn:hover {
+            background: #fff !important;
+            color: #000 !important;
+        }
+
+        #custom-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 18, 22, 0.95);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            z-index: 2000;
+            width: 675px;
+            max-width: 95vw;
+            height: calc(100vh - 60px);
+            flex-direction: column;
+        }
+
+        .custom-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .custom-title {
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .custom-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            gap: 15px;
+        }
+
+        .custom-left {
+            flex: 1.2;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 0;
+        }
+
+        .custom-right {
+            flex: 0.8;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            justify-content: flex-start;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            overflow-y: auto;
+        }
+
+        .team-group {
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 5px;
+        }
+
+        .team-title {
+            font-size: 12px;
+            margin-bottom: 5px;
+            border-left: 5px solid #fff;
+            padding-left: 8px;
+        }
+
+        .spawn-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 0;
+        }
+
+        .spawn-item.player-item {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .spawn-item.remote-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .spawn-item button {
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 0;
+        }
+
+        .team-select {
+            width: 40px;
+            font-size: 9px;
+            height: 18px;
+            background: #000;
+            color: #fff;
+            border: 1px solid #444;
+        }
+
+        .spawn-control-row {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .participation-toggle-btn {
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 12px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .kill-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .form-section {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px;
+            border-radius: 0;
+        }
+
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .form-row select,
+        .form-row input {
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 12px;
+            padding: 4px;
+            width: 60%;
+            border-radius: 0;
+        }
+
+        .rule-block {
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .rule-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .rule-name {
+            display: flex;
+            align-items: center;
+            margin-right: 8px;
+            padding-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        .rule-name span {
+            margin-left: 5px;
+            font-size: 13px;
+            white-space: nowrap;
+            color: #ffffff !important;
+        }
+
+        .rule-desc {
+            font-size: 9px;
+            color: #aaaaaa;
+            line-height: 1.2;
+        }
+
+        .rule-sub-settings {
+            display: none;
+            margin-top: 5px;
+            padding-left: 10px;
+        }
+
+        #server-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 18, 22, 0.9);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            z-index: 4000;
+            width: 280px;
+            text-align: center;
+        }
+
+        #help-mdns-dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 18, 22, 0.9);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0;
+            z-index: 6000;
+            width: 320px;
+            max-width: 90vw;
+            text-align: left;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        #help-mdns-dialog .code-box {
+            background: #222;
+            color: #ffffff;
+            padding: 5px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            margin: 5px 0;
+            user-select: all;
+            word-break: break-all;
+        }
+
+        #mode-select {
+            margin-top: 10px;
+            padding-top: 5px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: #000;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 10px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .mode-btn.active {
+            background: #fff;
+            color: #000;
+        }
+
+        /* ========== UI最小化時のスタイル ========== */
+        #ui.minimized {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            width: 20px !important;
+            height: 20px !important;
+            overflow: visible !important;
+        }
+
+        #ui.minimized>* {
+            display: none !important;
+        }
+
+        #ui.minimized>div:first-child {
+            display: flex !important;
+            margin-bottom: 0 !important;
+        }
+
+        #ui.minimized>div:first-child>.title {
+            display: none !important;
+        }
+
+        @media screen and (max-width: 900px),
+        screen and (max-height: 500px) {
+            #ui {
+                width: 145px;
+                padding: 8px;
+                font-size: 10px;
+                max-height: 95vh;
+            }
+
+            #ui .title {
+                font-size: 12px;
+            }
+
+            button {
+                font-size: 9px !important;
+            }
+
+            #kill-log {
+                width: 110px;
+                height: 180px;
+                font-size: 8px;
+                padding: 5px;
+            }
+
+            #restart-btn {
+                bottom: 50px;
+                right: 10px;
+                padding: 6px 12px;
+                font-size: 10px;
+            }
+
+            #self-reset-btn {
+                bottom: 15px;
+                right: 10px;
+                padding: 6px 12px;
+                font-size: 10px;
+            }
+
+            button:hover, .mode-btn:hover {
+            background: #fff !important;
+            color: #000 !important;
+        }
+
+        #custom-dialog {
+                width: 90vw;
+                height: calc(100vh - 60px);
+                padding: 10px;
+            }
+
+            .custom-container {
+                flex-direction: column;
+                gap: 5px;
+                flex: 1;
+                min-height: 0;
+            }
+
+            .custom-left,
+            .custom-right {
+                height: auto;
+                flex: 1;
+                overflow-y: auto;
+                min-height: 0;
+            }
+            
+            @media screen and (orientation: portrait) {
+                #dpad-type2-left {
+                    bottom: calc(80px + 32vh) !important;
+                }
+
+                #kill-log {
+                    height: 150px !important;
+                }
+            }
+        }
