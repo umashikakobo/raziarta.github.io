@@ -54,6 +54,9 @@
             align-items: center; background: #000000; z-index: 10;
             text-align: center; padding: 40px;
         }
+        .btn:hover { background: #ffffff; color: #000000; box-shadow: 0 0 15px #ffffff; }
+        .btn-large { padding: 16px 40px; font-size: 18px; width: auto; letter-spacing: 2px; }
+        .controls-guide { display: none; }
         #title-screen { display: flex; }
         #whiteout-screen {
             display: none; background: #ffffff; color: #000000;
@@ -68,17 +71,58 @@
             font-size: 42px; margin-bottom: 12px; letter-spacing: 6px;
             font-weight: normal; text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
         }
-        .subtitle { color: #aaaaaa; margin-bottom: 40px; font-size: 14px; letter-spacing: 1px; }
-        .btn {
-            background: #000000; color: #ffffff; border: 1px solid #ffffff;
-            padding: 12px 30px; font-size: 15px; cursor: pointer; margin: 10px;
-            transition: all 0.2s ease; letter-spacing: 1px; width: 300px;
+
+        /* Title Screen overrides */
+        #title-screen { 
+            background: radial-gradient(circle at 70% 50%, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.85) 100%); 
+            backdrop-filter: blur(2px);
+            align-items: flex-start; padding-left: 100px;
         }
-        .btn:hover { background: #ffffff; color: #000000; box-shadow: 0 0 15px #ffffff; }
-        .controls-guide {
-            margin-top: 35px; font-size: 12px; color: #666666;
-            line-height: 1.8; border-top: 1px solid #222222; padding-top: 20px; width: 80%;
+        .title-content { text-align: left; animation: fadeIn 2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        #title-screen h1 {
+            font-size: 56px; margin-bottom: 5px; letter-spacing: 12px;
+            font-weight: 300; text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        #title-screen .subtitle { 
+            color: #00aaff; margin-bottom: 50px; font-size: 16px; letter-spacing: 4px; 
+            text-shadow: 0 0 10px rgba(0, 170, 255, 0.4);
+        }
+        .menu-buttons { display: flex; flex-direction: column; gap: 15px; }
+        .btn-title {
+            position: relative; background: rgba(255, 255, 255, 0.03); 
+            color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px 30px 14px 40px; font-size: 16px; cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            letter-spacing: 2px; width: 340px; text-align: left;
+            backdrop-filter: blur(4px); margin: 0;
+        }
+        .btn-title:hover { 
+            background: rgba(0, 170, 255, 0.1); color: #ffffff; border-color: rgba(0, 170, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.2); transform: translateX(10px);
+        }
+        .indicator {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+        .indicator-tutorial { background: #55ff55; box-shadow: 0 0 8px #55ff55; }
+        .indicator-story { background: #ffffff; box-shadow: 0 0 8px #ffffff; }
+        .indicator-endless { background: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
+        .indicator-bossrush { background: #ffaa00; box-shadow: 0 0 8px #ffaa00; }
+        .indicator-inarow { background: #ff3333; box-shadow: 0 0 8px #ff3333; }
+        
+        .controls-trigger { margin-top: 50px; font-size: 14px; color: #888; cursor: pointer; position: relative; display: inline-block; transition: color 0.3s; }
+        .controls-trigger:hover { color: #fff; }
+        .controls-tooltip {
+            position: absolute; bottom: 30px; left: 0;
+            background: rgba(0, 0, 0, 0.9); border: 1px solid #333; padding: 20px; width: 400px; 
+            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+            pointer-events: none; text-align: left; line-height: 1.8;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); font-size: 13px; color: #ccc;
+        }
+        .controls-trigger:hover .controls-tooltip { opacity: 1; visibility: visible; }
+        .btn-settings { width: auto; padding: 10px 20px; border-color: rgba(255,255,255,0.2); margin-top: 20px; text-align: center; }
         @keyframes blink { from { opacity: 0; } to { opacity: 1; } }
         #settings-modal {
             display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -95,6 +139,7 @@
     </style>
 </head>
 <body>
+<button id="home-btn" class="btn" style="display:none; position:fixed; top:20px; left:20px; width:auto; z-index:9999; border-color:#00aaff; color:#00aaff; background-color:rgba(0,0,0,0.8); padding: 10px 20px; font-size: 14px;" onclick="returnToHome()">🏠 ホームに戻る</button>
 <div id="game-container">
     <canvas id="gameCanvas" width="960" height="540"></canvas>
     <div id="ui-layer">
@@ -109,31 +154,52 @@
     </div>
     
     <div id="title-screen" class="screen">
-        <h1>WHITE MONOLITH</h1>
-        <div class="subtitle">v27：Boss Rush Update</div>
-        <div style="display: flex; flex-direction: column; align-items: center;">
-            <button class="btn" onclick="startGame('story')">ストーリーモード</button>
-            <button class="btn" id="btn-endless" onclick="showEndlessIntro()" style="display:none; border-color:#ff00ff; color:#ff00ff;">エンドコンテンツ (全50ステージ)</button>
-            <button class="btn boss-rush-btn" id="btn-bossrush" onclick="startBossRush()">ボスラッシュモード</button>
+        <div class="title-content">
+            <h1>WHITE MONOLITH</h1>
+            <div class="subtitle">v27：Boss Rush Update</div>
+            <div class="menu-buttons">
+                <button class="btn btn-title" onclick="startGame('tutorial')"><span class="indicator indicator-tutorial"></span>チュートリアル</button>
+                <button class="btn btn-title" onclick="startGame('story')"><span class="indicator indicator-story"></span>ストーリーモード</button>
+                <button class="btn btn-title" id="btn-endless" onclick="showEndlessIntro()" style="display:none;"><span class="indicator indicator-endless"></span>エンドコンテンツ (全50ステージ)</button>
+                <button class="btn btn-title boss-rush-btn" id="btn-bossrush" onclick="startBossRush()"><span class="indicator indicator-bossrush"></span>ボスラッシュモード</button>
+                <button class="btn btn-title boss-rush-btn" id="btn-bossrush-inarow" onclick="showInARowIntro()" style="display:none;"><span class="indicator indicator-inarow"></span>ボスラッシュ in a row mode</button>
+            </div>
+            <div class="controls-trigger">
+                ▶ 操作方法を確認する
+                <div class="controls-tooltip">
+                    <strong>【操作方法】</strong><br>
+                    <strong>A / D</strong> : 左右移動 | <strong>W</strong> : ジャンプ (2段ジャンプ可)<br>
+                    <strong>マウス左クリック</strong> : 会話 / 調べる | <strong>右クリック</strong> : エリア固有能力を発動<br>
+                    <span style="color: #ff55ff;">[開発者ツール] 「^」キーで無敵。<br>※「9」でストーリーの周回スキップ、「0」でエンドコンテンツ解放。<br>※エンドレス中「8」でステージスキップ（ボス戦でも可）</span>
+                </div>
+            </div>
         </div>
         <div style="position: absolute; top: 20px; right: 20px;">
-            <button class="btn" style="width: auto; padding: 8px 16px; border-color: #00aaff; color: #00aaff;" onclick="openSettings()">⚙️ 設定</button>
-        </div>
-        <div class="controls-guide">
-            <strong>【操作方法】</strong><br>
-            <strong>A / D</strong> : 左右移動 | <strong>W</strong> : ジャンプ (2段ジャンプ可)<br>
-            <strong>マウス左クリック</strong> : 会話 / 調べる | <strong>右クリック</strong> : エリア固有能力を発動<br>
-            <span style="color: #ff55ff;">[開発者ツール] 「^」キーで無敵。<br>※「9」でストーリーの周回スキップ（3周目ならボス直行）、「0」でエンドコンテンツ解放。<br>※エンドレス中「8」で次のステージにスキップ（ボス戦でも可）</span>
+            <button class="btn btn-title btn-settings" onclick="openSettings()">⚙️ 設定</button>
         </div>
     </div>
 
     <div id="endless-intro-screen" class="screen">
         <h2 style="color:#ff00ff; letter-spacing: 2px; margin-bottom: 30px;">エンドコンテンツ解放</h2>
         <p style="white-space:pre-wrap; line-height: 2.2; text-align:center; max-width:600px; font-size: 16px; margin-bottom: 40px;">左クリック能力が解放されました。
-1~3のキーをおすことで、左クリックの能力を決定することが出来ます。
+これより全50ステージのエンドコンテンツに挑戦します。
+道中ではチェックポイントはなく、10ステージごとのボスを倒した時のみチェックポイントが記録されます。
+※ここからのボスは非常に強力です。</p>
+        <button class="btn btn-large" style="border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 10px rgba(255,0,255,0.3);" onclick="startEndlessStage1()">挑戦する</button>
+        <button class="btn btn-large" style="border-color:#666; color:#666;" onclick="document.getElementById('endless-intro-screen').style.display='none'; document.getElementById('title-screen').style.display='flex';">戻る</button>
+    </div>
 
-また、右クリック能力は「高エネルギー光弾」に固定されます。</p>
-        <button class="btn" style="border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 10px rgba(255,0,255,0.3);" onclick="startEndlessStage1()">OK</button>
+    <div id="inarow-intro-screen" class="screen" style="display:none; background: rgba(0,0,0,0.95); border: 2px solid #ffaa00; z-index: 20; padding: 30px;">
+        <h2 style="color:#ffaa00; letter-spacing: 2px; margin-bottom: 30px;">ボスラッシュ in a row mode</h2>
+        <p style="white-space:pre-wrap; line-height: 2.2; text-align:center; max-width:600px; font-size: 16px; margin-bottom: 40px;">このモードでは全10体のボスと連続で戦います。
+
+【残機制ルール】
+・初期残機は「5」です。1回被弾すると残機が1つ減ります。
+・残機が残っている場合は、死亡画面のContinueボタンから現在のボスをやり直せます。
+・残機が「0」の時に被弾するとGAME OVERとなり、タイトルに戻ります。
+・ステージをクリアするたびに残機が1回復します（最大5まで）。</p>
+        <button class="btn btn-large" style="border-color:#ffaa00; color:#ffaa00; box-shadow: 0 0 10px rgba(255,170,0,0.3);" onclick="startBossRushInARow()">挑戦する</button>
+        <button class="btn btn-large" style="border-color:#666; color:#666;" onclick="document.getElementById('inarow-intro-screen').style.display='none'; document.getElementById('title-screen').style.display='flex';">戻る</button>
     </div>
 
     <div id="whiteout-screen" class="screen">
@@ -142,7 +208,7 @@
     <div id="gameover-screen" class="screen">
         <h1 style="letter-spacing: 2px;">SYSTEM PURGE</h1>
         <div class="subtitle" style="color: #ff3333; margin-bottom: 25px;">トラップ、またはWCCの防衛網に接触し、消滅しました</div>
-        <button class="btn" style="border-color: #ff3333; color: #ff3333; width:auto;" onclick="restartFromCheckpoint()">直前の安全な場所から再開</button>
+        <button class="btn btn-large" style="border-color: #ff3333; color: #ff3333; width:auto;" onclick="restartFromCheckpoint()">直前の安全な場所から再開</button>
     </div>
 
     <div id="settings-modal">
@@ -167,6 +233,43 @@
     const STATE_TITLE = 0, STATE_PLAYING = 1, STATE_DIALOGUE = 2, STATE_WHITING_OUT = 3;
     const STATE_GAMEOVER = 4, STATE_ENDING = 5, STATE_BOSS_BATTLE = 6, STATE_TRANSITION = 7, STATE_ENDING_ROLL = 8;
     let currentState = STATE_TITLE;
+
+    let titleParticles = [];
+    for(let i=0; i<100; i++) {
+        titleParticles.push({
+            x: Math.random() * 960,
+            y: Math.random() * 540,
+            size: Math.random() * 3 + 1,
+            speedY: Math.random() * -1.0 - 0.5,
+            speedX: Math.random() * 0.4 - 0.2,
+            alpha: Math.random() * 0.6 + 0.2,
+            isCube: Math.random() > 0.4
+        });
+    }
+
+    function drawTitleBackground() {
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.save();
+        for (let p of titleParticles) {
+            p.y += p.speedY;
+            p.x += p.speedX;
+            if (p.y < -20) { p.y = canvas.height + 20; p.x = Math.random() * canvas.width; }
+            if (p.x < -20) { p.x = canvas.width + 20; }
+            if (p.x > canvas.width + 20) { p.x = -20; }
+            
+            ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+            if (p.isCube) {
+                ctx.fillRect(p.x, p.y, p.size*2.5, p.size*2.5);
+            } else {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size*1.2, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
+    }
 
     const worldWidth = 20000;
     
@@ -201,6 +304,7 @@
         if (saveFlags.endlessClear) {
             document.getElementById('btn-endless').style.display = 'block';
             document.getElementById('btn-bossrush').style.display = 'block';
+            document.getElementById('btn-bossrush-inarow').style.display = 'block';
         }
     }
     
@@ -225,6 +329,7 @@
     let currentDialogueChain = [], currentDialogueIndex = 0, dialogueCallback = null;
     let whiteoutAlpha = 0, whiteoutDirection = 1, whiteoutTimer = 0, globalTime = 0;
     let echoPulseRadius = 0, echoPulseActive = false, photonBullets = [], enemyBullets = [], grabbedBlock = null;
+    let playerLives = 5, maxPlayerLives = 5;
 
     let devInvincible = false;
     let devSpeedMult = 1.0;
@@ -267,10 +372,36 @@
         if(!audioCtx || audioCtx.state !== 'running') return;
         bgmTimer += dt;
         if (currentState === STATE_BOSS_BATTLE || currentState === STATE_TRANSITION) {
-            if (bgmTimer > 0.1) {
+            let bossBGM = {
+                'origin': { freqs: [440, 330, 440, 880, 440, 330, 220, 660], interval: 0.1, wave: 'sawtooth', vol: 0.03 },
+                'heavy_carrier': { freqs: [110, 110, 164.8, 110, 220, 110, 146.8, 110], interval: 0.25, wave: 'square', vol: 0.03 },
+                'phantom_swarm': { freqs: [880, 987, 880, 1046, 880, 1174, 880, 1318], interval: 0.08, wave: 'sawtooth', vol: 0.03 },
+                'green_hive': { freqs: [329.6, 392, 440, 329.6, 493.8, 440], interval: 0.15, wave: 'triangle', vol: 0.1 },
+                'absolute': { freqs: [220, 277, 329, 440, 554, 659, 880, 659, 554, 440, 329, 277], interval: 0.1, wave: 'sawtooth', vol: 0.03 },
+                'laser_core': { freqs: [110, 110, 220, 110, 110, 110, 261.6, 220], interval: 0.125, wave: 'square', vol: 0.03 },
+                'gravity_master': { freqs: [329.6, 493.8, 659.2, 329.6, 523.2, 698.4], interval: 0.2, wave: 'sine', vol: 0.1 },
+                'illusion_twins': { freqs: [220, 329.6, 392, 440, 392, 329.6, 261.6, 196], interval: 0.6, wave: 'sine', vol: 0.08 },
+                'bullet_storm': { freqs: [880, 784, 880, 1046, 1174, 1046, 1318, 1568], interval: 0.15, wave: 'square', vol: 0.03 },
+                'crystal_omega_slow': { freqs: [220, 220, 329.6, 440, 392, 329.6, 293.6, 261.6, 329.6, 220, 220, 440, 523.2, 440, 392, 440], interval: 0.2, wave: 'sawtooth', vol: 0.03 }
+            };
+            
+            // Map legacy/endless types to the rush types for BGM
+            let typeMap = {
+                'crystal_origin': 'origin', 'prototype': 'origin',
+                'fortress': 'heavy_carrier',
+                'stealth': 'phantom_swarm',
+                'mobile': 'green_hive',
+                'bullet_hell': 'absolute',
+                'crystal_omega': 'crystal_omega_slow',
+                'crystal': 'crystal_omega_slow'
+            };
+            
+            let t = (boss && boss.type) ? (bossBGM[boss.type] ? boss.type : typeMap[boss.type]) : 'origin';
+            let track = bossBGM[t] || bossBGM['origin'];
+
+            if (bgmTimer > track.interval) {
                 bgmTimer = 0;
-                const freqs = [440, 330, 440, 880, 440, 330, 220, 660]; 
-                playNote(freqs[bgmStep % freqs.length], 0.15, 'sawtooth', 0.03);
+                playNote(track.freqs[bgmStep % track.freqs.length], track.interval * 1.5, track.wave, track.vol || 0.03);
                 bgmStep++;
             }
         } else if (currentState === STATE_PLAYING || currentState === STATE_DIALOGUE) {
@@ -280,21 +411,35 @@
             if (bgmTimer > interval) {
                 bgmTimer = 0;
                 if (tier === 0) { 
-                    playNote(55 + (bgmStep%3)*5, 2.5, 'sine', 0.04);
-                    if(bgmStep%2===0) playNote(220, 2.0, 'sine', 0.01);
+                    playNote(55 + (bgmStep%3)*5, 2.5, 'sine', 0.48);
+                    if(bgmStep%2===0) playNote(220, 2.0, 'sine', 0.16);
                 } else if (tier === 1) { 
-                    playNote(110 + (bgmStep%4)*10, 1.0, 'triangle', 0.04);
-                    if(bgmStep%3===0) playNote(164.81, 1.0, 'triangle', 0.02);
+                    playNote(110 + (bgmStep%4)*10, 1.0, 'triangle', 0.12);
+                    if(bgmStep%3===0) playNote(164.81, 1.0, 'triangle', 0.06);
                 } else if (tier === 2) { 
-                    playNote(329.63 + (bgmStep%5)*20, 0.8, 'sine', 0.03);
-                    if(bgmStep%2===0) playNote(440, 0.5, 'sine', 0.02);
+                    playNote(329.63 + (bgmStep%5)*20, 0.8, 'sine', 0.1);
+                    if(bgmStep%2===0) playNote(440, 0.5, 'sine', 0.05);
                 } else if (tier === 3) { 
-                    playNote(220 + (bgmStep%2)*110, 0.5, 'square', 0.02);
-                    playNote(110, 0.3, 'square', 0.02);
+                    playNote(220 + (bgmStep%2)*110, 0.5, 'square', 0.04);
+                    playNote(110, 0.3, 'square', 0.04);
                 } else { 
-                    playNote(82.41 + (bgmStep%4)*15, 0.4, 'sawtooth', 0.03);
-                    if(bgmStep%3===0) playNote(329.63, 0.2, 'square', 0.02);
+                    playNote(82.41 + (bgmStep%4)*15, 0.4, 'sawtooth', 0.05);
+                    if(bgmStep%3===0) playNote(329.63, 0.2, 'square', 0.04);
                 }
+                bgmStep++;
+            }
+        } else if (currentState === STATE_ENDING_ROLL) {
+            let endingMelody = [
+                523.25, 587.33, 659.25, 783.99,
+                659.25, 587.33, 523.25, 659.25,
+                880.00, 783.99, 659.25, 587.33,
+                523.25, 392.00, 523.25, 659.25
+            ];
+            if (bgmTimer > 0.4) {
+                bgmTimer = 0;
+                playNote(endingMelody[bgmStep % endingMelody.length], 0.6, 'square', 0.06);
+                if (bgmStep % 4 === 0) playNote(261.63, 1.6, 'triangle', 0.05); 
+                else if (bgmStep % 4 === 2) playNote(392.00, 1.6, 'triangle', 0.05); 
                 bgmStep++;
             }
         }
@@ -584,6 +729,21 @@
         npcs.push({ id: 'npc2', x: 6200, y: 448, w: 16, h: 32, name: "泣き崩れる女", getDialogue: () => ["◆◆...！"] });
     }
 
+    function buildTutorialLevel() {
+        platforms = []; moveableBlocks = []; lasers = []; drones = []; npcs = []; terminals = []; environmentalBlocks = []; resonanceNodes = []; switches = []; gates = []; shootTargets = []; subCores = [];
+        
+        addPlatform(-100, 480, 4000, 60);
+        addPlatform(-100, 0, 40, 540);
+        addPlatform(3860, 0, 40, 540);
+        addPlatform(-100, -40, 4000, 40);
+        
+        terminals.push({x: 500, y: 440, id: "tut1", isClose: false});
+        terminals.push({x: 1500, y: 440, id: "tut2", isClose: false});
+        terminals.push({x: 2500, y: 440, id: "tut3", isClose: false});
+        
+        addSubCore(1, 3500, 400, 'straight'); // orange cube combat practice
+    }
+
     function buildLevelLoop2And3() {
         addGate(999, -40, -600, 0, 40, 540); 
 
@@ -740,7 +900,7 @@
         portalActive = false;
 
         if (gameMode === 'endless') { buildEndlessLevel(); return; }
-        if (gameMode === 'boss_rush') return;
+        if (gameMode === 'boss_rush' || gameMode === 'boss_rush_in_a_row') return;
 
         if (loopCount === 1) buildLevelLoop1();
         else buildLevelLoop2And3();
@@ -825,7 +985,7 @@
                 if (currentEndlessStage % 10 === 0) startBossBattle(true, BOSS_TYPES[currentEndlessStage]);
                 else currentState = STATE_PLAYING;
                 playNote(800, 0.2, 'square', 0.05, 1200);
-            } else if (gameMode === 'boss_rush') {
+            } else if (gameMode === 'boss_rush' || gameMode === 'boss_rush_in_a_row') {
                 bossRushIndex++;
                 photonBullets = []; enemyBullets = []; bossBullets = [];
                 startNextBossRush();
@@ -868,17 +1028,34 @@
         startGame('endless');
     }
 
+    function showInARowIntro() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        document.getElementById('inarow-intro-screen').style.display = 'flex';
+    }
+
+    function startBossRushInARow() {
+        document.getElementById('inarow-intro-screen').style.display = 'none';
+        document.getElementById('title-screen').style.display = 'none';
+        document.getElementById('home-btn').style.display = 'block';
+        gameMode = 'boss_rush_in_a_row';
+        playerLives = maxPlayerLives;
+        bossRushIndex = 0;
+        startNextBossRush();
+    }
+
     function startBossRush() {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
         document.getElementById('title-screen').style.display = 'none';
+        document.getElementById('home-btn').style.display = 'block';
         gameMode = 'boss_rush';
         bossRushIndex = 0;
         startNextBossRush();
     }
 
     function startNextBossRush() {
-        let rushBosses = ['origin', 'heavy_carrier', 'phantom_swarm', 'green_hive', 'absolute'];
+        let rushBosses = ['origin', 'heavy_carrier', 'phantom_swarm', 'green_hive', 'absolute', 'laser_core', 'gravity_master', 'illusion_twins', 'bullet_storm', 'crystal_omega_slow'];
         if (bossRushIndex >= rushBosses.length) {
             triggerSingularity();
             return;
@@ -892,25 +1069,58 @@
         if (audioCtx.state === 'suspended') audioCtx.resume();
         gameMode = mode;
         document.getElementById('title-screen').style.display = 'none';
+        document.getElementById('dialogue-box').style.display = 'none';
+        document.getElementById('home-btn').style.display = 'block';
+        
         loopCount = 1; childSaved = false; residentJoined = false; leftMapUnlocked = false; portalActive = false; loop3IntroPlayed = false;
         savedCoreStatus = { 0: false, 1: false, 2: false, 3: false };
         currentState = STATE_PLAYING; checkpointX = 100; checkpointY = 350;
         enemyBullets = []; photonBullets = []; bossBullets = []; currentEndlessStage = 1;
-        buildLevel(); player.x = 100; player.y = 400; player.vx = 0; player.vy = 0;
+        player.x = 100; player.y = 400; player.vx = 0; player.vy = 0; player.hp = player.maxHp = 100;
+        
         if (gameMode === 'endless') {
             currentAbility = "高エネルギー光弾";
             currentLeftAbility = "ホバリング";
+            buildLevel(); 
+        } else if (gameMode === 'tutorial') {
+            currentAbility = "高エネルギー光弾";
+            currentLeftAbility = "ホバリング";
+            buildTutorialLevel();
+        } else {
+            currentAbility = "ダッシュ"; // story default
+            buildLevel();
         }
+        
         updateHUD(); playNote(440, 1.0, 'sine', 0.1, 220); 
     }
 
+    function returnToHome() {
+        document.getElementById('home-btn').style.display = 'none';
+        document.getElementById('dialogue-box').style.display = 'none';
+        document.getElementById('title-screen').style.display = 'flex';
+        document.getElementById('gameover-screen').style.display = 'none';
+        gameMode = 'story';
+        currentState = STATE_TITLE;
+        camera.x = 0; camera.y = 0;
+        player.x = 100; player.y = 400; player.vx = 0; player.vy = 0;
+        platforms = []; npcs = []; // Clear so player falls
+    }
+
     function updateHUD() {
+        let isEnding = (currentState === STATE_ENDING || currentState === STATE_ENDING_ROLL);
+        let displayVal = isEnding ? 'none' : 'block';
+        let huds = document.getElementsByClassName('hud');
+        for (let i = 0; i < huds.length; i++) huds[i].style.display = displayVal;
+
+        if (isEnding) return;
+
         if(gameMode === 'story') {
             document.getElementById('hud-loop').innerText = `Loop: ${loopCount} / 3`;
             document.getElementById('hud-ability').innerText = `右クリック能力: ${currentAbility}`;
         } else {
             if(gameMode === 'endless') document.getElementById('hud-loop').innerText = `Endless: Stage ${currentEndlessStage} / 50`;
-            else document.getElementById('hud-loop').innerText = `Boss Rush: ${bossRushIndex + 1} / 5`;
+            else if (gameMode === 'boss_rush_in_a_row') document.getElementById('hud-loop').innerText = `In a row: ${bossRushIndex + 1} / 10 | Lives: ${'♥'.repeat(playerLives)}`;
+            else document.getElementById('hud-loop').innerText = `Boss Rush: ${bossRushIndex + 1} / 10`;
             document.getElementById('hud-ability').innerText = `[1-3]左能力: ${currentLeftAbility} | 右能力: 高エネルギー光弾`;
         }
     }
@@ -932,7 +1142,7 @@
                 document.getElementById('title-screen').style.display = 'flex';
                 document.getElementById('btn-endless').style.display = 'block';
             }
-        } else {
+        } else if (currentState !== STATE_TITLE) {
             update(dt);
         }
         
@@ -955,7 +1165,7 @@
         }
 
         if (transitionTimer > 4.0) { 
-            startBossBattle(gameMode === 'endless', 'crystal_omega');
+            startBossBattle(gameMode === 'endless', gameMode === 'story' ? 'crystal_origin' : 'crystal_omega');
         }
     }
 
@@ -985,17 +1195,19 @@
         updateGates(dt);
         updateEnemyBullets(dt);
 
-        if (gameMode === 'story') {
+        if (gameMode === 'story' || gameMode === 'tutorial') {
             camera.targetX = player.x - canvas.width / 2 + player.width / 2;
-            if (camera.targetX < (leftMapUnlocked ? -8500 : 0)) camera.targetX = leftMapUnlocked ? -8500 : 0;
-            if (camera.targetX > worldWidth - canvas.width) camera.targetX = worldWidth - canvas.width;
+            let minX = (leftMapUnlocked && gameMode === 'story') ? -8500 : -100;
+            let maxX = (gameMode === 'tutorial') ? 3200 : worldWidth - canvas.width;
+            if (camera.targetX < minX) camera.targetX = minX;
+            if (camera.targetX > maxX) camera.targetX = maxX;
             camera.x += (camera.targetX - camera.x) * 0.08;
 
             camera.targetY = player.y - canvas.height / 2 + player.height / 2;
             if (camera.targetY > 0) camera.targetY = 0; 
             camera.y += (camera.targetY - camera.y) * 0.08;
             
-            if (player.isGrounded) {
+            if (player.isGrounded && gameMode === 'story') {
                 if (player.x > 3800 && player.x < 3900) { checkpointX = 3800; checkpointY = 400; }
                 if (player.x > 8400 && player.x < 8500) { checkpointX = 8400; checkpointY = 400; }
                 if (player.x > 13200 && player.x < 13300) { checkpointX = 13200; checkpointY = 400; }
@@ -1119,13 +1331,14 @@
 
             if (b.bounce !== undefined && b.bounce > 0) {
                 for (let w of platforms) {
-                    if (!w.hidden) {
+                    if (true) {
                         if (nextX > w.x && nextX < w.x + w.w && b.y > w.y && b.y < w.y + (w.h||60)) {
                             b.vx *= -1; bounced = true; nextX = b.x + b.vx * dt;
                         }
                         if (b.x > w.x && b.x < w.x + w.w && nextY > w.y && nextY < w.y + (w.h||60)) {
                             b.vy *= -1; bounced = true; nextY = b.y + b.vy * dt;
                         }
+
                     }
                 }
                 for (let w of moveableBlocks) {
@@ -1152,7 +1365,7 @@
             let hitWall = false;
             if (b.bounce === undefined || b.bounce <= 0) {
                 for (let w of platforms) {
-                    if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+                    if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
                 }
                 for (let w of moveableBlocks) {
                     if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + w.h) hitWall = true;
@@ -1182,8 +1395,18 @@
         player.y = isEndless ? 300 : -10000; 
         player.vy = 0;
         
-        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000, 'prototype': 1000, 'origin': 3000, 'heavy_carrier': 3000, 'phantom_swarm': 2500, 'green_hive': 3000, 'absolute': 3000};
+        let hpMap = {'fortress': 1500, 'mobile': 2000, 'stealth': 2000, 'bullet_hell': 3000, 'crystal': 3000, 'crystal_omega': 5000, 'crystal_omega_slow': 5000, 'crystal_origin': 500, 'prototype': 1000, 'origin': 3000, 'heavy_carrier': 3000, 'phantom_swarm': 2500, 'green_hive': 3000, 'absolute': 3000, 'laser_core': 2500, 'gravity_master': 3500, 'illusion_twins': 2000, 'bullet_storm': 3000};
         boss = { x: player.x + 300, y: player.y - 150, hp: hpMap[type] || 3000, maxHp: hpMap[type] || 3000, timer: 0, type: type, alpha: 1.0, spiralAngle: 0, wasVisible: false, shotsFiredInApperance: 0, repositioned: false, teleportLeft: false, phase: 0 };
+        if (type === 'illusion_twins') {
+            boss.twinHp = hpMap[type]; boss.twinMaxHp = hpMap[type];
+            boss.twinX = boss.x; boss.twinY = boss.y;
+            boss.mainDead = false; boss.twinDead = false; boss.reviveTimer = 0;
+            boss.explosionTimer = 0;
+            boss.explosionCount = 0;
+            boss.isExploding = false;
+            boss.explodingTwin = 'main';
+            boss.explosionSoundTimer = 0;
+        }
         bossBullets = []; photonBullets = []; enemyBullets = []; subCores = []; explosions = [];
         
         platforms = [];
@@ -1225,9 +1448,9 @@
             } else { boss.cubeRespawnTimer = 0; }
         }
 
-        let isStoryOmega = ((boss.type === 'crystal_omega' || boss.type === 'prototype') && gameMode === 'story');
+        let isStoryOmega = ((boss.type === 'crystal_origin' || boss.type === 'prototype') && gameMode === 'story');
 
-        if (!isStoryOmega && gameMode !== 'endless' && gameMode !== 'boss_rush') {
+        if (!isStoryOmega && gameMode !== 'endless' && gameMode !== 'boss_rush' && gameMode !== 'boss_rush_in_a_row') {
             camera.targetX = player.x - canvas.width / 2 + player.width / 2;
             camera.targetY = player.y - canvas.height / 2 + player.height / 2;
             camera.x += (camera.targetX - camera.x) * 0.1;
@@ -1235,7 +1458,7 @@
         } else if (isStoryOmega) {
             camera.x = 17000; 
             camera.y = -9540;
-        } else if (gameMode === 'endless' || gameMode === 'boss_rush') {
+        } else if (gameMode === 'endless' || gameMode === 'boss_rush' || gameMode === 'boss_rush_in_a_row') {
             camera.x = 0; 
             camera.y = 0; 
         }
@@ -1246,8 +1469,8 @@
         if (keys['w'] || keys['W']) moveY -= 1;
         if (keys['s'] || keys['S']) moveY += 1;
         
-        let px = player.x + moveX * 450 * dt;
-        let py = player.y + moveY * 450 * dt;
+        let px = player.x + moveX * 450 * settings.moveSpeedMult * dt;
+        let py = player.y + moveY * 450 * settings.moveSpeedMult * dt;
         player.vy = 0;
 
         let hitWallX = false, hitWallY = false;
@@ -1323,9 +1546,93 @@
         } else if(boss.type === 'fortress') {
             boss.y = camera.y + 250;
             boss.x = camera.x + canvas.width - 200;
+        } else if (boss.type === 'laser_core') {
+            boss.x = camera.x + canvas.width/2; 
+            boss.y = camera.y + 150;
+        } else if (boss.type === 'gravity_master') {
+            boss.x = camera.x + canvas.width/2; 
+            boss.y = camera.y + canvas.height/2;
+            let a = Math.atan2(boss.y - (player.y+12), boss.x - (player.x+9));
+            let dist = Math.sqrt(Math.pow(boss.x - (player.x+9), 2) + Math.pow(boss.y - (player.y+12), 2));
+            if (dist > 50) {
+                player.x += Math.cos(a) * 200 * dt;
+                player.y += Math.sin(a) * 200 * dt;
+            }
+        } else if (boss.type === 'illusion_twins') {
+            if (!boss.mainDead) { boss.x = camera.x + 300 + Math.cos(globalTime) * 100; boss.y = camera.y + 150 + Math.sin(globalTime * 2) * 50; }
+            if (!boss.twinDead) { boss.twinX = camera.x + 600 - Math.cos(globalTime) * 100; boss.twinY = camera.y + 350 - Math.sin(globalTime * 2) * 50; }
+        } else if (boss.type === 'bullet_storm') {
+            boss.x = camera.x + canvas.width/2; 
+            boss.y = camera.y + 150;
         } else {
             boss.y = camera.y + 270 + Math.sin(globalTime * 1.5) * 150;
             boss.x = camera.x + 750 + Math.cos(globalTime * 1.2) * 100;
+        }
+
+        if (boss.type === 'laser_core') {
+            boss.spiralAngle = (boss.spiralAngle || 0) + dt * 0.8;
+            boss.isFiringLaser = true;
+            boss.laserAng = boss.spiralAngle;
+
+            let pWorldX = player.x + 9, pWorldY = player.y + 12;
+            let dx1 = Math.cos(boss.laserAng), dy1 = Math.sin(boss.laserAng);
+            let px = pWorldX - boss.x, py = pWorldY - boss.y;
+            if (px * dx1 + py * dy1 > 0 && Math.abs(px * dy1 - py * dx1) < 15) { if (!devInvincible) triggerGameOver(); }
+            
+            let dx2 = Math.cos(boss.laserAng + Math.PI), dy2 = Math.sin(boss.laserAng + Math.PI);
+            if (px * dx2 + py * dy2 > 0 && Math.abs(px * dy2 - py * dx2) < 15) { if (!devInvincible) triggerGameOver(); }
+        }
+        
+        if (boss.type === 'illusion_twins') {
+            if (boss.mainDead !== boss.twinDead) {
+                boss.isExploding = false; // Cancel explosion if one dies
+                boss.reviveTimer += dt;
+                boss.blinkSoundTimer = (boss.blinkSoundTimer || 0) + dt;
+                let freq = 2 + (boss.reviveTimer / 10.0) * 15;
+                if (boss.blinkSoundTimer >= 1.0 / freq) {
+                    boss.blinkSoundTimer -= 1.0 / freq;
+                    playNote(1000 + boss.reviveTimer * 40, 0.05, 'square', 0.01);
+                }
+                
+                if (boss.reviveTimer >= 10.0) {
+                    boss.mainDead = false; boss.twinDead = false;
+                    boss.hp = boss.maxHp / 2; boss.twinHp = boss.twinMaxHp / 2;
+                    let aliveX = boss.mainDead ? boss.twinX : boss.x;
+                    let aliveY = boss.mainDead ? boss.twinY : boss.y;
+                    boss.x = aliveX - 100; boss.y = aliveY;
+                    boss.twinX = aliveX + 100; boss.twinY = aliveY;
+                    boss.reviveTimer = 0;
+                }
+            } else if (!boss.mainDead && !boss.twinDead) {
+                if (!boss.isExploding) {
+                    boss.explosionTimer += dt;
+                    if (boss.explosionTimer >= 10.0) {
+                        boss.isExploding = true;
+                        boss.explosionCount = 5.0; // 5 seconds explosion warning
+                        boss.explosionTimer = 0;
+                        boss.explodingTwin = Math.random() < 0.5 ? 'main' : 'twin';
+                        boss.explosionSoundTimer = 0;
+                    }
+                } else {
+                    boss.explosionCount -= dt;
+                    boss.explosionSoundTimer += dt;
+                    
+                    let freq = 2 + ((5.0 - boss.explosionCount) / 5.0) * 15;
+                    let period = 1.0 / freq;
+                    if (boss.explosionSoundTimer >= period) {
+                        boss.explosionSoundTimer -= period;
+                        playNote(1800 + (5.0 - boss.explosionCount) * 100, 0.05, 'triangle', 0.05); // distinct beep
+                    }
+                    
+                    if (boss.explosionCount <= 0) {
+                        let exX = boss.explodingTwin === 'main' ? boss.x : boss.twinX;
+                        let exY = boss.explodingTwin === 'main' ? boss.y : boss.twinY;
+                        explosions.push({x: exX, y: exY, radius: 0, maxRadius: 400, life: 1.0}); // 400px explosion
+                        playNote(100, 2.0, 'sawtooth', 0.2);
+                        boss.isExploding = false;
+                    }
+                }
+            }
         }
 
         let isShooting = false;
@@ -1346,11 +1653,17 @@
 
         boss.timer += dt;
         let fireRate = 0.8;
-        if (boss.type === 'crystal_omega' || boss.type === 'origin') fireRate = 0.4; 
+        if (boss.type === 'crystal_omega') fireRate = 0.6; // NERFED B50
+        else if (boss.type === 'crystal_omega_slow' || boss.type === 'origin') fireRate = 0.4; 
         else if (boss.type === 'bullet_hell') fireRate = 0.6;
         else if (boss.type === 'prototype') fireRate = 1.0;
         else if (boss.type === 'green_hive') fireRate = 1.2;
-        else if (boss.type === 'heavy_carrier') fireRate = 0.8 / 1.5;
+        else if (boss.type === 'heavy_carrier') fireRate = (0.8 / 1.5) * 1.8;
+        else if (boss.type === 'crystal_origin') fireRate = 2.0;
+        else if (boss.type === 'laser_core') fireRate = 1.5;
+        else if (boss.type === 'gravity_master') fireRate = 0.8;
+        else if (boss.type === 'illusion_twins') fireRate = 1.0;
+        else if (boss.type === 'bullet_storm') fireRate = 0.15;
         else if (boss.type === 'absolute') {
             boss.absoluteCount = boss.absoluteCount || 0;
             fireRate = boss.absoluteCount >= 10 ? 0.05 : 0.6;
@@ -1406,7 +1719,8 @@
                 }
             } else {
                 boss.timer = 0;
-                playNote(800, 0.08, 'sine', 0.04, 200); 
+                let vol = boss.type === 'gravity_master' ? 0.02 : 0.04;
+                playNote(800, 0.08, 'sine', vol, 200); 
                 
                 if(boss.type === 'fortress') {
                     for(let i=-3; i<=3; i+=1) bossBullets.push({x: boss.x - 60, y: boss.y + i*35, vx: -450 - Math.random()*150, vy: 0, waveTimer: i, isWave: true});
@@ -1474,6 +1788,34 @@
                             }
                         }
                     }
+                } else if(boss.type === 'laser_core') {
+                    let a = Math.atan2(player.y+12 - boss.y, player.x+9 - boss.x);
+                    bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(a)*400, vy: Math.sin(a)*400, bounce: 3});
+                } else if(boss.type === 'gravity_master') {
+                    for(let i=0; i<12; i++) {
+                        let ba = i * Math.PI/6 + globalTime;
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ba)*200, vy: Math.sin(ba)*200, isFloatBullet: true, countdown: 1.0});
+                    }
+                } else if(boss.type === 'illusion_twins') {
+                    if (!boss.mainDead) {
+                        let a1 = Math.atan2(player.y+12 - boss.y, player.x+9 - boss.x);
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(a1)*600, vy: Math.sin(a1)*600});
+                    }
+                    if (!boss.twinDead) {
+                        let a2 = Math.atan2(player.y+12 - boss.twinY, player.x+9 - boss.twinX);
+                        bossBullets.push({x: boss.twinX, y: boss.twinY, vx: Math.cos(a2)*600, vy: Math.sin(a2)*600});
+                    }
+                } else if(boss.type === 'bullet_storm') {
+                    boss.spiralAngle = (boss.spiralAngle || 0) + 0.12;
+                    boss.spiralAngle2 = (boss.spiralAngle2 || 0) - 0.17;
+                    for(let i=0; i<4; i++) {
+                        let a = boss.spiralAngle + i * Math.PI/2;
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(a)*180, vy: Math.sin(a)*180});
+                    }
+                    for(let i=0; i<3; i++) {
+                        let a = boss.spiralAngle2 + i * Math.PI * 2/3;
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(a)*250, vy: Math.sin(a)*250});
+                    }
                 } else if(boss.type === 'absolute') {
                     if (boss.absoluteCount < 10) {
                         let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
@@ -1486,25 +1828,41 @@
                     }
                     boss.absoluteCount++;
                     if (boss.absoluteCount > 110) boss.absoluteCount = 0;
-                } else if(boss.type === 'crystal_omega') {
-                    let baseSpeedMult = isStoryOmega ? 0.25 : 1.0; 
+                } else if(boss.type === 'crystal_origin') {
+                    // Story mode very easy boss
+                    let type = Math.floor(Math.random() * 3);
+                    let speedMult = 0.3;
+                    boss.spiralAngle += 0.1;
+                    if (type === 0) { 
+                        for(let i=0; i<Math.PI*2; i+=0.5) bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(i)*300*speedMult, vy: Math.sin(i)*300*speedMult});
+                    } else if (type === 1) { 
+                        let ang = Math.atan2((player.y+12) - boss.y, (player.x+9) - boss.x);
+                        bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*400*speedMult, vy: Math.sin(ang)*400*speedMult});
+                    } else if (type === 2) { 
+                        for(let i=0; i<8; i++) {
+                            let ang = boss.spiralAngle + (i * Math.PI/4);
+                            bossBullets.push({x: boss.x, y: boss.y, vx: Math.cos(ang)*400*speedMult, vy: Math.sin(ang)*400*speedMult});
+                        }
+                    }
+                } else if(boss.type === 'crystal_omega' || boss.type === 'crystal_omega_slow') {
+                    let isSlow = boss.type === 'crystal_omega_slow';
+                    let baseSpeedMult = isSlow ? 0.25 : 0.6; // NERFED B50 speed from 1.0 to 0.6
                     let type;
                     boss.verticalCooldown = (boss.verticalCooldown || 0) - dt;
-                    if (isStoryOmega) {
+                    
+                    if (isSlow) {
                         let types = [0, 1, 2, 4];
                         type = types[Math.floor(Math.random() * types.length)];
+                    } else if (boss.verticalWaveCount > 0) {
+                        type = 3;
+                        boss.verticalWaveCount--;
+                        if (boss.verticalWaveCount <= 0) boss.verticalCooldown = 10.0;
                     } else {
-                        if (boss.verticalWaveCount > 0) {
-                            type = 3;
-                            boss.verticalWaveCount--;
-                            if (boss.verticalWaveCount <= 0) boss.verticalCooldown = 10.0;
-                        } else {
+                        type = Math.floor(Math.random() * 5); 
+                        while (type === 3 && boss.verticalCooldown > 0) {
                             type = Math.floor(Math.random() * 5); 
-                            while (type === 3 && boss.verticalCooldown > 0) {
-                                type = Math.floor(Math.random() * 5); 
-                            }
-                            if (type === 3) boss.verticalWaveCount = 4;
                         }
+                        if (type === 3) boss.verticalWaveCount = 4;
                     }
                     boss.spiralAngle += 0.15;
                     let speedMult = type === 3 ? baseSpeedMult : baseSpeedMult * 0.75;
@@ -1576,8 +1934,8 @@
             if (b.countdown !== undefined) {
                 b.countdown -= dt;
                 if (b.countdown > 0.5) b.vx *= 0.9;
-                else if (b.countdown > 0 && !b.popped) { b.popped = true; playNote(400, 0.1, 'square'); }
-                else if (b.countdown <= 0 && !b.launched) { b.launched = true; b.vx = (b.vx < 0 ? -1 : 1) * 1500; playNote(800, 0.2, 'sawtooth'); }
+                else if (b.countdown > 0 && !b.popped) { b.popped = true; playNote(400, 0.1, 'sine', 0.04); }
+                else if (b.countdown <= 0 && !b.launched) { b.launched = true; b.vx = (b.vx < 0 ? -1 : 1) * 1500; playNote(800, 0.2, 'sine', 0.04); }
             }
             
             let nextX = b.x + b.vx * dt;
@@ -1586,7 +1944,7 @@
 
             if (b.bounce !== undefined && b.bounce > 0) {
                 for (let w of platforms) {
-                    if (!w.hidden) {
+                    if (true) {
                         if (nextX > w.x && nextX < w.x + w.w && b.y > w.y && b.y < w.y + (w.h||60)) { b.vx *= -1; bounced = true; nextX = b.x + b.vx * dt; }
                         if (b.x > w.x && b.x < w.x + w.w && nextY > w.y && nextY < w.y + (w.h||60)) { b.vy *= -1; bounced = true; nextY = b.y + b.vy * dt; }
                     }
@@ -1600,7 +1958,7 @@
             let hitWall = false;
             if (b.bounce === undefined || b.bounce <= 0) {
                 for (let w of platforms) {
-                    if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+                    if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
                 }
             }
             for (let w of moveableBlocks) {
@@ -1630,26 +1988,44 @@
             let isStealthInvincible = (boss.type === 'stealth' && boss.alpha < 0.5);
             let hitWall = false;
             for (let w of platforms) {
-                if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+                if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
             }
 
-            let hitRadius = boss.type === 'green_hive' ? 100 : 60;
-            if (b.isPlayer && !isStealthInvincible && Math.abs(b.x - boss.x) < hitRadius && Math.abs(b.y - boss.y) < hitRadius) {
-                let damage = 25;
-                if (boss.type === 'absolute') {
-                    let numCores = subCores.filter(c => !c.destroyed).length;
-                    if (numCores > 0) damage = 0; 
+            let hitRadius = (boss.type === 'green_hive') ? 100 : ((boss.type === 'illusion_twins') ? 35 : 60);
+            let hitBoss = false;
+
+            if (b.isPlayer && !isStealthInvincible) {
+                if (boss.type === 'illusion_twins') {
+                    if (!boss.mainDead && Math.abs(b.x - boss.x) < hitRadius && Math.abs(b.y - boss.y) < hitRadius) {
+                        boss.hp -= 25; hitBoss = true;
+                        if (boss.hp <= 0) { boss.hp = 0; boss.mainDead = true; spawnDeathRings(boss.x, boss.y); boss.reviveTimer = 0; }
+                    } else if (!boss.twinDead && Math.abs(b.x - boss.twinX) < hitRadius && Math.abs(b.y - boss.twinY) < hitRadius) {
+                        boss.twinHp -= 25; hitBoss = true;
+                        if (boss.twinHp <= 0) { boss.twinHp = 0; boss.twinDead = true; spawnDeathRings(boss.twinX, boss.twinY); boss.reviveTimer = 0; }
+                    }
+                    if (boss.mainDead && boss.twinDead) { boss.hp = -1; hitBoss = true; } 
+                } else if (Math.abs(b.x - boss.x) < hitRadius && Math.abs(b.y - boss.y) < hitRadius) {
+                    let damage = 25;
+                    if (boss.type === 'absolute') {
+                        let numCores = subCores.filter(c => !c.destroyed).length;
+                        if (numCores > 0) damage = 0; 
+                    }
+                    boss.hp -= damage; hitBoss = true;
                 }
-                boss.hp -= damage; photonBullets.splice(i, 1);
+            }
+
+            if (hitBoss) {
+                photonBullets.splice(i, 1);
                 playNote(100, 0.1, 'square', 0.05);
-                if (boss.hp <= 0) {
+                if ((boss.hp <= 0 && boss.type !== 'illusion_twins') || (boss.type === 'illusion_twins' && boss.mainDead && boss.twinDead)) {
                     photonBullets = []; bossBullets = []; 
-                    if(gameMode === 'story' || boss.type === 'crystal_omega') {
+                    if (gameMode === 'story') {
                         triggerSingularity(); 
                     } else if (gameMode === 'endless') {
                         if (currentEndlessStage >= 50) triggerSingularity();
                         else { currentEndlessStage++; buildLevel(); player.x = 100; player.y = 400; currentState = STATE_PLAYING; }
-                    } else if (gameMode === 'boss_rush') {
+                    } else if (gameMode === 'boss_rush' || gameMode === 'boss_rush_in_a_row') {
+                        if (gameMode === 'boss_rush_in_a_row' && playerLives < maxPlayerLives) playerLives++;
                         bossRushIndex++;
                         startNextBossRush();
                     }
@@ -1794,6 +2170,8 @@
                         if (gameMode === 'story' && mainCores.length === 4 && mainCores.every(core => core.destroyed)) {
                             portalActive = true;
                             startDialogue("主人公", ["すべてのネットワーク中継コアを破壊した！", "これで塔の絶対防衛システムが無効化されたはずだ。", "ここに出現したワープポータルから、一気に白き巨塔へ乗り込み、WCCクリスタルを倒しに行こう！"]);
+                        } else if (gameMode === 'tutorial') {
+                            startDialogue("情報端末", ["お見事です！戦闘訓練を完了しました。", "左上の「ホームに戻る」ボタンからタイトルへ戻り、", "いざストーリーモードやエンドコンテンツへ挑戦してください。"]);
                         }
                     }
                     break;
@@ -1802,7 +2180,7 @@
 
             let hitWall = false;
             for (let w of platforms) {
-                if (!w.hidden && b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
+                if (b.x > w.x && b.x < w.x + w.w && b.y > w.y && b.y < w.y + (w.h || 60)) hitWall = true;
             }
 
             if (hit || hitWall || b.x < camera.x || b.x > camera.x + canvas.width || b.y < camera.y - 100 || b.y > camera.y + 600) photonBullets.splice(i, 1);
@@ -1841,8 +2219,13 @@
                 for (let npc of npcs) if (npc.isClose) { startDialogue(npc.name, npc.getDialogue()); return; }
                 for (let term of terminals) {
                     if (term.isClose) {
-                        if (loopCount === 1) startDialogue("情報端末", ["(データが激しく文字化けしており、何も読み取れない…)"]);
-                        else if (loopCount === 2) {
+                        if (gameMode === 'tutorial') {
+                            if (term.id === "tut1") startDialogue("情報端末", ["「移動とジャンプの基本」\nAキーとDキーで左右に移動できます。Wキーを押すとジャンプし、空中でさらにもう一度Wキーを押すと「2段ジャンプ」が可能です。\nまずはこの先の道を進んでみましょう。"]);
+                            else if (term.id === "tut2") startDialogue("情報端末", ["「探索とシステム設定」\n近づいて「左クリック」することで、情報を読み取ることができます。\nまた、ホーム画面右上にある『設定』ボタンから、移動操作の感度や光弾のスピードを調節可能です。自分に合った設定を探してみてください。"]);
+                            else if (term.id === "tut3") startDialogue("情報端末", ["「戦闘訓練」\nマウスカーソルで狙いを定め、「右クリック」を押すことで固有の攻撃を発動できます。\n物語が進むにつれて強力な『左クリック能力』も解放されます。状況に応じて左右の能力を使い分けて戦いましょう！"]);
+                        } else if (loopCount === 1) {
+                            startDialogue("情報端末", ["(データが激しく文字化けしており、何も読み取れない…)"]);
+                        } else if (loopCount === 2) {
                             if (term.id.startsWith("z1")) startDialogue("情報端末", ["『進化プロジェクト 事前テスト』\n対象者の意識をデータ化し、純白の空間へ転送する。成功率は0.001%以下。"]);
                             else if (term.id.startsWith("z2")) startDialogue("情報端末", ["『進化プロジェクト 廃棄ログ』\n失敗個体は順次、白化結晶ブロックへと分解される。彼らに痛みはない。ただ自我が消滅するだけだ。"]);
                             else if (term.id.startsWith("z3")) startDialogue("情報端末", ["『被検体No.1 経過報告』\n唯一の成功体。彼には足がないが、空を舞い、重力すら無視する。しかし記憶野に重大な損傷あり。"]);
@@ -1932,6 +2315,7 @@
 
     function triggerSingularity() {
         currentState = STATE_ENDING;
+        document.getElementById('home-btn').style.display = 'none';
         if (gameMode === 'story') saveClearFlag('storyClear');
         else if (gameMode === 'endless') { saveClearFlag('endlessClear'); alert("ボスラッシュモードが解放されました！"); checkUnlocks(); }
         else if (gameMode === 'boss_rush') { alert("ボスラッシュ完全制覇！おめでとうございます！"); }
@@ -1959,10 +2343,43 @@
         setTimeout(() => { document.getElementById('whiteout-screen').style.opacity = 0; setTimeout(() => { document.getElementById('whiteout-screen').style.display = 'none'; }, 1300); }, 400);
     }
 
+    function spawnDeathRings(x, y) {
+        for(let i=0; i<8; i++) {
+            let a = i * Math.PI/4;
+            explosions.push({x: x, y: y, radius: 0, maxRadius: 30, life: 1.0, vx: Math.cos(a)*200, vy: Math.sin(a)*200, isRing: true});
+        }
+        playNote(100, 0.5, 'noise', 0.2, 50);
+    }
+
     function triggerGameOver() { 
         if (devInvincible || currentState === STATE_GAMEOVER) return;
         playNote(100, 0.5, 'sawtooth', 0.1, 50); 
-        currentState = STATE_GAMEOVER; document.getElementById('gameover-screen').style.display = 'flex'; 
+        currentState = STATE_GAMEOVER;
+        
+        if (gameMode === 'boss_rush_in_a_row') {
+            playerLives--;
+            updateHUD();
+            if (playerLives <= 0) {
+                document.getElementById('gameover-screen').querySelector('.subtitle').innerText = "残機が0になりました。";
+                document.getElementById('gameover-screen').querySelector('.btn').innerText = "タイトルに戻る";
+                document.getElementById('gameover-screen').querySelector('.btn').onclick = () => {
+                    document.getElementById('gameover-screen').style.display = 'none';
+                    document.getElementById('title-screen').style.display = 'flex';
+                    document.getElementById('home-btn').style.display = 'none';
+                    currentState = STATE_TITLE;
+                };
+            } else {
+                document.getElementById('gameover-screen').querySelector('.subtitle').innerText = `残機が1つ減りました。残り残機: ${playerLives}`;
+                document.getElementById('gameover-screen').querySelector('.btn').innerText = "現在のボスから再開する";
+                document.getElementById('gameover-screen').querySelector('.btn').onclick = restartFromCheckpoint;
+            }
+        } else {
+            document.getElementById('gameover-screen').querySelector('.subtitle').innerText = "トラップ、またはWCCの防衛網に接触し、消滅しました";
+            document.getElementById('gameover-screen').querySelector('.btn').innerText = "直前の安全な場所から再開";
+            document.getElementById('gameover-screen').querySelector('.btn').onclick = restartFromCheckpoint;
+        }
+
+        document.getElementById('gameover-screen').style.display = 'flex'; 
     }
 
     function restartFromCheckpoint() {
@@ -1978,7 +2395,7 @@
             } else {
                 buildLevel();
             }
-        } else if (gameMode === 'boss_rush') {
+        } else if (gameMode === 'boss_rush' || gameMode === 'boss_rush_in_a_row') {
             startNextBossRush();
             return;
         } else {
@@ -1998,17 +2415,44 @@
     }
 
     function render() {
+        if (currentState === STATE_TITLE) {
+            drawTitleBackground();
+            return;
+        }
         if (currentState === STATE_ENDING_ROLL) {
-            ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#000011"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
             ctx.fillStyle = "#ffffff";
-            for(let i=0; i<100; i++) {
-                ctx.fillRect(canvas.width/2 - 50 + Math.sin(i*1.2)*80, canvas.height/2 - 100 + (i*3), 4, 4);
-                ctx.fillRect(canvas.width/2 - 10 + Math.cos(i*0.8)*30, canvas.height/2 - 80 + (i*2), 6, 6);
+            for(let i=0; i<300; i++) {
+                let sx = (i * 1234.5 + globalTime * 50) % canvas.width; 
+                let sy = (i * 5432.1 + globalTime * 20 * (i%3)) % canvas.height;
+                ctx.globalAlpha = (Math.sin(globalTime * 3 + i) * 0.5 + 0.5);
+                ctx.fillRect(sx, sy, (i%3)+1, (i%3)+1);
             }
-            ctx.fillStyle = "#ffffff"; ctx.font = "20px Courier New"; ctx.textAlign = "center";
-            let textY = canvas.height - endingTimer * 60;
+            ctx.globalAlpha = 1.0;
+
+            for(let i=0; i<10; i++) {
+                let x = canvas.width/2 + Math.sin(globalTime + i*0.5)*300;
+                let grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grd.addColorStop(0, `rgba(0, 255, 255, 0.0)`);
+                grd.addColorStop(0.5, `rgba(0, 255, 255, 0.15)`);
+                grd.addColorStop(1, `rgba(0, 255, 255, 0.0)`);
+                ctx.fillStyle = grd;
+                ctx.fillRect(x, 0, 8, canvas.height);
+            }
+
+            ctx.shadowColor = "rgba(255, 255, 255, 0.8)";
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = "#ffffff"; 
+            ctx.font = "bold 28px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"; 
+            ctx.textAlign = "center";
+            let textY = canvas.height - endingTimer * 40;
             ctx.fillText("Originated by raziarta", canvas.width/2, textY);
-            if (endingTimer > 8) ctx.fillText("Thank you for playing", canvas.width/2, canvas.height/2 + 50);
+            if (endingTimer > 8) {
+                ctx.font = "bold 36px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+                ctx.fillText("Thank you for playing", canvas.width/2, canvas.height/2 + 50);
+            }
+            ctx.shadowBlur = 0;
             return;
         }
 
@@ -2241,22 +2685,37 @@
         }
 
         if (currentState === STATE_BOSS_BATTLE) {
-            ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(100, 30, 760, 20);
-            ctx.fillStyle = "#ff00aa"; ctx.fillRect(100, 30, 760 * (boss.hp / boss.maxHp), 20);
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(100, 30, 760, 20);
+            if (boss.type === 'illusion_twins') {
+                ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(100, 30, 360, 20);
+                ctx.fillStyle = "#ff00aa"; ctx.fillRect(100, 30, 360 * (boss.hp / boss.maxHp), 20);
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(100, 30, 360, 20);
+
+                ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(500, 30, 360, 20);
+                ctx.fillStyle = "#00aaff"; ctx.fillRect(500, 30, 360 * (boss.twinHp / boss.twinMaxHp), 20);
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(500, 30, 360, 20);
+            } else {
+                ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(100, 30, 760, 20);
+                ctx.fillStyle = "#ff00aa"; ctx.fillRect(100, 30, 760 * (boss.hp / boss.maxHp), 20);
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(100, 30, 760, 20);
+            }
             
             let bossName = "WCC-R8-D6";
             if(boss.type === 'fortress') bossName = "WCC-B10 [FORTRESS]";
             if(boss.type === 'mobile') bossName = "WCC-M20 [MOBILE]";
             if(boss.type === 'stealth') bossName = "WCC-S30 [STEALTH]";
             if(boss.type === 'bullet_hell') bossName = "WCC-H40 [BULLET HELL]";
-            if(boss.type === 'crystal_omega') bossName = "WCC-Ω [TRUE FORM]";
+            if(boss.type === 'crystal_omega' || boss.type === 'crystal_omega_slow') bossName = "WCC-Ω [TRUE FORM]";
             if(boss.type === 'prototype') bossName = "WCC-R8 [PROTOTYPE]";
             if(boss.type === 'origin') bossName = "WCC-Ω [ORIGIN]";
+            if(boss.type === 'crystal_origin') bossName = "WCC-Ω [ECHO]";
             if(boss.type === 'heavy_carrier') bossName = "WCC-B10 [HEAVY CARRIER]";
             if(boss.type === 'phantom_swarm') bossName = "WCC-S30 [PHANTOM SWARM]";
             if(boss.type === 'green_hive') bossName = "WCC-M20 [GREEN HIVE]";
             if(boss.type === 'absolute') bossName = "WCC-Σ [ABSOLUTE]";
+            if(boss.type === 'laser_core') bossName = "WCC-L10 [LASER CORE]";
+            if(boss.type === 'gravity_master') bossName = "WCC-G20 [GRAVITY MASTER]";
+            if(boss.type === 'illusion_twins') bossName = "WCC-I30 [ILLUSION TWINS]";
+            if(boss.type === 'bullet_storm') bossName = "WCC-H50 [BULLET STORM]";
             ctx.fillStyle = "#ffffff"; ctx.font = "14px monospace"; ctx.textAlign = "left"; ctx.fillText(bossName, 110, 44);
 
             ctx.save();
@@ -2303,13 +2762,74 @@
                 }
                 ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
                 ctx.restore();
-            } else if (boss.type === 'crystal_omega' || boss.type === 'prototype' || boss.type === 'origin') {
+            } else if (boss.type === 'bullet_storm') {
+                ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 25, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 15, 0, Math.PI*2); ctx.fill();
+            } else if (boss.type === 'gravity_master') {
+                ctx.beginPath();
+                for(let i=0; i<3; i++) {
+                    let a = i * Math.PI*2/3 + globalTime;
+                    ctx.lineTo(boss.x + Math.cos(a)*40 - camX, boss.y + Math.sin(a)*40 - camY);
+                }
+                ctx.fill();
+            } else if (boss.type === 'laser_core') {
+                ctx.fillRect(boss.x - 30 - camX, boss.y - 15 - camY, 60, 30);
+            } else if (boss.type === 'illusion_twins') {
+                let blinkAlpha = 0;
+                if (boss.mainDead !== boss.twinDead) {
+                    let freq = 2 + (boss.reviveTimer / 10.0) * 15;
+                    blinkAlpha = 0.5 + 0.5 * Math.sin(boss.reviveTimer * freq * Math.PI);
+                }
+                
+                if (!boss.mainDead) {
+                    ctx.fillStyle = "#ff00aa"; ctx.shadowColor = "#ff00aa";
+                    ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - 30 - camY); ctx.lineTo(boss.x + 20 - camX, boss.y - camY); ctx.lineTo(boss.x - camX, boss.y + 30 - camY); ctx.lineTo(boss.x - 20 - camX, boss.y - camY); ctx.fill();
+                    if (boss.twinDead) {
+                        ctx.fillStyle = `rgba(255,255,255,${blinkAlpha})`;
+                        ctx.shadowColor = `rgba(255,255,255,${blinkAlpha})`;
+                        ctx.fill();
+                    } else if (boss.isExploding && boss.explodingTwin === 'main') {
+                        let freq = 2 + ((5.0 - boss.explosionCount) / 5.0) * 15;
+                        let redAlpha = 0.5 + 0.5 * Math.sin(boss.explosionCount * freq * Math.PI);
+                        ctx.fillStyle = `rgba(255,0,0,${redAlpha})`;
+                        ctx.shadowColor = `rgba(255,0,0,${redAlpha})`;
+                        ctx.fill();
+                    }
+                }
+                if (!boss.twinDead) {
+                    ctx.fillStyle = "#00aaff"; ctx.shadowColor = "#00aaff";
+                    ctx.beginPath(); ctx.moveTo(boss.twinX - camX, boss.twinY - 30 - camY); ctx.lineTo(boss.twinX + 20 - camX, boss.twinY - camY); ctx.lineTo(boss.twinX - camX, boss.twinY + 30 - camY); ctx.lineTo(boss.twinX - 20 - camX, boss.twinY - camY); ctx.fill();
+                    if (boss.mainDead) {
+                        ctx.fillStyle = `rgba(255,255,255,${blinkAlpha})`;
+                        ctx.shadowColor = `rgba(255,255,255,${blinkAlpha})`;
+                        ctx.fill();
+                    } else if (boss.isExploding && boss.explodingTwin === 'twin') {
+                        let freq = 2 + ((5.0 - boss.explosionCount) / 5.0) * 15;
+                        let redAlpha = 0.5 + 0.5 * Math.sin(boss.explosionCount * freq * Math.PI);
+                        ctx.fillStyle = `rgba(255,0,0,${redAlpha})`;
+                        ctx.shadowColor = `rgba(255,0,0,${redAlpha})`;
+                        ctx.fill();
+                    }
+                }
+            } else if (boss.type === 'crystal_omega' || boss.type === 'crystal_omega_slow' || boss.type === 'prototype' || boss.type === 'origin' || boss.type === 'crystal_origin') {
                 ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - 80 - camY); ctx.lineTo(boss.x + 60 - camX, boss.y - camY); ctx.lineTo(boss.x - camX, boss.y + 80 - camY); ctx.lineTo(boss.x - 60 - camX, boss.y - camY); ctx.fill();
                 ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(boss.x - camX, boss.y - camY, 20, 0, Math.PI*2); ctx.fill();
             } else {
                 ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - 50 - camY); ctx.lineTo(boss.x + 40 - camX, boss.y - camY); ctx.lineTo(boss.x - camX, boss.y + 50 - camY); ctx.lineTo(boss.x - 40 - camX, boss.y - camY); ctx.fill();
             }
             ctx.restore();
+
+            if (boss.type === 'laser_core') {
+                ctx.save();
+                ctx.strokeStyle = "rgba(255, 50, 50, 0.8)";
+                ctx.lineWidth = 30; ctx.shadowBlur = 20; ctx.shadowColor = "#ff0000";
+                ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - camY); ctx.lineTo(boss.x + Math.cos(boss.laserAng)*2000 - camX, boss.y + Math.sin(boss.laserAng)*2000 - camY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - camY); ctx.lineTo(boss.x + Math.cos(boss.laserAng + Math.PI)*2000 - camX, boss.y + Math.sin(boss.laserAng + Math.PI)*2000 - camY); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 10;
+                ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - camY); ctx.lineTo(boss.x + Math.cos(boss.laserAng)*2000 - camX, boss.y + Math.sin(boss.laserAng)*2000 - camY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(boss.x - camX, boss.y - camY); ctx.lineTo(boss.x + Math.cos(boss.laserAng + Math.PI)*2000 - camX, boss.y + Math.sin(boss.laserAng + Math.PI)*2000 - camY); ctx.stroke();
+                ctx.restore();
+            }
 
             for(let b of bossBullets) { 
                 if (b.bounce !== undefined && b.bounce > 0) ctx.fillStyle = "#33ff33";
