@@ -31,14 +31,19 @@ var localPlayerParticipation_saved = null;
 var isMatchParticipant = true;
 var playerTeam         = "none";
 var isHostMode         = false;
-var myPeer = null, myPeerId = null;
+var myPeer = null, myPeerId = "offline_player", peer = null;
 var defaultParamsBackup = null;
 var originalModeLight  = null;
+var networkLatency = 0; // レイテンシ補正用
+var lastSettingsSyncTime = 0; // 設定の定期同期タイマー
+var selfSync = { ts: 0, pos: new THREE.Vector3(0, 50, 0), vel: new THREE.Vector3() };
+var activeConns = [];
+var LOBBY_PREFIX = "KINTA3D_WIFI_";
 var lastPlayerStress   = null;
 var lastPlayerLives    = null;
 var remotePlayerParticipation = {};
 var playerSpriteObj = { _spriteRes: null, lastDisplayName: "", lastKills: -1, lastLives: -1, lastStress: -1, lastModeKey: "" };
-var sharedSphereGeom, sharedShadowGeom, stadiumBodies = [], stadiumMeshes = [];
+var sharedSphereGeom, sharedShadowGeom, stadiumBodies = [], stadiumMeshes = [], effects = [];
 var restartTimer = null, resetTimer = null;
 var scene, camera, renderer, world, dirLight, shadowLight;
 var lastTime, frameTime = 1000 / 60;

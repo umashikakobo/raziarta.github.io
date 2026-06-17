@@ -324,8 +324,8 @@ function processCollision(b1, b2, id1, id2) {
                         const ai1 = aiEntities.find(e => e.body === b1); if (ai1) { ai1.lastLives = null; ai1.lastStress = null; }
                         const ai2 = aiEntities.find(e => e.body === b2); if (ai2) { ai2.lastLives = null; ai2.lastStress = null; }
 
-                        if (id1) broadcastEvent({ eventType: 'stat_change', id: id1, stress: b1.stress || 0, lives: b1.lives || 0, given: b1.totalStressGiven || 0 });
-                        if (id2) broadcastEvent({ eventType: 'stat_change', id: id2, stress: b2.stress || 0, lives: b2.lives || 0, given: b2.totalStressGiven || 0 });
+                        if (id1) broadcastEvent({ eventType: 'stat_change', id: id1, stress: b1.stress || 0, lives: b1.lives || 0, given: b1.totalStressGiven || 0, kills: b1.kills || 0 });
+                        if (id2) broadcastEvent({ eventType: 'stat_change', id: id2, stress: b2.stress || 0, lives: b2.lives || 0, given: b2.totalStressGiven || 0, kills: b2.kills || 0 });
                         updateLeaderboard();
                     }
 
@@ -342,7 +342,14 @@ function processCollision(b1, b2, id1, id2) {
                         }
                     });
 
-                    if (Math.abs(vNormal) > 12) createShockwave((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2, nx, ny, nz, Math.abs(vNormal));
+                    if (Math.abs(vNormal) > 12) {
+                        const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2, midZ = (p1.z + p2.z) / 2;
+                        createShockwave(midX, midY, midZ, nx, ny, nz, Math.abs(vNormal));
+                        // ホストなら全員に通知
+                        if (!isClientMode) {
+                            broadcastEvent({ eventType: 'shockwave', x: midX, y: midY, z: midZ, nx: nx, ny: ny, nz: nz, speed: Math.abs(vNormal) });
+                        }
+                    }
                 }
             }
         }

@@ -67,9 +67,22 @@ function destroyEntity(entity, isRemoteDict, id, aiIndex) {
 function updateRemoteEntity(id, pos, vel, color, name, kills, team, isAlive) {
             if (id === myPeerId) {
                 if (isClientMode) {
-                    if (isAlive !== undefined) ballBody.isAlive = isAlive;
-                    if (ballBody.isAlive) { selfSync.pos.set(pos.x, pos.y, pos.z); selfSync.vel.set(vel.x, vel.y, vel.z); selfSync.ts = Date.now(); } else { ballBody.resetPosition(10000, -5000, 0); sphere.position.set(10000, -5000, 0); }
-                    ballBody.kills = kills || 0;
+                    // 自機の生存状態の同期
+                    if (isAlive !== undefined) {
+                        // 高頻度のsyncパケットによる「非表示」への勝手な上書きを防ぐ。
+                        // 生存（true）への復帰は受け入れるが、非表示化はエリミネーション等の確定イベントに任せる。
+                        if (isAlive === true) {
+                            ballBody.isAlive = true;
+                            sphere.visible = true;
+                        }
+                    }
+                    // 自機の同期情報をデバッグ出力（座標が届いているか確認）
+                    if (Math.random() < 0.05) console.debug(`[Sync-Self] ServerPos: ${Math.round(pos.x)}, ${Math.round(pos.z)}`);
+                    selfSync.pos.set(pos.x, pos.y, pos.z); selfSync.vel.set(vel.x, vel.y, vel.z); selfSync.ts = Date.now();
+                    if (kills !== undefined) {
+                        if (ballBody.kills !== kills) console.debug(`[Sync-Self] Kills updated from ${ballBody.kills} to ${kills}`);
+                        ballBody.kills = kills;
+                    }
                 }
                 return;
             }
@@ -80,24 +93,42 @@ function updateRemoteEntity(id, pos, vel, color, name, kills, team, isAlive) {
             }
 
             if (!remoteEntities[id]) {
+                // SYNCパケット（nameがundefined）から新規作成されるのを防ぐ
+                if (name === undefined || name === null) return;
+
                 const isPart = !isCustomMatchActive; 
                 const body = world.add({ type: 'sphere', size: [params.ballRadius], pos: [pos.x, pos.y, pos.z], move: true, isKinematic: isClientMode });
-                body.name = name || "Remote"; body.kills = kills || 0; body.team = team || "none"; body.lives = (isSurvivalMode) ? initialLives : null; body.isAlive = (isAlive !== undefined) ? isAlive : isPart;
+                body.name = (name !== undefined && name !== null) ? name : "Guest"; 
+                body.kills = (kills !== undefined && kills !== null) ? kills : 0; 
+                body.team = team || "none"; 
+                body.isAlive = (isAlive !== undefined) ? isAlive : isPart;
+                body.stress = 0;
+                body.totalStressGiven = 0;
 
-                const mesh = new THREE.Mesh(sharedSphereGeom, createSphereMaterial(meshColor));
+                const mesh = new THREE.Mesh(sharedSphereGeom, createSphereMaterial(meshColor || 0x00F2FF));
                 mesh.castShadow = true;
                 const shadow = createShadow(); scene.add(mesh); scene.add(shadow);
                 remoteEntities[id] = { body, mesh, shadow, _spriteRes: null, lastUpdate: Date.now(), pos: new THREE.Vector3(pos.x, pos.y, pos.z), velocity: new THREE.Vector3(vel.x, vel.y, vel.z), isInputDriven: true, input: { x: 0, z: 0, jump: false }, accel: new THREE.Vector3(0, 0, 0), lastDisplayName: "", lastKills: -1, lastLives: -1, lastStress: -1, lastModeKey: "", isMatchParticipant: isPart };
             }
             const re = remoteEntities[id];
-            re.pos.set(pos.x, pos.y, pos.z); re.velocity.set(vel.x, vel.y, vel.z); re.body.name = name; re.body.kills = kills || 0; re.body.team = team || "none";
+            re.pos.set(pos.x, pos.y, pos.z); 
+            re.velocity.set(vel.x, vel.y, vel.z); 
+            // 受信データがある場合のみ上書きし、undefinedによる初期化を防ぐ
+            if (name !== undefined && name !== null) {
+                re.body.name = name;
+            } else if (!re.body.name) {
+                re.body.name = "Guest";
+            }
+            if (kills !== undefined && kills !== null) re.body.kills = kills;
+            if (team !== undefined && team !== null) re.body.team = team;
             if (isAlive !== undefined) re.body.isAlive = isAlive;
 
-            if (re.mesh.material.color.getHex() !== meshColor) {
+            if (meshColor !== undefined && meshColor !== null && re.mesh.material.color.getHex() !== meshColor) {
                 re.mesh.material.color.setHex(meshColor);
             }
 
             re.lastUpdate = Date.now();
+            re.lastSyncTs = Date.now(); // 補完計算のためにタイムスタンプを更新
             updateLeaderboard();
         }
 
@@ -116,6 +147,7 @@ function broadcastSettings() {
 
             broadcastEvent({
                 type: 'apply_settings',
+                isSync: true, // 同期目的であることを明示
                 isSurvival: isSurvivalMode, isKnockback: isKnockbackMode, isEscalation: isEscalation,
                 escStart: sSpd, escMax: mSpd, isOriginal: isOriginal, lives: initialLives,
                 kbRate: knockbackRate, remoteTeams: remotePlayerTeams,
@@ -139,6 +171,22 @@ function handleFall(body) {
             if (body.lastTouchedBy && body.lastTouchedBy.team !== body.team) {
                 body.lastTouchedBy.kills = (body.lastTouchedBy.kills || 0) + 1;
                 addLog(`${body.lastTouchedBy.name} が ${victimName} を倒した。`);
+                
+                // 加害者の統計を即座にブロードキャスト
+                let killerBody = body.lastTouchedBy;
+                let killerId = (killerBody === ballBody) ? myPeerId : null;
+                if (!killerId) {
+                    let ai = aiEntities.find(e => e.body === killerBody);
+                    if (ai) killerId = ai.id;
+                    else {
+                        for (let rid in remoteEntities) {
+                            if (remoteEntities[rid].body === killerBody) { killerId = rid; break; }
+                        }
+                    }
+                }
+                if (killerId) {
+                    broadcastEvent({ eventType: 'stat_change', id: killerId, stress: killerBody.stress || 0, lives: killerBody.lives || 0, given: killerBody.totalStressGiven || 0, kills: killerBody.kills || 0 });
+                }
             }
             else { addLog(`${victimName} が自滅した。`); }
 
@@ -147,12 +195,13 @@ function handleFall(body) {
             else { if (body.lives > 0) { body.lives--; if (body.lives === 0) eliminated = true; } else { eliminated = true; } }
 
             body.stress = 0;
+            updateLeaderboard();
 
             let fallId = (body === ballBody) ? myPeerId : aiEntities.find(e => e.body === body)?.id;
             if (!fallId) { for (let id in remoteEntities) { if (remoteEntities[id].body === body) fallId = id; } }
 
-            if (fallId && !isClientMode && (isSurvivalMode || isKnockbackMode)) {
-                broadcastEvent({ eventType: 'stat_change', id: fallId, lives: body.lives, stress: body.stress, given: body.totalStressGiven || 0 });
+            if (fallId && !isClientMode) {
+                broadcastEvent({ eventType: 'stat_change', id: fallId, lives: body.lives, stress: body.stress, given: body.totalStressGiven || 0, kills: body.kills || 0 });
                 if (body === ballBody) { playerSpriteObj.lastLives = null; playerSpriteObj.lastStress = null; }
                 else {
                     const ai = aiEntities.find(e => e.id === fallId); if (ai) { ai.lastLives = null; ai.lastStress = null; }
@@ -174,7 +223,7 @@ function handleFall(body) {
                     const respawnP = getRandomPos(); body.resetPosition(respawnP.x, 50, respawnP.z); body.linearVelocity.set(0, 0, 0); body.lastTouchedBy = null; body.isProcessingFall = false;
                     body.stress = 0;
                     if (body === ballBody) { playerSpriteObj.lastLives = null; playerSpriteObj.lastStress = null; }
-                    if (!isClientMode && fallId) broadcastEvent({ type: 'reset_event', id: fallId, pos: respawnP, lives: body.lives, stress: body.stress, given: body.totalStressGiven });
+                    if (!isClientMode && fallId) broadcastEvent({ type: 'reset_event', id: fallId, pos: respawnP, lives: body.lives, stress: body.stress, given: body.totalStressGiven, kills: body.kills || 0 });
                 }, 3000);
             }
             updateLeaderboard();
@@ -226,12 +275,14 @@ function resetSelf() {
             if (isClientMode && hostConn) { hostConn.send(packData({ type: 'request_self_reset' })); return; }
             if (isCustomMatchActive && ballBody.isMatchParticipant === false) return;
 
-            if (!ballBody.isAlive) { ballBody.isAlive = true; sphere.visible = true; }
+            ballBody.isAlive = true;
+            sphere.visible = true;
             const p = getRandomPos(); ballBody.resetPosition(p.x, 50, p.z); ballBody.linearVelocity.set(0, 0, 0); currentAccel.set(0, 0, 0);
             ballBody.kills = 0; ballBody.lastTouchedBy = null; ballBody.lives = initialLives; ballBody.stress = 0; ballBody.totalStressGiven = 0; ballBody.isProcessingFall = false;
             playerSpriteObj.lastLives = null; playerSpriteObj.lastStress = null;
             addLog(`Reset: ${ballBody.name}`);
             if (!isClientMode) broadcastEvent({ type: 'reset_event', id: myPeerId, pos: p, lives: ballBody.lives, stress: ballBody.stress, given: ballBody.totalStressGiven });
+            updateLeaderboard();
         }
 
 

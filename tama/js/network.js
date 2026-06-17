@@ -47,12 +47,26 @@ function setupConn(c) {
                     activeConns.push(c); updatePeerCount();
                     if (isCustomMatchActive) {
                         if (remotePlayerParticipation[c.peer] === undefined) {
-                            remotePlayerParticipation[c.peer] = false;
+                            remotePlayerParticipation[c.peer] = true;
                         }
                         const np = Object.keys(remotePlayerParticipation).filter(id => remotePlayerParticipation[id] === false);
                         const settingsPkt = { type: 'apply_settings', isSurvival: isSurvivalMode, isKnockback: isKnockbackMode, isEscalation: isEscalationMode, lives: initialLives, kbRate: knockbackRate, remoteTeams: remotePlayerTeams, nonParticipants: np };
 
-                        broadcastEvent(settingsPkt);
+                        c.send(packData(settingsPkt)); // 全員ではなく新規接続者のみに直接送信
+
+                        // 新規接続者に現在の全エンティティのメタデータを同期
+                        aiEntities.forEach(ai => {
+                            c.send(packData({ type: 'ai_added', id: ai.id, pos: ai.body.getPosition(), name: ai.body.name, color: ai.color, team: ai.body.team }));
+                            c.send(packData({ type: 'event', eventType: 'stat_change', id: ai.id, kills: ai.body.kills, stress: ai.body.stress, lives: ai.body.lives }));
+                        });
+                        for (let rid in remoteEntities) {
+                            const re = remoteEntities[rid];
+                            if (rid !== c.peer) {
+                                c.send(packData({ type: 'event', eventType: 'name_change', id: rid, name: re.body.name }));
+                                c.send(packData({ type: 'event', eventType: 'stat_change', id: rid, kills: re.body.kills, team: re.body.team }));
+                            }
+                        }
+                        c.send(packData({ type: 'event', eventType: 'name_change', id: myPeerId, name: ballBody.name }));
 
                         if (isEscalationMode) { c.send(packData({ type: 'event', eventType: 'param_update', maxSpeed: params.maxSpeed, accel: params.accel })); }
                     }
@@ -61,10 +75,11 @@ function setupConn(c) {
             c.on('data', rawData => {
                 const data = unpackData(rawData);
                 if (data.type === 'sync') {
+                    // パケットの経過時間を計測（簡易的な時刻同期）
+                    if (data.serverTime) networkLatency = (Date.now() - data.serverTime) / 1000;
+
                     data.entities.forEach(ent => {
                         updateRemoteEntity(ent.id, ent.pos, ent.vel, ent.color, ent.name, ent.kills, ent.team, ent.isAlive);
-                        const re = remoteEntities[ent.id];
-                        if (re && isClientMode) { re.lastSyncPos = { x: ent.pos.x, y: ent.pos.y, z: ent.pos.z }; re.lastSyncVel = { x: ent.vel.x, y: ent.vel.y, z: ent.vel.z }; re.lastSyncTs = Date.now(); }
                     });
                     if (isClientMode) {
                         const serverIds = data.entities.map(e => e.id);
@@ -86,14 +101,17 @@ function setupConn(c) {
                 if (data.type === 'client_update' && !isClientMode) {
                     if (!remoteEntities[c.peer]) { const currentClientName = data.name || "Guest"; updateRemoteEntity(c.peer, { x: 0, y: 50, z: 0 }, { x: 0, y: 0, z: 0 }, 0x00F2FF, currentClientName, 0, "none"); }
                     const re = remoteEntities[c.peer];
-                    if (re && re.isInputDriven && re.body.isAlive) { re.input = { x: data.input.x || 0, z: data.input.z || 0, jump: data.input.jump || false }; if (data.name) re.body.name = data.name; re.lastUpdate = Date.now(); }
+                    if (re && re.isInputDriven && re.body && re.body.isAlive) {
+                        re.input.x = data.input.x || 0; re.input.z = data.input.z || 0; re.input.jump = !!data.input.jump;
+                        if (data.name) re.body.name = data.name; re.lastUpdate = Date.now();
+                    }
                     else if (re && re.isInputDriven) { re.lastUpdate = Date.now(); }
                 }
                 if (!isClientMode) {
                     if (data.type === 'request_all_restart') resetAll();
                     if (data.type === 'request_self_reset') {
                         const re = remoteEntities[c.peer];
-                        if (re && re.body.isAlive) { const p = getRandomPos(); re.body.resetPosition(p.x, 50, p.z); re.body.linearVelocity.set(0, 0, 0); re.accel.set(0, 0, 0); re.body.kills = 0; broadcastEvent({ type: 'reset_event', id: c.peer, pos: p }); }
+                    if (re) { const p = getRandomPos(); re.body.isAlive = true; if(re.mesh) re.mesh.visible = true; re.body.resetPosition(p.x, 50, p.z); re.body.linearVelocity.set(0, 0, 0); re.accel.set(0, 0, 0); re.body.kills = 0; re.body.stress = 0; re.lastLives = null; re.lastStress = null; broadcastEvent({ type: 'reset_event', id: c.peer, pos: p, lives: initialLives, stress: 0, kills: 0 }); updateLeaderboard(); }
                     }
                     if (data.type === 'request_add_ai') addAI();
                     if (data.type === 'request_remove_ai') removeAI();
@@ -127,6 +145,10 @@ function openServerDialog() {
                 peer.on('open', id => {
                     myPeerId = id;
                     const status = document.getElementById('match-status');
+                    if (isClientMode) { // クライアントとして接続した際に自機を確実に表示
+                        ballBody.isAlive = true;
+                        sphere.visible = true;
+                    }
                     if (status) status.innerText = "Searching...";
                     scanForServers(list);
                 });
@@ -146,6 +168,7 @@ function scanForServers(list) {
 
             list.innerHTML = "Scanning WiFi...";
             let count = 0;
+            const maxScan = 30; // 検索範囲を30まで拡大
 
             scanTimer = setInterval(() => {
                 const target = LOBBY_PREFIX + count;
@@ -157,7 +180,9 @@ function scanForServers(list) {
                             item.innerText = `Server ID: ${count}`;
                             item.onclick = () => {
                                 isClientMode = true; hostConn = conn; setupConn(conn);
-                                ballBody.resetPosition(0, -2000, 0);
+                                ballBody.isAlive = true; sphere.visible = true;
+                                ballBody.resetPosition(0, 50, 0); // 谷底ではなくフィールド上にスポーン
+                                resetSelf(); // ホストへ正式なリセットを要求
                                 addLog(`Connected to Server ${count}`);
                                 const status = document.getElementById('match-status');
                                 if (status) status.innerText = "Client (" + count + ")";
@@ -168,7 +193,7 @@ function scanForServers(list) {
                     });
                 }
                 count++;
-                if (count >= 15) {
+                if (count >= maxScan) {
                     clearInterval(scanTimer);
                     scanTimer = null;
                     setTimeout(() => { if (list.innerHTML === "Scanning WiFi...") list.innerHTML = "No server found."; }, 1000);
@@ -212,6 +237,7 @@ function exitGame() {
 
 function handleRemoteEvent(data) {
             if (data.type === 'apply_settings') {
+                const isSync = !!data.isSync;
                 isCustomMatchActive = true; 
                 isSurvivalMode = data.isSurvival; isKnockbackMode = data.isKnockback; initialLives = data.lives; knockbackRate = data.kbRate || 1.0;
                 knockbackExponent = data.kbExp || 2.0;
@@ -224,13 +250,16 @@ function handleRemoteEvent(data) {
                     const escChk = document.getElementById('chk-escalation'); if (escChk) escChk.checked = data.isEscalation;
                 }
 
-                if (data.nonParticipants && data.nonParticipants.includes(myPeerId)) {
+                // 新規開始時のみ残機をリセット、定期同期(isSync)時は現在の値を保持
+                if (!isSync) {
+                    if (data.nonParticipants && data.nonParticipants.includes(myPeerId)) {
                     ballBody.lives = 0; ballBody.stress = 0; ballBody.isAlive = false;
                     ballBody.resetPosition(10000, -5000, 0); sphere.visible = false;
                     ballBody.isMatchParticipant = false;
                 } else {
                     ballBody.lives = initialLives; ballBody.stress = 0; ballBody.isAlive = true; sphere.visible = true;
                     ballBody.isMatchParticipant = true;
+                }
                 }
 
                 if (isClientMode) {
@@ -279,6 +308,7 @@ function handleRemoteEvent(data) {
                     if (playerTeamRangeElement) { playerTeamRangeElement.value = teamNames.indexOf(newTeam); updateTeamLabel(); }
                 }
 
+                if (!isSync) {
                 playerSpriteObj.lastLives = null; playerSpriteObj.lastStress = null;
                 for (let id in remoteEntities) {
                     const isP = !data.nonParticipants || !data.nonParticipants.includes(id);
@@ -303,9 +333,18 @@ function handleRemoteEvent(data) {
                     }
                 }
                 aiEntities.forEach(ai => { ai.body.lives = initialLives; ai.body.stress = 0; ai.lastLives = null; ai.lastStress = null; });
+                }
 
                 if (isClientMode) document.getElementById('main-ctrl-btns').style.display = 'none';
-                if (data.isEscalation) { isEscalationMode = true; startEscalation(data.escStart, data.escMax); } else { isEscalationMode = false; stopEscalation(); }
+                
+                // エスカレーションの同期処理
+                if (data.isEscalation) {
+                    isEscalationMode = true;
+                    // 初回のみ開始処理（タイマー等）を実行し、同期時はパラメータ反映のみに留める
+                    if (!isSync) startEscalation(data.escStart, data.escMax);
+                } else {
+                    isEscalationMode = false; stopEscalation();
+                }
                 updateSpeedStats(); updateLeaderboard(); return;
             }
             if (data.eventType === 'param_update') {
@@ -362,50 +401,50 @@ function handleRemoteEvent(data) {
                 updateLeaderboard(); return;
             }
             if (data.eventType === 'name_change') {
-                if (remoteEntities[data.id]) { const oldName = remoteEntities[data.id].body.name; remoteEntities[data.id].body.name = data.name; addLog(`${oldName} は名前を ${data.name} に変更した。`); if (!isClientMode) broadcastEvent({ type: 'event', eventType: 'name_change', id: data.id, name: data.name }); }
+                let target = getEntityById(data.id);
+                if (target && target.body) {
+                    const oldName = target.body.name;
+                    target.body.name = data.name;
+                    if (oldName && oldName !== "Guest") addLog(`${oldName} は名前を ${data.name} に変更した。`);
+                } else if (isClientMode) {
+                    // エンティティがまだない場合は作成して名前を予約する
+                    updateRemoteEntity(data.id, {x:0, y:50, z:0}, {x:0, y:0, z:0}, 0x00F2FF, data.name, 0, "none", true); // Bug 3: デフォルトカラー
+                }
+                if (!isClientMode) broadcastEvent({ type: 'event', eventType: 'name_change', id: data.id, name: data.name });
             }
             if (data.eventType === 'stat_change') {
                 const newLives = (data.lives !== undefined && data.lives !== -1) ? data.lives : null;
                 const newStress = (typeof data.stress === 'number') ? data.stress : null;
                 const newGiven = (typeof data.given === 'number') ? data.given : null;
+                const newKills = (typeof data.kills === 'number') ? data.kills : null;
 
-                if (data.id === myPeerId) {
-                    if (isClientMode) {
-                        if (newLives !== null) ballBody.lives = newLives;
-                        if (newStress !== null) ballBody.stress = newStress;
-                        if (newGiven !== null) {
-                            if (!ballBody.isAlive && ballBody.lives > 0) {
-                                
-                            } else {
-                                ballBody.totalStressGiven = newGiven;
-                            }
-                        }
-                        playerSpriteObj.lastLives = null; playerSpriteObj.lastStress = null;
-                    }
-                } else {
-                    let target = remoteEntities[data.id]; let isAI = false;
-                    if (!target) { target = aiEntities.find(e => e.id === data.id); isAI = true; }
-                    if (target && target.body) {
-                        if (newLives !== null) target.body.lives = newLives;
-                        if (newStress !== null) target.body.stress = newStress;
-                        if (newGiven !== null) {
-                            if (!target.body.isAlive && target.body.lives > 0) {  }
-                            else { target.body.totalStressGiven = newGiven; }
-                        }
-                        target.lastLives = null; target.lastStress = null;
-                    }
+                let target = getEntityById(data.id);
+                if (target && target.body) {
+                    if (newLives !== null) target.body.lives = newLives;
+                    if (newStress !== null) target.body.stress = newStress;
+                    if (newKills !== null) target.body.kills = newKills;
+                    if (newGiven !== null) target.body.totalStressGiven = newGiven;
+                    
+                    // スプライト情報のキャッシュをクリアして再描画を促す
+                    if (data.id === myPeerId) { playerSpriteObj.lastLives = null; playerSpriteObj.lastStress = null; }
+                    else { target.lastLives = null; target.lastStress = null; }
                 }
                 updateLeaderboard();
+            }
+            if (data.eventType === 'shockwave') {
+                createShockwave(data.x, data.y, data.z, data.nx, data.ny, data.nz, data.speed);
             }
 
             if (data.type === 'reset_event') {
                 const newLives = (typeof data.lives === 'number') ? data.lives : initialLives;
                 const newStress = (typeof data.stress === 'number') ? data.stress : 0;
                 const newGiven = (typeof data.given === 'number') ? data.given : null;
+                const newKills = (typeof data.kills === 'number') ? data.kills : null;
                 if (data.id === myPeerId) {
                     if (isClientMode) {
                         sphere.position.set(data.pos.x, data.pos.y, data.pos.z); ballBody.resetPosition(data.pos.x, data.pos.y, data.pos.z); ballBody.linearVelocity.set(0, 0, 0);
                         ballBody.lives = newLives; ballBody.stress = newStress; ballBody.isAlive = true; ballBody.isProcessingFall = false; sphere.visible = true; selfSync.ts = 0;
+                        if (newKills !== null) ballBody.kills = newKills;
                         if (newGiven !== null) {
                             ballBody.totalStressGiven = newGiven;
                         }
@@ -420,6 +459,9 @@ function handleRemoteEvent(data) {
                             target.body.lives = newLives; target.body.stress = newStress; target.body.isAlive = true;
                             if (newGiven !== null) {
                                 target.body.totalStressGiven = newGiven;
+                            }
+                            if (newKills !== null) {
+                                target.body.kills = newKills;
                             }
                         }
                         if (!isAI) { target.pos.set(data.pos.x, data.pos.y, data.pos.z); target.velocity.set(0, 0, 0); target.mesh.visible = true; } else { target.mesh.visible = true; }

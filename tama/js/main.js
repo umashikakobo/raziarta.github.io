@@ -234,10 +234,6 @@ function getEntityById(id) {
             renderer.setSize(window.innerWidth, window.innerHeight);
             updateCameraPos();
         });
-
-// 実行時変数の初期化
-        let selfSync = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), ts: 0 };
-        const SYNC_RATE = 30;
         lastSyncTime = 0;
         lastSendTime = 0;
 
@@ -398,7 +394,7 @@ sharedSparkGeom = new THREE.BoxGeometry(0.8, 0.8, 0.8);
         ballShadow = createShadow(); scene.add(ballShadow);
 
 aiEntities = []; aiCounter = 0;
-        const effects = [];
+        // global effects array used
 
 
         window.onkeydown = e => {
@@ -409,11 +405,6 @@ aiEntities = []; aiCounter = 0;
         window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
         const currentAccel = new THREE.Vector3(0, 0, 0);
-        const LOBBY_PREFIX = "KINTA3D_WIFI_";
-
-        let peer = null;
-myPeerId = "offline_player";
-        let activeConns = [];
 remoteEntities = {};
         let scanTimer = null;
 
@@ -454,52 +445,91 @@ lastTime = performance.now();
             }
 
             const deltaTime = currentTime - lastTime;
+            const now = Date.now();
+            const remoteEntries = Object.entries(remoteEntities);
             if (deltaTime >= frameTime) {
                 lastTime = currentTime - (deltaTime % frameTime);
-                const now = Date.now();
                 maxSpeedSq = params.maxSpeed * params.maxSpeed;
                 const maxSpeed3  = params.maxSpeed * 3;
-                const remoteEntries = Object.entries(remoteEntities);
+
+                // --- [1] クライアントサイド予測: 入力の読み取りと適用 (常に実行) ---
+                if (ballBody.isAlive) {
+                    _tempVector.set(0, 0, 0);
+                    const targetAccel = _tempVector;
+                    const { x: moveX, z: moveZ } = readMoveInput();
+                    const iv = getInputVector(moveX, moveZ);
+                    targetAccel.x = iv.x * params.accel;
+                    targetAccel.z = iv.z * params.accel;
+
+                    const bPos = ballBody.getPosition();
+                    const pAirMult = (bPos.y < 10.5 || (bPos.y >= 10.5 && (Math.abs(bPos.x) > params.size / 2 || Math.abs(bPos.z) > params.size / 2))) ? 1.0 : 0.8;
+                    currentAccel.x += (targetAccel.x * pAirMult - currentAccel.x) * params.jerk;
+                    currentAccel.z += (targetAccel.z * pAirMult - currentAccel.z) * params.jerk;
+                    
+                    ballBody.linearVelocity.x += currentAccel.x;
+                    ballBody.linearVelocity.z += currentAccel.z;
+
+                    // 速度制限
+                    const bvx = ballBody.linearVelocity.x, bvz = ballBody.linearVelocity.z;
+                    const spd2 = bvx * bvx + bvz * bvz;
+                    if (spd2 > maxSpeedSq && !origSoftcapEnabled) {
+                        _tempHV.set(bvx, bvz); _tempHV.setLength(params.maxSpeed);
+                        ballBody.linearVelocity.x = _tempHV.x; ballBody.linearVelocity.z = _tempHV.y;
+                    }
+                    if (keys[' '] && bPos.y < 15) { ballBody.applyImpulse(bPos, { x: 0, y: 260, z: 0 }); }
+                }
+
+                if (isClientMode) {
+                    // --- [2] クライアント側の補正ロジック ---
+                    const bPosLoc = ballBody.getPosition();
+                    const isFallingLocally = bPosLoc.y < -50; // クライアント側で落下を検知
+
+                    // 落下中はホストからの位置補正を停止し、物理的な落下を優先する（巻き戻り防止）
+                    if (ballBody.isAlive && selfSync.ts > 0 && !isFallingLocally) {
+                        const serverPos = selfSync.pos;
+                        const currentPos = bPosLoc;
+                        
+                        // 補正を少し強めて（0.2）同期のズレを早く解消する
+                        const correctionFactor = 0.20;
+                        const nx = currentPos.x + (serverPos.x - currentPos.x) * correctionFactor;
+                        const ny = currentPos.y + (serverPos.y - currentPos.y) * correctionFactor;
+                        const nz = currentPos.z + (serverPos.z - currentPos.z) * correctionFactor;
+                        
+                        ballBody.resetPosition(nx, ny, nz);
+                        // 速度もサーバーの値と少し混ぜる
+                        ballBody.linearVelocity.x += (selfSync.vel.x - ballBody.linearVelocity.x) * correctionFactor;
+                        ballBody.linearVelocity.z += (selfSync.vel.z - ballBody.linearVelocity.z) * correctionFactor;
+                    }
+                }
+
+                // --- [3] 物理特性の補正 (ホスト・クライアント共通) ---
+                // 予測とサーバーの結果を一致させるため、減衰や速度制限を共通で適用する
+                const physicsTargets = [ballBody];
+                if (!isClientMode) {
+                    aiEntities.forEach(e => physicsTargets.push(e.body));
+                    for (const [, re] of remoteEntries) { if (re.body) physicsTargets.push(re.body); }
+                }
+
+                physicsTargets.forEach(b => {
+                    if (!b || !b.isAlive) return;
+                    // 上昇中のみ微加速（ジャンプの感触調整）
+                    if (b.linearVelocity.y > 0.1) b.linearVelocity.y += 0.5;
+                    // 回転の減衰
+                    b.angularVelocity.x *= 0.95; b.angularVelocity.y *= 0.95; b.angularVelocity.z *= 0.95;
+
+                    // 絶対速度制限
+                    _tempHV.set(b.linearVelocity.x, b.linearVelocity.z);
+                    if (_tempHV.length() > maxSpeed3) {
+                        _tempHV.setLength(maxSpeed3);
+                        b.linearVelocity.x = _tempHV.x; b.linearVelocity.z = _tempHV.y;
+                    }
+                });
+
+                // 死亡時は座標を墓地に固定
+                if (!ballBody.isAlive) { ballBody.resetPosition(10000, -5000, 0); ballBody.linearVelocity.set(0,0,0); }
 
                 if (!isClientMode) {
-                    if (ballBody.isAlive) {
-                        _tempVector.set(0, 0, 0); 
-                        const targetAccel = _tempVector;
-                        const { x: moveX, z: moveZ } = readMoveInput();
-                        const iv = getInputVector(moveX, moveZ);
-                        targetAccel.x = iv.x * params.accel;
-                        targetAccel.z = iv.z * params.accel;
-
-                        const bPos = ballBody.getPosition();
-                        const pAirMult = (bPos.y < 10.5 || (bPos.y >= 10.5 && (Math.abs(bPos.x) > params.size / 2 || Math.abs(bPos.z) > params.size / 2))) ? 1.0 : 0.8;
-                        currentAccel.x += (targetAccel.x * pAirMult - currentAccel.x) * params.jerk;
-                        currentAccel.z += (targetAccel.z * pAirMult - currentAccel.z) * params.jerk;
-                        const bvx = ballBody.linearVelocity.x, bvz = ballBody.linearVelocity.z;
-                        const spd2 = bvx * bvx + bvz * bvz;
-
-                        if (spd2 > maxSpeedSq) {
-                            if (origSoftcapEnabled) {
-                                const dot = currentAccel.x * bvx + currentAccel.z * bvz;
-                                if (dot > 0) { const vLen = Math.sqrt(spd2); const vNx = bvx / vLen, vNz = bvz / vLen; currentAccel.x -= vNx * dot / spd2 * vLen; currentAccel.z -= vNz * dot / spd2 * vLen; }
-                            }
-                        }
-
-                        ballBody.linearVelocity.x += currentAccel.x;
-                        ballBody.linearVelocity.z += currentAccel.z;
-
-                        if (!origSoftcapEnabled) {
-                            const newBvx = ballBody.linearVelocity.x, newBvz = ballBody.linearVelocity.z;
-                            const newSpd2 = newBvx * newBvx + newBvz * newBvz;
-                            if (newSpd2 > maxSpeedSq) {
-                                _tempHV.set(newBvx, newBvz); _tempHV.setLength(params.maxSpeed);
-                                ballBody.linearVelocity.x = _tempHV.x;
-                                ballBody.linearVelocity.z = _tempHV.y;
-                            }
-                        }
-                        if (keys[' '] && bPos.y < 15) { ballBody.applyImpulse(bPos, { x: 0, y: 260, z: 0 }); }
-                    } else { ballBody.resetPosition(10000, -5000, 0); }
-
-                    // AI共通キャッシュ: 全候補ボディとその座標を1回だけ取得し全AIで共有
+                    // --- [4] ホスト専用: AI更新とリモート物理 ---
                     const _aiCandidates = [ballBody];
                     for (let i = 0; i < aiEntities.length; i++) _aiCandidates.push(aiEntities[i].body);
                     for (const [, re] of remoteEntries) { if (re.body) _aiCandidates.push(re.body); }
@@ -543,75 +573,71 @@ lastTime = performance.now();
                             } else { re.body.resetPosition(10000, -5000, 0); }
                         }
                     }
-                    
-                    _allBodies.length = 0;
-                    _allBodies.push(ballBody);
-                    for (let i = 0; i < aiEntities.length; i++) _allBodies.push(aiEntities[i].body);
-                    for (const [id, r] of remoteEntries) { if (r.body) _allBodies.push(r.body); }
-                    for (let i = 0; i < _allBodies.length; i++) {
-                        const b = _allBodies[i];
-                        if (!b.isAlive) continue;
-                        if (b.linearVelocity.y > 0.1) b.linearVelocity.y += 0.5;
-
-                        b.angularVelocity.x *= 0.95;
-                        b.angularVelocity.y *= 0.95;
-                        b.angularVelocity.z *= 0.95;
-
-                        _tempHV.set(b.linearVelocity.x, b.linearVelocity.z);
-                        if (_tempHV.length() > maxSpeed3) { _tempHV.setLength(maxSpeed3); b.linearVelocity.x = _tempHV.x; b.linearVelocity.z = _tempHV.y; }
-                    }
                     handleGlobalCollisions();
-                    world.step();
+                }
 
+                // --- [5] 物理ステップの実行 ---
+                // クライアント側でも実行することで自機の座標が更新されるようになる
+                world.step();
+
+                if (!isClientMode) {
+                    // --- [6] 同期パケットの送信 ---
                     if (now - lastSyncTime >= SYNC_INTERVAL) {
                         const syncData = {
                             type: 'sync', entities: [
-                                { id: myPeerId, pos: { x: ballBody.getPosition().x, y: ballBody.getPosition().y, z: ballBody.getPosition().z }, vel: { x: ballBody.linearVelocity.x, y: ballBody.linearVelocity.y, z: ballBody.linearVelocity.z }, color: sphere.material.color.getHex(), name: ballBody.name, kills: ballBody.kills, team: ballBody.team, isAlive: ballBody.isAlive },
-                                ...aiEntities.map(e => ({ id: e.id, pos: { x: e.body.getPosition().x, y: e.body.getPosition().y, z: e.body.getPosition().z }, vel: { x: e.body.linearVelocity.x, y: e.body.linearVelocity.y, z: e.body.linearVelocity.z }, color: e.color, name: e.body.name, kills: e.body.kills, team: e.body.team, isAlive: e.body.isAlive }))
+                                { id: myPeerId, pos: { x: ballBody.getPosition().x, y: ballBody.getPosition().y, z: ballBody.getPosition().z }, vel: { x: ballBody.linearVelocity.x, y: ballBody.linearVelocity.y, z: ballBody.linearVelocity.z }, isAlive: ballBody.isAlive, name: ballBody.name, team: ballBody.team, color: sphere.material.color.getHex(), kills: ballBody.kills },
+                                ...aiEntities.map(e => ({ id: e.id, pos: { x: e.body.getPosition().x, y: e.body.getPosition().y, z: e.body.getPosition().z }, vel: { x: e.body.linearVelocity.x, y: e.body.linearVelocity.y, z: e.body.linearVelocity.z }, isAlive: e.body.isAlive, name: e.body.name, team: e.body.team, color: e.color, kills: e.body.kills }))
                             ]
                         };
-                        for (const [id, re] of remoteEntries) { if (re.isInputDriven) { syncData.entities.push({ id: id, pos: { x: re.body.getPosition().x, y: re.body.getPosition().y, z: re.body.getPosition().z }, vel: { x: re.body.linearVelocity.x, y: re.body.linearVelocity.y, z: re.body.linearVelocity.z }, color: re.mesh.material.color.getHex(), name: re.body.name, kills: re.body.kills, team: re.body.team, isAlive: re.body.isAlive }); } }
-                        broadcastEvent(syncData); lastSyncTime = now;
+                        for (const [id, re] of remoteEntries) { if (re.isInputDriven) { syncData.entities.push({ id: id, pos: { x: re.body.getPosition().x, y: re.body.getPosition().y, z: re.body.getPosition().z }, vel: { x: re.body.linearVelocity.x, y: re.body.linearVelocity.y, z: re.body.linearVelocity.z }, isAlive: re.body.isAlive, name: re.body.name, team: re.body.team, color: re.mesh.material.color.getHex(), kills: re.body.kills }); } }
+                        broadcastEvent(syncData); 
+                        lastSyncTime = now;
                     }
-                } else {
-                    if (selfSync.ts > 0 && ballBody.isAlive) {
-                        const timeSinceUpdate = (Date.now() - selfSync.ts) / 1000; const predictedPos = selfSync.pos.clone().addScaledVector(selfSync.vel, timeSinceUpdate);
-                        sphere.position.lerp(predictedPos, 0.4); ballBody.resetPosition(sphere.position.x, sphere.position.y, sphere.position.z);
-                        ballBody.linearVelocity.copy(selfSync.vel);
-                        updateShadow(ballShadow, sphere.position);
-                    } else if (!ballBody.isAlive) { sphere.position.set(10000, -5000, 0); ballBody.resetPosition(10000, -5000, 0); }
-                    for (const [id, re] of remoteEntries) {
-                        if (re && re.lastSyncPos && re.lastSyncVel && re.body.isAlive) {
-                            const timeSinceUpdate = (Date.now() - re.lastSyncTs) / 1000; const predictedPos = re.pos.clone().addScaledVector(re.velocity, timeSinceUpdate);
-                            re.mesh.position.lerp(predictedPos, 0.4); re.body.resetPosition(re.mesh.position.x, re.mesh.position.y, re.mesh.position.z); updateShadow(re.shadow, re.mesh.position);
-                        } else if (re && !re.body.isAlive) { re.mesh.position.set(10000, -5000, 0); re.body.resetPosition(10000, -5000, 0); }
-                    }
-                    if (hostConn && hostConn.open) {
-                        if (now - lastSendTime >= SYNC_INTERVAL) {
-                            const targetInput = { x: 0, z: 0, jump: false, name: playerNameEl.value };
-                            if (ballBody.isAlive) {
-                                const { x: moveX, z: moveZ } = readMoveInput();
-                                if (keys[' ']) targetInput.jump = true;
-                                const iv = getInputVector(moveX, moveZ);
-                                targetInput.x = iv.x;
-                                targetInput.z = iv.z;
-                            }
 
-                            hostConn.send(packData({ type: 'client_update', input: targetInput, name: playerNameEl.value }));
-                            lastSendTime = now;
-                        }
+                    if (!isClientMode && isCustomMatchActive && now - lastSettingsSyncTime > 5000) {
+                        broadcastSettings();
+                        lastSettingsSyncTime = now;
                     }
-                    handleClientVisualCollisions();
                 }
+            }
 
+            // 補間処理と描画更新は deltaTime 判定の外で行い、常に滑らかにする
+            if (isClientMode) {
+                for (const [id, re] of remoteEntries) {
+                    if (re.body && re.body.isAlive) {
+                        // 時計のズレの影響を避けるため、受信した座標へ直接Lerpする
+                        const predictedPos = re.pos;
+                        re.mesh.position.lerp(predictedPos, 0.3); 
+                        re.body.resetPosition(re.mesh.position.x, re.mesh.position.y, re.mesh.position.z);
+                        re.mesh.visible = true;
+                        updateShadow(re.shadow, re.mesh.position);
+                    } else { re.mesh.position.set(10000, -5000, 0); re.body.resetPosition(10000, -5000, 0); re.mesh.visible = false; }
+                }
+            }
 
-                if (!isClientMode) { const bp = ballBody.getPosition(); sphere.position.set(bp.x, bp.y, bp.z); updateShadow(ballShadow, sphere.position); }
+            if (isClientMode && hostConn && hostConn.open) {
+                if (now - lastSendTime >= SYNC_INTERVAL) {
+                    const targetInput = { x: 0, z: 0, jump: false, name: playerNameEl.value };
+                    if (ballBody.isAlive) {
+                        const { x: moveX, z: moveZ } = readMoveInput();
+                        if (keys[' ']) targetInput.jump = true;
+                        const iv = getInputVector(moveX, moveZ);
+                        targetInput.x = iv.x; targetInput.z = iv.z;
+                    }
+                    if (targetInput.x !== 0 || targetInput.z !== 0 || targetInput.jump) console.debug(`[Client] Sending Input:`, targetInput);
+                    hostConn.send(packData({ type: 'client_update', input: targetInput, name: playerNameEl.value }));
+                    lastSendTime = now;
+                }
+            }
 
+            // メッシュの位置を物理ボディに同期
+            const bp = ballBody.getPosition();
+            sphere.position.set(bp.x, bp.y, bp.z);
+            sphere.visible = ballBody.isAlive;
+            updateShadow(ballShadow, sphere.position);
 
-                const pName = playerNameEl.value;
-                const currentModeKey = (isSurvivalMode ? 'S' : '') + (isKnockbackMode ? 'K' : '');
-                const currentLivesVal = isSurvivalMode ? ((typeof ballBody.lives !== 'undefined') ? ballBody.lives : initialLives) : -1;
-                const currentStressVal = (isKnockbackMode || ballBody.stress > 0) ? (ballBody.stress || 0) : -1;
+            const pName = playerNameEl.value;
+            const currentStressVal = (isKnockbackMode || ballBody.stress > 0) ? (ballBody.stress || 0) : -1;
 
                 const playerExtra = (isKnockbackMode || currentStressVal > 0)
                     ? `(+${Math.round(Math.max(0, currentStressVal) * 2)}%)` : '';
@@ -629,7 +655,7 @@ lastTime = performance.now();
                     if (sp) { sp.visible = e.body.isAlive; sp.position.set(ep.x, ep.y + 35, ep.z); updateShadow(e.shadow, ep); }
                 });
                 for (const [id, re] of remoteEntries) {
-                    if (Date.now() - re.lastUpdate > 2500) {
+                    if (now - re.lastUpdate > 2500) {
                         destroyEntity(re, true, id);
                         continue;
                     }
@@ -666,7 +692,7 @@ lastTime = performance.now();
                 }
                 
                 // HUD表示データの取得 (自分または観戦対象)
-                const hudId = (!ballBody.isAlive || ballBody.lives <= 0) ? spectatorTargetId : myPeerId;
+                const hudId = (!ballBody.isAlive || ballBody.lives <= 0) ? (spectatorTargetId || myPeerId) : myPeerId;
                 const hudTarget = getEntityById(hudId);
                 if (cameraMode !== 'DEFAULT' && hudTarget && hudTarget.body) {
                     const speed = Math.sqrt(hudTarget.body.linearVelocity.x ** 2 + hudTarget.body.linearVelocity.z ** 2);
@@ -679,8 +705,10 @@ lastTime = performance.now();
                     const kbText = isKnockbackMode ? `｜ＫＢ：${toFullWidth(knockbackRate.toFixed(1))}ｘ` : "";
                     document.getElementById('status-3rd').innerText = `ＬＩＶＥＳ：${toFullWidth(livesVal)}｜ＤＭＧ：${toFullWidth(stressVal)}％${kbText}`;
                 }
-                renderer.render(scene, camera);
-            }
+
+            // 描画とループの予約を条件の外で行い、常に画面を更新する
+            renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
+
         animate();

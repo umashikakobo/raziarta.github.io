@@ -34,7 +34,8 @@ var PKT = {
             SYNC: 0, CLIENT_UPDATE: 1, LOG: 2, APPLY_SETTINGS: 3, STOP_MATCH: 4,
             AI_ADDED: 5, AI_REMOVED: 6, RESET: 7, ELIMINATED: 8, NAME_CHANGE: 9,
             REQ_RESTART: 10, REQ_RESET: 11, REQ_ADD_AI: 12, REQ_REM_AI: 13,
-            STAT_CHANGE: 14, PARAM_UPDATE: 15
+            STAT_CHANGE: 14, PARAM_UPDATE: 15,
+            SHOCKWAVE: 16
         };
-var SYNC_INTERVAL = 50;
+var SYNC_INTERVAL = 16;
 var round2 = function(n){ return Math.round(n * 100) / 100; };

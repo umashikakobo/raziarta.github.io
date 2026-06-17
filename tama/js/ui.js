@@ -89,12 +89,15 @@ function updateSpeedStats() {
             const btn = document.getElementById('zoom-toggle-btn');
             if (isEscalationMode) {
                 el.style.display = "block"; // オートズームボタンは常に非表示のため、ここでは制御しない
+                console.debug(`[Client-UI] Updating Speed Stats (Escalation ON): MAX=${params.maxSpeed.toFixed(1)}, ACC=${params.accel.toFixed(3)}`);
                 el.innerHTML = `MAX: ${params.maxSpeed.toFixed(1)}<br>ACC: ${params.accel.toFixed(3)}`;
             } else {
                 el.style.display = "none"; // オートズームボタンは常に非表示のため、ここでは制御しない
             }
         }
 
+
+let lastLeaderboardHTML = ""; // 前回のリーダーボードHTMLを保存
 
 function updateLeaderboard() {
             const board = document.getElementById('kill-leaderboard'); if (!board) return;
@@ -123,7 +126,11 @@ function updateLeaderboard() {
                 if (!isRP) continue;
                 html += `<div class="kill-row"><span>${toFullWidth(re.body.name)}</span><span>${getSuffix(re.body)}</span></div>`;
             }
+
+            // HTMLの内容に変化がない場合はDOM更新をスキップ（Reflow/Repaintコストの削減）
+            if (html === lastLeaderboardHTML) return;
             board.innerHTML = html;
+            lastLeaderboardHTML = html;
         }
 
 
