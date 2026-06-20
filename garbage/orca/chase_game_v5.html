@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Chase Action - Extreme Narrow & Sharp Curves</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #dddddd; font-family: 'Consolas', monospace; user-select: none; }
+        #hud { position: absolute; top: 10px; left: 10px; color: #0ff; font-weight: bold; font-size: 16px; background: rgba(0,0,0,0.6); padding: 10px; pointer-events: none; text-shadow: 1px 1px 2px #000; z-index: 10; border-radius: 5px;}
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(255, 255, 255, 0.8); transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ff0055; font-size: 40px; font-weight: bold; text-shadow: 2px 2px 5px #000; display: none; z-index: 20; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 10px; border: 2px solid #ff0055; pointer-events: auto; }
+        #btn-restart { margin-top: 20px; padding: 15px 30px; font-size: 24px; font-weight: bold; background: #00ffff; color: #000; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; font-family: 'Consolas', monospace; }
+        #btn-restart:hover { background: #fff; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div id="hud">SPEED: 0<br>DIST: 0m<br>STREAK: 0 / 16<br>KILLS: 0</div>
+    <div id="crosshair"></div>
+    <div id="msg">
+        <span id="msg-text">GAME OVER</span><br>
+        <button id="btn-restart" onclick="location.reload()">RESTART GAME</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/oimo/1.0.9/oimo.min.js"></script>
+
+    <script>
+        // ==========================================
+        // 1. グローバル設定 & 連勝管理
+        // ==========================================
+        const params = { maxSpeed: 320.0, accel: 7.2, jerk: 0.15, friction: 0.0, gravity: 6.2, ballRadius: 12.32, restitution: 0.4 };
+        const keys = { w:false, a:false, s:false, d:false, ' ':false };
+        
+        let winStreak = parseInt(localStorage.getItem('chaseWinStreak') || '0');
+        let killCount = 0;  // AIを落下させた数
+        
+        // gameRunning=入力・判定を受け付ける  sceneRunning=描画・物理・カメラを継続する
+        let gameRunning = true, sceneRunning = true;
+        let camYaw = 0, camPitch = -0.2, isPointerLocked = false;
+        let minCourseY = 0, goalPos = new THREE.Vector3(), playTime = 0;
+        
+        let world, scene, camera, renderer, shadowLight;
+        let playerMesh, playerBody, pAccel = new THREE.Vector3();
+        let enemies = [];
+        const NUM_ENEMIES = 5; 
+        let threatGroup, threatTail, threatZ = 400;
+        let collisionMeshes = [], pillarsData = [], arenaList = [];
+        let arrowGroup;
+
+        // ★ カーブを圧倒的に強くするためのシード値
+        const mapSeed = {
+            fX1: Math.random() * 0.08 + 0.05,
+            fX2: Math.random() * 0.15 + 0.10,  
+            fX3: Math.random() * 0.20 + 0.15,
+            fY:  Math.random() * 0.04 + 0.02,   // 高低差の周波数（増加）
+            fW:  Math.random() * 0.15 + 0.05, 
+            fSq: Math.random() * 0.08 + 0.05, 
+            fSp1: Math.random() * 0.06 + 0.04,
+            fSp2: Math.random() * 0.07 + 0.03,
+            ampX: Math.random() * 1500 + 1200,
+            ampY: Math.random() * 350 + 250,     // 高低差振幅 ±250〜600
+            goalT: Math.floor(Math.random() * 150) + 100,
+            goalRoute: Math.floor(Math.random() * 3)
+        };
+
+        // ヘアピン（折り返し）の挿入セグメント位置を事前に決める
+        const HAIRPIN_AT = new Set();
+        for (let t = 30; t < 370; t += Math.floor(Math.random() * 60) + 40)
+            HAIRPIN_AT.add(t);
+
+        const clock = new THREE.Clock();
+
+        // ==========================================
+        // 2. システム初期化
+        // ==========================================
+        function init() {
+            world = new OIMO.World({ timestep: 1/60, iterations: 8, broadphase: 2, worldscale: 1, random: true, gravity: [0, -params.gravity * 60, 0] });
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xdddddd);
+            
+            camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 20000);
+            scene.add(camera);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.74));
+            let dirLight = new THREE.DirectionalLight(0xffffff, 0.60); dirLight.position.set(200, 400, 200); scene.add(dirLight);
+            
+            shadowLight = new THREE.DirectionalLight(0xffffff, 0.2);
+            shadowLight.castShadow = true;
+            shadowLight.shadow.mapSize.width = 1024; shadowLight.shadow.mapSize.height = 1024;
+            shadowLight.shadow.camera.near = 100; shadowLight.shadow.camera.far = 4000;
+            shadowLight.shadow.camera.left = -1500; shadowLight.shadow.camera.right = 1500;
+            shadowLight.shadow.camera.top = 1500; shadowLight.shadow.camera.bottom = -1500;
+            scene.add(shadowLight);
+
+            setupInputs();
+            buildCourse();
+            createEntities();
+            animate();
+        }
+
+        function setupInputs() {
+            window.addEventListener('keydown', e => { 
+                keys[e.key.toLowerCase()] = true; 
+                if(e.key === ' ' && playerBody.getPosition().y < 2000 && gameRunning) playerBody.applyImpulse(playerBody.getPosition(), { x: 0, y: 260, z: 0 }); 
+            });
+            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            document.body.addEventListener('mousedown', (e) => {
+                if(e.target.tagName === 'BUTTON') return;
+                if(sceneRunning && !isPointerLocked) document.body.requestPointerLock();
+            });
+            document.addEventListener('pointerlockchange', () => { isPointerLocked = (document.pointerLockElement === document.body); });
+            document.addEventListener('mousemove', e => {
+                if (isPointerLocked && sceneRunning) {
+                    camYaw -= e.movementX * 0.002; camPitch -= e.movementY * 0.002;
+                    camPitch = Math.max(-80 * Math.PI/180, Math.min(80 * Math.PI/180, camPitch));
+                }
+            });
+            window.addEventListener('resize', () => { 
+                camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); 
+            });
+        }
+
+        // ==========================================
+        // 3. 地形生成
+        // ==========================================
+
+        // Catmull-Rom スプライン補間（4点から滑らかな曲線を生成）
+        // tは0〜1の補間係数
+        function catmullRom(p0, p1, p2, p3, t) {
+            return 0.5 * (
+                2 * p1 +
+                (-p0 + p2) * t +
+                (2*p0 - 5*p1 + 4*p2 - p3) * t*t +
+                (-p0 + 3*p1 - 3*p2 + p3) * t*t*t
+            );
+        }
+
+        // コース制御点を事前に生成（整数インデックスで引く生の値）
+        const CTRL_STEP = 30; // 制御点間隔（大きいほど緩やかなカーブ）
+        const CTRL_COUNT = 420;
+        const ctrlPts = []; // { x, y, w }
+        for (let i = 0; i < CTRL_COUNT; i++) {
+            ctrlPts.push({
+                x: (Math.sin(i * mapSeed.fX1) + 0.5 * Math.sin(i * mapSeed.fX2) +
+                    0.3 * Math.sin(i * mapSeed.fX3)) * mapSeed.ampX,
+                y: Math.sin(i * mapSeed.fY) * mapSeed.ampY *2 ,  // 高低差を大幅増加
+                w: 130 + Math.sin(i * mapSeed.fW) * 55,
+            });
+        }
+
+        // 制御点配列をCatmull-Romで滑らかに補間して返す
+        // t はセグメント番号（小数OK）
+        function sampleCourse(t) {
+            // 制御点インデックスへ変換
+            const ci = t / CTRL_STEP;
+            const i1 = Math.floor(ci);
+            const frac = ci - i1;
+            const clamp = n => Math.max(0, Math.min(CTRL_COUNT - 1, n));
+            const i0 = clamp(i1 - 1), i2 = clamp(i1 + 1), i3 = clamp(i1 + 2);
+            const c0 = ctrlPts[clamp(i1)], c1 = ctrlPts[i2], c2 = ctrlPts[i3];
+            const cm = ctrlPts[i0];
+            return {
+                x: catmullRom(cm.x, ctrlPts[clamp(i1)].x, c1.x, c2.x, frac),
+                y: catmullRom(cm.y, ctrlPts[clamp(i1)].y, c1.y, c2.y, frac),
+                w: catmullRom(cm.w, ctrlPts[clamp(i1)].w, c1.w, c2.w, frac),
+                z: -t * 50,
+            };
+        }
+
+        // ヘアピン：HAIRPIN_AT に登録されたセグメント付近でX方向を急反転させる
+        // → ゴールが近くても直線では届かず、くるっと回らないと到達できない
+        function hairpinOffset(t) {
+            let offset = 0;
+            for (const h of HAIRPIN_AT) {
+                const dt = t - h;
+                if (Math.abs(dt) < 18)
+                    offset += Math.sin(dt / 18 * Math.PI) * mapSeed.ampX * 1.1;
+            }
+            return offset;
+        }
+
+        // getPath は従来通りの外部インターフェースを維持（routeはサブルート）
+        function getPath(t, route) {
+            const base = sampleCourse(t);
+            base.x += hairpinOffset(t);  // ← ヘアピン適用
+
+            const arenaPhase = Math.sin(t * mapSeed.fSq);
+            const isArena = arenaPhase > 0.6;
+
+            if (isArena) {
+                if (route !== 0) return null;
+                const factor = (arenaPhase - 0.6) / 0.4;
+                return { ...base, w: base.w * (1 - factor) + 1000 * factor, isArena: true };
+            }
+
+            if (route === 0) return { ...base, isArena: false };
+
+            if (route === 1) {
+                const sp = Math.sin(t * mapSeed.fSp1);
+                if (sp > 0.2) {
+                    const sf = (sp - 0.2) / 0.8;
+                    return { ...base, x: base.x + sf * 800 * Math.cos(t * 0.04), w: 100, isArena: false };
+                }
+            } else if (route === 2) {
+                const sp = Math.sin(t * mapSeed.fSp2);
+                if (sp > 0.2) {
+                    const sf = (sp - 0.2) / 0.8;
+                    return { ...base, x: base.x - sf * 800 * Math.cos(t * 0.05), w: 100, isArena: false };
+                }
+            }
+            return null;
+        }
+
+        function buildCourse() {
+            const pillarMat = new THREE.MeshLambertMaterial({ color: 0x2244aa });
+
+            // 高さで床の色を変える（低い=暗茶、高い=青灰）→ 地形の起伏が一目で分かる
+            function floorMat(y) {
+                const t = Math.max(0, Math.min(1, (y + 200) / 700));
+                const col = new THREE.Color(0x5c4033).lerp(new THREE.Color(0x4466aa), t);
+                return new THREE.MeshLambertMaterial({ color: col });
+            }
+
+            let startFloor = new THREE.Mesh(new THREE.BoxGeometry(1200, 100, 1200), floorMat(0));
+            startFloor.position.set(0, -10, 0); 
+            startFloor.receiveShadow = true;
+            scene.add(startFloor);
+            collisionMeshes.push(startFloor);
+            world.add({ type: 'box', size: [1200, 100, 1200], pos: [0, -10, 0], move: false, restitution: params.restitution, friction: 0.0 });
+
+            // Catmull-Rom補間済みパスから400セグメント生成
+            for (let route = 0; route < 3; route++) {
+                for (let i = 0; i < 400; i++) {
+                    let p1 = getPath(i, route);
+                    let p2 = getPath(i + 1, route);
+                    if (!p1 || !p2) continue;
+
+                    let center = new THREE.Vector3(p1.x, p1.y, p1.z).lerp(new THREE.Vector3(p2.x, p2.y, p2.z), 0.5);
+                    let dir = new THREE.Vector3(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+                    let dist = dir.length(); dir.normalize();
+                    let courseWidth = (p1.w + p2.w) / 2;
+                    if (center.y < minCourseY) minCourseY = center.y;
+                    let yaw = Math.atan2(-dir.x, -dir.z);
+                    let pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+
+                    // のり代：幅の0.6倍だけ前後に重ねて継ぎ目をなくす
+                    let boxLength = dist + courseWidth * 0.6;
+
+                    let floor = new THREE.Mesh(new THREE.BoxGeometry(courseWidth, 20, boxLength), floorMat(center.y));
+                    floor.position.copy(center);
+                    floor.rotation.order = "YXZ";
+                    floor.rotation.set(pitch, yaw, 0);
+                    floor.receiveShadow = true;
+                    scene.add(floor);
+                    collisionMeshes.push(floor);
+
+                    let eulerXYZ = new THREE.Euler().setFromQuaternion(floor.quaternion, 'XYZ');
+                    world.add({ 
+                        type: 'box', size: [courseWidth, 20, boxLength], pos: [center.x, center.y, center.z], 
+                        rot: [eulerXYZ.x * 180/Math.PI, eulerXYZ.y * 180/Math.PI, eulerXYZ.z * 180/Math.PI], 
+                        move: false, restitution: params.restitution, friction: 0.0 
+                    });
+
+                    if (route === 0 && p1.isArena && i % 10 === 0) {
+                        arenaList.push(new THREE.Vector3(p1.x, p1.y, p1.z));
+                    }
+
+                    // パーツが倍になったので柱の出現率を半減してバランスを保つ
+                    if (i > 10 && i < 390 && Math.random() < 0.04 && !p1.isArena && !p2.isArena) {
+                        let px = (Math.random() - 0.5) * (courseWidth - 60);
+                        let pillar = new THREE.Mesh(new THREE.BoxGeometry(40, 200, 40), pillarMat);
+                        pillar.position.set(px, 110, 0); 
+                        pillar.position.applyEuler(floor.rotation);
+                        pillar.position.add(floor.position);
+                        pillar.rotation.copy(floor.rotation);
+                        pillar.castShadow = true; pillar.receiveShadow = true;
+                        scene.add(pillar);
+                        collisionMeshes.push(pillar);
+                        pillarsData.push(pillar.position.clone());
+
+                        let pEuler = new THREE.Euler().setFromQuaternion(pillar.quaternion, 'XYZ');
+                        world.add({ 
+                            type: 'box', size: [40, 200, 40], pos: [pillar.position.x, pillar.position.y, pillar.position.z], 
+                            rot: [pEuler.x * 180/Math.PI, pEuler.y * 180/Math.PI, pEuler.z * 180/Math.PI], move: false 
+                        });
+                    }
+                }
+            }
+
+            let gP = getPath(mapSeed.goalT, mapSeed.goalRoute); 
+            if(!gP) gP = getPath(mapSeed.goalT, 0);
+            goalPos.set(gP.x, gP.y, gP.z);
+            const goalMesh = new THREE.Mesh(new THREE.TorusGeometry(80, 8, 16, 50), new THREE.MeshBasicMaterial({color: 0x00ffff}));
+            goalMesh.position.copy(goalPos).add(new THREE.Vector3(0, 80, 0));
+            scene.add(goalMesh);
+
+            arrowGroup = new THREE.Group();
+            let aHead = new THREE.Mesh(
+                new THREE.ConeGeometry(0.8, 1.8, 3), 
+                new THREE.MeshBasicMaterial({color: 0x00ff00, transparent: true, opacity: 0.3, depthTest: false})
+            );
+            aHead.rotation.x = Math.PI / 2; aHead.scale.set(1, 1, 0.05);    
+            arrowGroup.add(aHead); scene.add(arrowGroup); 
+        }
+
+        // ==========================================
+        // 4. キャラクター生成
+        // ==========================================
+        function createEntities() {
+            playerMesh = new THREE.Mesh(new THREE.SphereGeometry(params.ballRadius, 32, 32), new THREE.MeshStandardMaterial({ color: 0xE6B422, metalness: 0.67, roughness: 0.45 }));
+            playerMesh.castShadow = true; scene.add(playerMesh);
+            
+            playerBody = world.add({ type: 'sphere', size: [params.ballRadius], pos: [0, 130, 0], move: true, density: 1, friction: params.friction, restitution: params.restitution });
+
+            for (let i = 0; i < NUM_ENEMIES; i++) {
+                let aiMesh = new THREE.Mesh(new THREE.SphereGeometry(params.ballRadius, 32, 32), new THREE.MeshStandardMaterial({ color: 0xff0033, metalness: 0.8, roughness: 0.2 }));
+                aiMesh.castShadow = true; scene.add(aiMesh);
+                
+                let spawnX = -20 + (i * 20);
+                let spawnZ = -30 - (i * 15);
+                let isWaiting = false;
+
+                if (i > 1 && arenaList.length > 0) {
+                    let arena = arenaList[(i - 2) % arenaList.length];
+                    spawnX = arena.x + (Math.random() - 0.5) * 300;
+                    spawnZ = arena.z + (Math.random() - 0.5) * 100;
+                    isWaiting = true;
+                }
+
+                let aiBody = world.add({ type: 'sphere', size: [params.ballRadius], pos: [spawnX, 130, spawnZ], move: true, density: 1, friction: params.friction, restitution: 0.8 });
+                
+                enemies.push({
+                    mesh: aiMesh, body: aiBody, accel: new THREE.Vector3(),
+                    maxSpeed: params.maxSpeed * (0.95 + Math.random() * 0.15),
+                    isAlive: true, isWaiting: isWaiting, spawnZ: spawnZ,
+                    ramCooldown: 0,  // 体当たりクールダウン（秒）
+                });
+            }
+
+            threatGroup = new THREE.Group();
+            const matBlack = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.2, metalness: 0.8});
+            const matRed = new THREE.MeshStandardMaterial({color: 0xff0033, roughness: 0.3, metalness: 0.1});
+            
+            let uBody = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24, 0, Math.PI*2, 0, Math.PI/2), matBlack); uBody.scale.set(0.9, 1.2, 3.2); 
+            let lBody = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24, 0, Math.PI*2, Math.PI/2, Math.PI/2), matRed); lBody.scale.set(0.9, 0.6, 3.2); 
+            let dFin = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), matBlack); dFin.position.set(0, 1.0, 0.3); dFin.scale.set(0.15, 1.0, 0.6); dFin.rotation.x = -Math.PI/6;
+            threatTail = new THREE.Group(); threatTail.position.set(0, 0, 3.0); 
+            let tFin = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), matBlack); tFin.scale.set(1.8, 0.08, 0.8); tFin.position.set(0, 0, 0.5); threatTail.add(tFin);
+
+            threatGroup.add(uBody, lBody, dFin, threatTail);
+            let glow = new THREE.PointLight(0xff0033, 4.0, 400); glow.position.set(0,2,0); threatGroup.add(glow);
+            threatGroup.scale.setScalar(8.0); scene.add(threatGroup);
+            threatGroup.visible = false; 
+        }
+
+        // ==========================================
+        // 5. ロジック更新 (Update)
+        // ==========================================
+        function updatePlayer() {
+            let moveX = 0, moveZ = 0;
+            if (gameRunning) {
+                if (keys['w']) moveZ -= 1; if (keys['s']) moveZ += 1;
+                if (keys['a']) moveX -= 1; if (keys['d']) moveX += 1;
+            }
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const fX = -Math.sin(camYaw), fZ = -Math.cos(camYaw);
+                const rX = Math.cos(camYaw), rZ = -Math.sin(camYaw);
+                let tx = (-moveZ * fX) + (moveX * rX), tz = (-moveZ * fZ) + (moveX * rZ);
+                const tMag = Math.hypot(tx, tz) || 1;
+                tempVector.set((tx / tMag) * params.accel, 0, (tz / tMag) * params.accel);
+            } else { tempVector.set(0, 0, 0); }
+
+            pAccel.x += (tempVector.x - pAccel.x) * params.jerk; 
+            pAccel.z += (tempVector.z - pAccel.z) * params.jerk;
+            playerBody.linearVelocity.x += pAccel.x; 
+            playerBody.linearVelocity.z += pAccel.z;
+
+            const spdSq = playerBody.linearVelocity.x**2 + playerBody.linearVelocity.z**2;
+            if (spdSq > params.maxSpeed**2) {
+                const ratio = params.maxSpeed / Math.sqrt(spdSq);
+                playerBody.linearVelocity.x *= ratio; 
+                playerBody.linearVelocity.z *= ratio;
+            }
+            playerBody.angularVelocity.x *= 0.95; playerBody.angularVelocity.y *= 0.95; playerBody.angularVelocity.z *= 0.95;
+            
+            const bPos = playerBody.getPosition();
+            playerMesh.position.set(bPos.x, bPos.y, bPos.z); 
+            playerMesh.quaternion.copy(playerBody.getQuaternion());
+            return spdSq;
+        }
+
+        // ==========================================
+        // AI 設定 (数値を変えるだけで挙動調整できる)
+        // ==========================================
+        const AI = {
+            lookAhead:    8,      // 何セグメント先を目標にするか
+            chaseRange: 3000,     // この距離以内でプレイヤーを追う
+            chaseBlend: 0.003,    // 追跡力（大きいほど追いかける）
+            accelRate:    1.2,    // 加速率 (params.accel の倍率)
+            angularDamp:  0.95,   // 回転減衰
+            rayDist:     120,     // 斜めRayの長さ
+            rayAngle:    0.45,    // 斜めRayの角度（ラジアン）
+        };
+
+        // 現在地に最も近いルートのパスを返す
+        function getNearestPath(ax, az) {
+            const t  = -az / 50;
+            const p0 = getPath(t, 0);
+            const p1 = getPath(t, 1);
+            const p2 = getPath(t, 2);
+            let best = p0, bestD = Math.abs(ax - (p0 ? p0.x : 1e9));
+            if (p1 && Math.abs(ax - p1.x) < bestD) { best = p1; bestD = Math.abs(ax - p1.x); }
+            if (p2 && Math.abs(ax - p2.x) < bestD) { best = p2; }
+            return best || p0;
+        }
+
+        // 下向き+斜め4方向のRayで足場を感知する。onFloor=足場あり、safeDir=引き戻すべき水平方向
+        const _aiRay = new THREE.Raycaster();
+        function detectFloor(pos) {
+            const origin = new THREE.Vector3(pos.x, pos.y + 5, pos.z);
+
+            // 真下を確認
+            _aiRay.set(origin, new THREE.Vector3(0, -1, 0));
+            const downHits = _aiRay.intersectObjects(collisionMeshes);
+            if (downHits.length > 0 && downHits[0].distance < 80) {
+                return { onFloor: true, safeDir: null };
+            }
+
+            // 斜め前方4方向を確認して「安全な方向」を探す
+            const dirs = [
+                new THREE.Vector3( 1, -Math.tan(AI.rayAngle), 0).normalize(),
+                new THREE.Vector3(-1, -Math.tan(AI.rayAngle), 0).normalize(),
+                new THREE.Vector3( 0, -Math.tan(AI.rayAngle),  1).normalize(),
+                new THREE.Vector3( 0, -Math.tan(AI.rayAngle), -1).normalize(),
+            ];
+            for (const d of dirs) {
+                _aiRay.set(origin, d);
+                const hits = _aiRay.intersectObjects(collisionMeshes);
+                if (hits.length > 0 && hits[0].distance < AI.rayDist) {
+                    // その方向に床がある → その水平成分を「戻るべき方向」として返す
+                    return { onFloor: false, safeDir: new THREE.Vector3(d.x, 0, d.z).normalize() };
+                }
+            }
+
+            return { onFloor: false, safeDir: null };
+        }
+
+        function updateAI(dt) {
+            const pPos = playerBody.getPosition();
+
+            for (const enemy of enemies) {
+                if (!enemy.isAlive) continue;
+                if (enemy.isWaiting) {
+                    if (Math.abs(pPos.z - enemy.spawnZ) < 1500) enemy.isWaiting = false;
+                    else continue;
+                }
+
+                const aPos = enemy.body.getPosition();
+                const aVel = enemy.body.linearVelocity;
+
+                enemy.ramCooldown = Math.max(0, enemy.ramCooldown - dt);
+
+                // ① 足場をRaycastで感知
+                const { onFloor, safeDir } = detectFloor(aPos);
+
+                // ② 目標点を決める
+                //    足場あり → 先読みしたコース上の点（＋プレイヤーへ少し引き寄せ）
+                //    足場なし → 安全方向のコース中心（先読みなし）
+                let targetX, targetZ;
+                if (onFloor) {
+                    const t = -aPos.z / 50;
+                    const ahead = getPath(t + AI.lookAhead, 0) || getPath(t, 0);
+                    targetX = ahead.x;
+                    targetZ = ahead.z;
+                    // プレイヤー方向へのブレンド（近いほど強く）
+                    const d = Math.hypot(pPos.x - aPos.x, pPos.z - aPos.z);
+                    if (d < AI.chaseRange) {
+                        const w = (1 - d / AI.chaseRange) * AI.chaseBlend * d;
+                        targetX += (pPos.x - aPos.x) * w;
+                        targetZ += (pPos.z - aPos.z) * w;
+                    }
+                } else {
+                    // 足場なし：Rayが見つけた安全方向、なければ数式上のコース中心へ
+                    if (safeDir) {
+                        targetX = aPos.x + safeDir.x * 200;
+                        targetZ = aPos.z + safeDir.z * 200;
+                    } else {
+                        const cp = getNearestPath(aPos.x, aPos.z);
+                        targetX = cp.x;
+                        targetZ = cp.z;
+                    }
+                }
+
+                // ③ 自機と同じaccel+jerkで加速（操作感を統一）
+                const steerX = targetX - aPos.x;
+                const steerZ = targetZ - aPos.z;
+                const sLen = Math.hypot(steerX, steerZ) || 1;
+                const rate = params.accel * AI.accelRate;
+                enemy.accel.x += ((steerX / sLen) * rate - enemy.accel.x) * params.jerk;
+                enemy.accel.z += ((steerZ / sLen) * rate - enemy.accel.z) * params.jerk;
+                aVel.x += enemy.accel.x;
+                aVel.z += enemy.accel.z;
+
+                // ④ 速度制限・回転減衰（自機と同じ）
+                const sp2 = aVel.x ** 2 + aVel.z ** 2;
+                if (sp2 > enemy.maxSpeed ** 2) {
+                    const r = enemy.maxSpeed / Math.sqrt(sp2);
+                    aVel.x *= r; aVel.z *= r;
+                }
+                aVel.x *= 0.995; aVel.z *= 0.995;
+                enemy.body.angularVelocity.x *= AI.angularDamp;
+                enemy.body.angularVelocity.y *= AI.angularDamp;
+                enemy.body.angularVelocity.z *= AI.angularDamp;
+
+                enemy.mesh.position.set(aPos.x, aPos.y, aPos.z);
+                enemy.mesh.quaternion.copy(enemy.body.getQuaternion());
+
+                if (aPos.y < minCourseY - 50) { enemy.isAlive = false; enemy.mesh.visible = false; }
+            }
+
+            // ── 衝突判定：プレイヤー ↔ AI の殴り合い ──
+            const pPos2 = playerBody.getPosition();
+            const pVel  = playerBody.linearVelocity;
+            const pSpd  = Math.hypot(pVel.x, pVel.z);
+
+            for (const enemy of enemies) {
+                if (!enemy.isAlive) continue;
+                const aPos = enemy.body.getPosition();
+                const dist = Math.hypot(pPos2.x - aPos.x, pPos2.y - aPos.y, pPos2.z - aPos.z);
+
+                if (dist < params.ballRadius * 2.4) {
+                    // 衝突法線（AIから見てプレイヤーの逆方向）
+                    const nx = aPos.x - pPos2.x, ny = aPos.y - pPos2.y, nz = aPos.z - pPos2.z;
+                    const nl = Math.hypot(nx, ny, nz) || 1;
+
+                    // プレイヤーが高速で体当たり → AIを吹き飛ばす
+                    if (pSpd > 120 && enemy.ramCooldown <= 0) {
+                        enemy.body.linearVelocity.x += (nx / nl) * pSpd * 0.6;
+                        enemy.body.linearVelocity.y += 80;
+                        enemy.body.linearVelocity.z += (nz / nl) * pSpd * 0.6;
+                        enemy.ramCooldown = 2.5;
+                        // 落下したらキルカウント（落下判定はループ上部で行われる）
+                    }
+
+                    // AIがプレイヤーに当たる → プレイヤーを弾く
+                    const aSpd = Math.hypot(enemy.body.linearVelocity.x, enemy.body.linearVelocity.z);
+                    if (aSpd > 80) {
+                        playerBody.linearVelocity.x -= (nx / nl) * aSpd * 0.35;
+                        playerBody.linearVelocity.z -= (nz / nl) * aSpd * 0.35;
+                    }
+                }
+
+                // killカウント：AIが吹き飛んで落下死した瞬間を検出
+                if (enemy.isAlive && aPos.y < minCourseY - 10) {
+                    killCount++;
+                    enemy.isAlive = false;
+                    enemy.mesh.visible = false;
+                }
+            }
+        }
+
+        // ==========================================
+        // 6. 失敗・クリア判定
+        // ==========================================
+        function failGame(message) {
+            if (!gameRunning) return;
+            gameRunning = false;          // 入力・判定を止める
+            // sceneRunning はそのまま → 画面・物理は動き続ける
+            document.exitPointerLock();
+            localStorage.setItem('chaseWinStreak', '0');
+            document.getElementById('msg-text').innerText = message + "\nSTREAK RESET";
+            document.getElementById('msg-text').style.color = "#ff0055";
+            document.getElementById('msg').style.borderColor = "#ff0055";
+            document.getElementById('msg').style.display = 'block';
+        }
+
+        function clearGame() {
+            if (!gameRunning) return;
+            gameRunning = false;          // 入力・判定を止める
+            // sceneRunning はそのまま → 画面・物理は動き続ける
+            document.exitPointerLock();
+            winStreak++;
+            if (winStreak >= 16) {
+                localStorage.setItem('chaseWinStreak', '0');
+                document.getElementById('msg-text').innerText = "PERFECT CLEAR!!\n16 STREAKS SURVIVED!";
+                document.getElementById('msg-text').style.color = "#ffff00";
+                document.getElementById('msg').style.borderColor = "#ffff00";
+            } else {
+                localStorage.setItem('chaseWinStreak', winStreak.toString());
+                document.getElementById('msg-text').innerText = `STAGE CLEAR!\nSTREAK: ${winStreak} / 16\nKILLS: ${killCount}`;
+                document.getElementById('msg-text').style.color = "#00ffff";
+                document.getElementById('msg').style.borderColor = "#00ffff";
+            }
+            document.getElementById('msg').style.display = 'block';
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const tempVector = new THREE.Vector3();
+
+        // ==========================================
+        // 7. メインループ
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1);
+
+            // 物理・プレイヤー・AI・シャチは常に動かし続ける
+            let spdSq = updatePlayer();
+            updateAI(dt);
+            world.step();
+
+            const bPos = playerBody.getPosition();
+            let distToOrca3D = 9999;
+
+            // シャチ演出（常時）
+            if (playTime < 10.0) {
+                threatZ = bPos.z + 2000;
+            } else {
+                threatGroup.visible = true;
+                distToOrca3D = threatGroup.position.distanceTo(new THREE.Vector3(bPos.x, bPos.y, bPos.z));
+                let chaseSpd = params.maxSpeed * 0.95;
+                if (threatZ - bPos.z > 1200) chaseSpd = 450;
+                else if (distToOrca3D < 150) chaseSpd = Math.max(0, Math.sqrt(spdSq) - 20);
+                threatZ -= chaseSpd * dt;
+                threatGroup.position.x += (bPos.x - threatGroup.position.x) * 0.3 * dt;
+                threatGroup.position.y += (bPos.y - threatGroup.position.y) * 0.3 * dt;
+                threatGroup.position.z = threatZ;
+                threatGroup.lookAt(new THREE.Vector3(bPos.x, bPos.y, bPos.z));
+                const swingPhase = clock.getElapsedTime() * 8.0;
+                threatTail.rotation.x = Math.sin(swingPhase) * 0.3;
+                threatGroup.rotation.x = -Math.sin(swingPhase) * 0.05;
+            }
+
+            // 判定はgameRunning中のみ。ゴールを最優先で確認してから死亡判定
+            if (gameRunning) {
+                playTime += dt;
+                const bVec = new THREE.Vector3(bPos.x, bPos.y, bPos.z);
+                if (bVec.distanceTo(goalPos) < 150)               clearGame();
+                else if (bPos.y < minCourseY - 200)               failGame("FALL OUT");
+                else if (playTime > 10.0 && distToOrca3D < 45)    failGame("SYSTEM PURGED");
+            }
+
+            // HUD更新
+            const bVec = new THREE.Vector3(bPos.x, bPos.y, bPos.z);
+            document.getElementById('hud').innerHTML =
+                `SPEED: ${Math.round(Math.sqrt(spdSq))}<br>` +
+                `DIST: ${Math.max(0, Math.round(bVec.distanceTo(goalPos) / 10))}m<br>` +
+                `STREAK: <span style="color:#0f0;">${winStreak}</span> / 16<br>` +
+                `KILLS: <span style="color:#f80;">${killCount}</span>`;
+
+            // カメラ（常時追従）：少し高く引いて見通し改善
+            const distCam = 80, heightCam = 45;
+            const cosP = Math.cos(camPitch), sinP = Math.sin(camPitch);
+            const cosY = Math.cos(camYaw),   sinY = Math.sin(camYaw);
+            let idealCamPos = new THREE.Vector3(
+                bPos.x + sinY * cosP * distCam,
+                bPos.y + heightCam - sinP * distCam,
+                bPos.z + cosY * cosP * distCam
+            );
+            const origin = new THREE.Vector3(bPos.x, bPos.y + params.ballRadius, bPos.z);
+            const rayDir = new THREE.Vector3().subVectors(idealCamPos, origin);
+            const rayDist = rayDir.length(); rayDir.normalize();
+            raycaster.set(origin, rayDir);
+            const intersects = raycaster.intersectObjects(collisionMeshes);
+            if (intersects.length > 0 && intersects[0].distance < rayDist)
+                idealCamPos.copy(intersects[0].point).addScaledVector(rayDir, -2);
+            camera.position.lerp(idealCamPos, 0.2);
+            camera.lookAt(new THREE.Vector3(
+                bPos.x - sinY * cosP * 20,
+                bPos.y + sinP * 20 + 5,
+                bPos.z - cosY * cosP * 20
+            ));
+
+            // ゴール矢印
+            const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+            arrowGroup.position.copy(camera.position).add(camDir.multiplyScalar(10));
+            arrowGroup.position.y += 2.5;
+            arrowGroup.lookAt(goalPos);
+
+            shadowLight.position.set(bPos.x, bPos.y + 600, bPos.z);
+            shadowLight.target.position.set(bPos.x, bPos.y, bPos.z);
+            shadowLight.target.updateMatrixWorld();
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
