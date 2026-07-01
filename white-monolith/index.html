@@ -2891,7 +2891,7 @@
                             if (pb.hitMinions === undefined) pb.hitMinions = new Set();
                             if (pb.hitMinions.has(m)) continue;
                             
-                            let dmg = (isGonTransformation || pb.isLightning) ? 250 : 50;
+                            let dmg = isGonTransformation ? 250 : (pb.isLightning ? 100 : 50);
                             m.hp -= dmg;
                             pb.hitMinions.add(m);
 
@@ -3921,7 +3921,7 @@
                 if (b.isPlayer && !isStealthInvincible) {
                     let eX = b.isLightning ? 30 : (b.w ? b.w / 2 : 0);
                     let eY = b.isLightning ? 90 : (b.h ? b.h / 2 : 0);
-                    let dmg = (isGonTransformation || b.isLightning) ? 125 : 25;
+                    let dmg = isGonTransformation ? 125 : (b.isLightning ? 50 : 25);
                     if (boss.type === 'illusion_twins') {
                         if (!boss.mainDead && Math.abs(b.x - boss.x) < hitRadius + eX && Math.abs(b.y - boss.y) < hitRadius + eY) {
                             boss.hp -= dmg; hitBoss = true;
@@ -3987,7 +3987,7 @@
                         let eX = b.isLightning ? 30 : (b.w ? b.w / 2 : 0);
                         let eY = b.isLightning ? 90 : (b.h ? b.h / 2 : 0);
                         if (!c.destroyed && Math.abs(b.x - (c.x + c.w / 2)) < c.w / 2 + 10 + eX && Math.abs(b.y - (c.y + c.h / 2)) < c.h / 2 + 10 + eY) {
-                            let dmg = (isGonTransformation || b.isLightning) ? 125 : 25;
+                            let dmg = isGonTransformation ? 125 : (b.isLightning ? 50 : 25);
                             if (c.isGreen || boss.type === 'absolute') c.hp = 0; else c.hp -= dmg;
                             hitSubCore = true; playNote(200, 0.1, 'square', 0.05);
                             if (c.hp <= 0) {
@@ -4097,7 +4097,7 @@
                     let subCoreDistX = c.w / 2 + (b.isLightning ? 40 : (b.w ? b.w / 2 : 10));
                     let subCoreDistY = c.h / 2 + (b.isLightning ? 40 : (b.h ? b.h / 2 : 10));
                     if (!c.destroyed && Math.abs(b.x - (c.x + c.w / 2)) < subCoreDistX && Math.abs(b.y - (c.y + c.h / 2)) < subCoreDistY) {
-                        let dmg = (isGonTransformation || b.isLightning) ? 125 : 25;
+                        let dmg = isGonTransformation ? 125 : (b.isLightning ? 50 : 25);
                         if (c.isGreen) c.hp = 0; else c.hp -= dmg;
                         if (!b.isLightning) hit = true; playNote(200, 0.1, 'square', 0.05);
                         if (c.hp <= 0) {
