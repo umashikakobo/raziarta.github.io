@@ -3,8 +3,6 @@
 // ═══════════════════════════════════════════════════════
 'use strict';
 
-'use strict';
-
 function addHitboxHelper(body, size, type = 'box') {
     const geo = (type === 'sphere')
         ? new THREE.SphereGeometry(size[0], 12, 12)
@@ -154,9 +152,7 @@ function _onKeyUp(e) {
 function _onMouseDown(e) {
     if (e.button === 0 && G.controls.isLocked) G.keys.space = true;
     if (e.button === 2 && G.controls.isLocked) {
-        console.log(`[FIRE] rightclick. raceType=${config.raceType}, currentMode=${G.currentMode}`);
-        if (G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial')) {
-            console.log('[FIRE] Blocked by TIME TRIAL guard.');
+        if (G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial' && G.currentMode !== 'roguelike')) {
             return;
         }
         G.keys.rightClick = true;
@@ -177,7 +173,6 @@ function _onMouseDown(e) {
                 }
                 const now = Date.now();
                 const projCooldown = 500 / (config.projectileRecoveryRate || 1);
-                console.log(`[PROJ] cooldown=${projCooldown.toFixed(0)}ms, elapsed=${(now - G.lastFireTimeProjectile).toFixed(0)}ms, stock=${G.playerProjectileStock.toFixed(2)}`);
                 if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
                     G.lastFireTimeProjectile = now;
                     G.playerProjectileStock -= 1.0;
@@ -191,7 +186,6 @@ function _onMouseDown(e) {
         } else {
             const now = Date.now();
             const projCooldown = 500 / (config.projectileRecoveryRate || 1);
-            console.log(`[PROJ] cooldown=${projCooldown.toFixed(0)}ms, elapsed=${(now - G.lastFireTimeProjectile).toFixed(0)}ms, stock=${G.playerProjectileStock.toFixed(2)}`);
             if (now - G.lastFireTimeProjectile >= projCooldown && G.playerProjectileStock >= 1.0) {
                 requestFire(0);
                 G.lastFireTimeProjectile = now;
@@ -220,14 +214,11 @@ function _onKeyDown(e) {
     if (e.code === 'Space') { e.preventDefault(); G.keys.space = true; }
     if (G.controls.isLocked) {
         if (e.key === 'b' || e.key === 'B' || e.key === 'q' || e.key === 'Q') {
-            console.log(`[FIRE] bubble key. raceType=${config.raceType}, currentMode=${G.currentMode}`);
-            if (G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial')) {
-                console.log('[FIRE] Bubble blocked by TIME TRIAL guard.');
+            if (G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial' && G.currentMode !== 'roguelike')) {
                 return;
             }
             if (!document.getElementById('reward-screen').classList.contains('hidden')) return;
             const now = Date.now();
-            console.log(`[BUBBLE] cooldown=180ms, elapsed=${(now - G.lastFireTimeBubble).toFixed(0)}ms, stock=${G.playerBubbleStock.toFixed(2)}`);
             if (now - G.lastFireTimeBubble >= 180 && G.playerBubbleStock >= 1.0) {
                 G.lastFireTimeBubble = now;
                 G.playerBubbleStock -= 1.0;

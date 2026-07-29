@@ -165,10 +165,8 @@ function addKillLog(killer, victim) {
 window.addKillLog = addKillLog;
 
 function startDeathSequence() {
-    console.log('[DEATH] startDeathSequence called. isDead before:', G.isDead, 'deathTimer:', G.deathTimer);
     G.isDead = true;
     G.deathTimer = 8.0;
-    G._deathDebugFrame = 0; // デバッグカウンタリセット
     G.playerLives = 0;
     G.deathPositionY = G.playerBody.position.y;
 
@@ -190,7 +188,6 @@ function startDeathSequence() {
     if (G.isOnline && !G.isHost) {
         if (!G.myDeaths) G.myDeaths = 0;
         G.myDeaths++;
-        console.log(`[DEBUG] Client reporting death to host. Deaths: ${G.myDeaths}, KilledBy: ${G.lastDamageSourceId}`);
         broadcastEvent(30, {
             peerId: G.myPeerId,
             deaths: G.myDeaths,
@@ -201,7 +198,6 @@ function startDeathSequence() {
         // ホスト自身が死んだ場合はローカルで直接処理
         if (!G.myDeaths) G.myDeaths = 0;
         G.myDeaths++;
-        console.log(`[DEBUG] Host (Self) died. Deaths: ${G.myDeaths}, KilledBy: ${G.lastDamageSourceId}`);
         if (!G.peerStats) G.peerStats = new Map();
         const myId = G.myPeerId;
         if (!G.peerStats.has(myId)) G.peerStats.set(myId, { kills: 0, deaths: 0 });
@@ -274,7 +270,6 @@ function startDeathSequence() {
 }
 
 function respawnPlayer() {
-    console.log('[DEATH] respawnPlayer called. isDead:', G.isDead);
     G.isDead = false;
     if (G.deathTextEl) G.deathTextEl.style.display = 'none';
     // 自機を再表示
@@ -326,6 +321,10 @@ function respawnPlayer() {
         spawnX = 1.5;
         spawnY = 5.0;
         spawnZ = 1.5;
+    } else if (G.currentMode === 'roguelike') {
+        spawnX = typeof ROGUE_AREA !== 'undefined' ? ROGUE_AREA / 2 : 10;
+        spawnY = 2.0;
+        spawnZ = typeof ROGUE_AREA !== 'undefined' ? ROGUE_AREA / 2 : 10;
     } else {
         // [FIXED] 死んだ瞬間の高度を基準に計算する
         const currentY = G.deathPositionY || G.playerBody.position.y;
@@ -562,6 +561,12 @@ window.applyUpgrade = function(index) {
         }
     }
     
+    // ローグライクモードでのコールバック
+    if (typeof RogueState !== 'undefined' && typeof RogueState.afterReward === 'function') {
+        const callback = RogueState.afterReward;
+        RogueState.afterReward = null;
+        callback();
+    }
 }
 
 function showNotification(msg) {
@@ -635,6 +640,25 @@ function initGUI() {
 
     const fDebug = gui.addFolder('Debug');
     fDebug.add(config, 'showHitboxes').name('Show Hitboxes');
+    
+    // 無敵とステージスキップ（ローグライク用）
+    G.isInvincible = G.isInvincible || false;
+    fDebug.add(G, 'isInvincible').name('Invincible');
+
+    const debugActions = {
+        skipStage: () => {
+            if (typeof RogueState !== 'undefined' && RogueState.isActive) {
+                RogueState.enemiesAlive = 0;
+                RogueState.enemies.forEach(e => {
+                    e.alive = false;
+                    if (e.mesh && G.scene) G.scene.remove(e.mesh);
+                    if (e.body && G.world) try { G.world.removeRigidBody(e.body); } catch(err){}
+                });
+                if (typeof checkStageClear === 'function') checkStageClear();
+            }
+        }
+    };
+    fDebug.add(debugActions, 'skipStage').name('Skip Stage');
     
     const testActions = {
         showRandomReward: () => showRewardScreen(),

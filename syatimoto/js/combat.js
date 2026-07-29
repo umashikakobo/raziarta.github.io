@@ -4,7 +4,7 @@
 'use strict';
 
 function requestFire(type) {
-    if (!G.isStarted || G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial')) {
+    if (!G.isStarted || G.isDead || (config.raceType === 'TIME TRIAL' && G.currentMode !== 'tutorial' && G.currentMode !== 'roguelike')) {
         return;
     }
 
@@ -229,7 +229,7 @@ function createBubble(startX, startY, startZ, velX, velY, velZ, owner = null, re
         body = G.world.add({
             type: 'sphere', size: [2], pos: [startX, startY, startZ], move: true,
             belongsTo: BUBBLE_LAYER,
-            collidesWith: 0x1FFFE ^ ownerLayer,
+            collidesWith: (0x1FFFE | (1 << 22)) ^ ownerLayer,
             density: 0.1, friction: 0.1, restitution: 0.5
         });
         body.linearVelocity.set(velX, velY, velZ);
@@ -371,12 +371,6 @@ function updateSoapBubbles(dt = 0.016) {
         const curY = b.body ? b.body.position.y : b.mesh.position.y;
         const traveled = curY - b.spawnY;
         const age = Date.now() - b.spawnTime;
-
-        // [DEBUG-3] シャボン玉の距離・経過時間を確認（1秒に1回程度）
-        if (!b._debugLogTime || Date.now() - b._debugLogTime > 1000) {
-            b._debugLogTime = Date.now();
-            console.log(`[BUBBLE] traveled=${traveled.toFixed(1)}m, age=${(age/1000).toFixed(1)}s, spawnY=${b.spawnY.toFixed(1)}`);
-        }
 
         const tooHigh = traveled > 250;
         const tooOld = age > 55000; // 安全タイムアウト

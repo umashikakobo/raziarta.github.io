@@ -116,6 +116,43 @@ function initAssets() {
         console.log("Flamingo model loaded with scale " + scale + " and animations.");
     });
 
+    G.enemyModels = {};
+    G.enemyModelInfo = {}; // バウンディングボックス情報の保存用
+    const behaviors = [
+        'idle', 'patrol', 'chase', 'shooter', 'horiz', 'vert', 'shield', 'spinner', 'diver', 'zpatrol',
+        'bouncer', 'dasher', 'santabomber', 'vertsantabomber', 'orbitshield', 'sniper', '3dcharge', 'ychaser4way',
+        'yspinner', 'diver8way', '3wayslowbomber', 'bossstage8', 'bossstage16', 'bossstage24', 'bossstage32'
+    ];
+    behaviors.forEach(b => {
+        G.loader.load(`model/${b}.glb`, (gltf) => {
+            const model = gltf.scene;
+            
+            // 下手にいじらず、モデルのローカル座標系はそのままにする
+            // 代わりに当たり判定用にバウンディングボックスのサイズと中心座標を記録しておく
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3()); // ワールド座標（この時点では(0,0,0)基準のローカルオフセットと同義）
+            
+            G.enemyModelInfo[b] = { size, center };
+            G.enemyModels[b] = model;
+            
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    if (node.material) {
+                        node.material.stencilWrite = true;
+                        node.material.stencilRef = 1;
+                        node.material.stencilFunc = THREE.AlwaysStencilFunc;
+                        node.material.stencilZPass = THREE.ReplaceStencilOp;
+                    }
+                }
+            });
+        }, undefined, (error) => {
+            // console.warn(`Enemy model not found at model/${b}.glb. Falling back to procedural box.`);
+        });
+    });
+
     // ── シャボン玉モデル ──
     const bubbleBakedTex = G.textureLoader.load('texture/baketexture.png', (tex) => {
         if (G.renderer) tex.anisotropy = G.renderer.capabilities.getMaxAnisotropy();
@@ -172,6 +209,26 @@ function initAssets() {
         bottomMat,        // -Y (下面)
         sideMat, sideMat  // +Z, -Z
     ];
+
+    // ── GLBモデルでの上書き試行（外部GLB拡張） ──
+    // loadingManagerを使用しているため、ロード完了または失敗するまでゲームは開始されません。
+    const loadGeoOverride = (path, geoKey) => {
+        G.loader.load(path, (gltf) => {
+            gltf.scene.traverse((node) => {
+                if (node.isMesh && node.geometry) {
+                    G[geoKey] = node.geometry;
+                }
+            });
+            console.log(`Loaded ${path} for ${geoKey}`);
+        }, undefined, (err) => {
+            console.warn(`${path} not found. Using procedural fallback for ${geoKey}.`);
+        });
+    };
+
+    loadGeoOverride('model/block.glb', 'sharedBlockGeo');
+    loadGeoOverride('model/projectile.glb', 'sharedProjectileGeo');
+    loadGeoOverride('model/needle.glb', 'sharedNeedleGeo');
+    loadGeoOverride('model/explosion.glb', 'sharedExplosionGeo');
 }
 
 // ── ユーティリティ: プレイヤーモデルの複製と色変更 ──
@@ -190,17 +247,18 @@ function clonePlayerModel(color) {
 }
 
 // ── ユーティリティ: Xray メッシュの追加 ──
-function addXrayMeshToModel(model, color) {
-    if (!G.playerModel) return;
+function addXrayMeshToModel(model, color, baseMesh = G.playerModel) {
+    if (!baseMesh) return;
     const xrayMat = new THREE.MeshBasicMaterial({
         color: color, transparent: true, opacity: 0.5,
         depthFunc: THREE.GreaterDepth, depthWrite: false,
         stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc
     });
-    const xrayMesh = G.playerModel.clone();
+    const xrayMesh = baseMesh.clone();
     xrayMesh.name = "XRAY";
     xrayMesh.renderOrder = 999;
-    xrayMesh.scale.set(1, 1, 1);
+    // スケールは baseMesh のまま維持する
+    xrayMesh.scale.copy(baseMesh.scale);
     xrayMesh.traverse(n => {
         if (n.isMesh) {
             n.material = xrayMat;

@@ -178,7 +178,6 @@ const G = {
     airEl: null,
     entityListEl: null,
     logicAccumulator: 0,
-    lastAnimTime: 0,
 
     // Time Trial / Ghost
     frameCount: 0,

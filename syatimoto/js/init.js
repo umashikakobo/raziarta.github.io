@@ -73,6 +73,7 @@ function resetToHome() {
     const elHome = document.getElementById('home-button'); if (elHome) elHome.classList.add('hidden');
     const elTutUI = document.getElementById('tutorial-ui'); if (elTutUI) elTutUI.classList.add('hidden');
     const elMpUI = document.getElementById('multiplayer-ui'); if (elMpUI) elMpUI.classList.remove('hidden');
+    const elRogueHud = document.getElementById('rogue-hud'); if (elRogueHud) elRogueHud.classList.add('hidden');
     const btnMain = document.getElementById('btn-main'); if (btnMain) btnMain.style.display = 'block';
     const btnTut = document.getElementById('btn-tutorial'); if (btnTut) btnTut.style.display = 'block';
 
@@ -94,14 +95,14 @@ function resetToHome() {
     G.walls.length = 0;
     G.warningTapes.length = 0;
     G.hitboxHelpers.length = 0;
-    G.projectiles.forEach(p => { G.scene.remove(p.mesh); });
+    G.projectiles.forEach(p => { if (G.scene && p.mesh) G.scene.remove(p.mesh); });
     G.projectiles.length = 0;
     G.bubbles.length = 0;
-    G.explosions.forEach(exp => { G.scene.remove(exp.mesh); });
+    G.explosions.forEach(exp => { if (G.scene) G.scene.remove(exp.mesh); });
     G.explosions.length = 0;
-    G.projectilePool.forEach(m => G.scene.remove(m)); G.projectilePool.length = 0;
-    G.bubblePool.forEach(m => G.scene.remove(m)); G.bubblePool.length = 0;
-    G.explosionPool.forEach(m => G.scene.remove(m)); G.explosionPool.length = 0;
+    G.projectilePool.forEach(m => { if (G.scene) G.scene.remove(m); }); G.projectilePool.length = 0;
+    G.bubblePool.forEach(m => { if (G.scene) G.scene.remove(m); }); G.bubblePool.length = 0;
+    G.explosionPool.forEach(m => { if (G.scene) G.scene.remove(m); }); G.explosionPool.length = 0;
     G.netObjects.forEach((mesh) => { if (G.scene) G.scene.remove(mesh); });
     G.netObjects.clear();
     // ネットワークプレイヤーのメッシュもシーンから削除してクリア（再接続時に再生成される）
@@ -129,6 +130,7 @@ function resetToHome() {
     G.startTime = 0;
     G.lapTimes = [];
     resetConfigToDefaults();
+    if (typeof resetRoguelike === 'function') resetRoguelike();
     if (typeof updateAmmoHUD === 'function') updateAmmoHUD();
     if (window.startMenuOcean) window.startMenuOcean();
 }
@@ -230,6 +232,18 @@ function init() {
             G.entities.forEach((ent, idx) => { ent.body.resetPosition(1.5 + idx * 0.5, 5.0, 1.5); }); 
         }, 100);
         document.getElementById('start-screen').style.display = 'none';
+    } else if (G.currentMode === 'roguelike') {
+        // ローグライクモード: 20x20フラット地形
+        createFloor(ROGUE_AREA, ROGUE_AREA);
+        initTapes(ROGUE_AREA, ROGUE_AREA);
+        buildRoguelikeMap();
+        createInvisibleWalls(ROGUE_AREA, ROGUE_AREA);
+        if (G.playerBody) G.playerBody.resetPosition(ROGUE_AREA / 2, 2.0, ROGUE_AREA / 2);
+        setTimeout(() => {
+            if (G.playerBody) G.playerBody.resetPosition(ROGUE_AREA / 2, 2.0, ROGUE_AREA / 2);
+        }, 100);
+        document.getElementById('start-screen').style.display = 'none';
+        startRoguelike();
     } else {
         createFloor(config.areaSize, config.areaSize);
         initTapes(config.areaSize, config.areaSize);

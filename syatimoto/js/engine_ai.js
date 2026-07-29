@@ -534,6 +534,24 @@ function animateProjectiles(dt) {
                     });
                 }
                 if (!hitEB) G.entities.forEach(e => { if (e.body && e.body !== p.ownerBody && gDS(e.body, cPos) < rSq) hitEB = e.body; });
+                // ローグライク敵の弾丸衡突判定
+                if (!hitEB && typeof RogueState !== 'undefined' && RogueState.isActive) {
+                    for (let ri = 0; ri < RogueState.enemies.length; ri++) {
+                        const re = RogueState.enemies[ri];
+                        if (re.alive && re.body) {
+                            const eRad = (re.type === 'bossstage8') ? 0.6 : 0.4;
+                            if (re.body !== p.ownerBody && gDS(re.body, cPos) < Math.pow(cr + eRad, 2)) { hitEB = re.body; break; }
+                            
+                            // 物理ボディを持つシールド軌道等も判定に含める
+                            if (re.orbiters) {
+                                for (let oi = 0; oi < re.orbiters.length; oi++) {
+                                    if (gDS(re.orbiters[oi].body, cPos) < Math.pow(cr + 0.3, 2)) { hitEB = re.orbiters[oi].body; break; }
+                                }
+                            }
+                            if (hitEB) break;
+                        }
+                    }
+                }
                 
                 if (!hitEB) { 
                     const bhr = (2.5 + 0.15) ** 2; 
@@ -673,6 +691,11 @@ function animateProjectiles(dt) {
                         }
                     }
                 });
+
+                // ローグライク敵へのダメージ
+                if (typeof damageRogueEnemy === 'function') {
+                    damageRogueEnemy(p._hitBody, p);
+                }
             }
             if (exploded && typeof createExplosion === 'function') createExplosion(p.position.x, p.position.y, p.position.z);
             if (G.isHost && p.netId != null) broadcastEvent(13, { netId: p.netId, type: 0, x: p.position.x, y: p.position.y, z: p.position.z });

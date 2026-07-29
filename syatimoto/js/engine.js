@@ -92,6 +92,12 @@ function updateFixedLogic(dt) {
                             }
                         });
 
+                        // 1b. ローグライク敵判定
+                        if (typeof damageRogueEnemy === 'function') {
+                            const bPos = b.body ? b.body.position : b.mesh.position;
+                            damageRogueEnemy(other, bPos);
+                        }
+
                         // 2. 自機判定
                         if (other === G.playerBody) {
                             takeDamage(b.props ? b.props.damage : config.damageBubble, b.ownerId || resolveName(b.ownerBody));
@@ -107,11 +113,6 @@ function updateFixedLogic(dt) {
     // 死亡処理（タイマー更新と物理停止）
     if (G.isDead) {
         G.deathTimer -= dt;
-        if (!G._deathDebugFrame) G._deathDebugFrame = 0;
-        G._deathDebugFrame++;
-        if (G._deathDebugFrame % 30 === 0) {
-            console.log(`[DEATH] timer=${G.deathTimer.toFixed(3)}, isDead=${G.isDead}`);
-        }
         if (G.deathTimer <= 0) {
             respawnPlayer();
         } else if (G.deathTextEl) {
@@ -232,9 +233,14 @@ function updateFixedLogic(dt) {
     // AI行動ループ
     animateAI(dt);
 
+    // ローグライク敵更新
+    if (G.currentMode === 'roguelike' && typeof updateRogueEnemies === 'function') {
+        updateRogueEnemies(dt);
+    }
+
     // チャンク生成
     while (G.nextChunkY < highestY + 150) {
-        if (G.currentMode==='tutorial') break;
+        if (G.currentMode==='tutorial' || G.currentMode==='roguelike') break;
         if (G.nextChunkY>=config.goalHeight) break;
         G.nextChunkY+=CHUNK;
         if (G.nextChunkY<=config.goalHeight) generateChunk(G.nextChunkY);
@@ -429,7 +435,9 @@ function updateFixedLogic(dt) {
     // 落下リセット
     if (pos.y<-10) {
         let sx,sz,sy;
-        if (G.currentMode==='tutorial') { sx=1.5;sz=1.5;sy=5.0; } else { sx=config.areaSize/2+0.5;sz=config.areaSize/2+0.5;sy=0.25; }
+        if (G.currentMode==='tutorial') { sx=1.5;sz=1.5;sy=5.0; }
+        else if (G.currentMode==='roguelike') { sx=ROGUE_AREA/2;sz=ROGUE_AREA/2;sy=2.0; }
+        else { sx=config.areaSize/2+0.5;sz=config.areaSize/2+0.5;sy=0.25; }
         G.playerBody.resetPosition(sx,sy,sz); vel.x=vel.y=vel.z=0;
     }
 

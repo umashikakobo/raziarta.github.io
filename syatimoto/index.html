@@ -244,6 +244,10 @@
             </div>
         </div>
         <div id="air-indicator" class="hidden">・ AIR JUMP READY</div>
+        <div id="rogue-hud" class="hidden" style="position:absolute; top:20px; right:20px; background:rgba(10,15,25,0.8); border:1px solid rgba(100,180,255,0.3); border-radius:6px; padding:12px 18px; color:#fff; font-family:'Courier New',monospace; font-weight:700; letter-spacing:1px; pointer-events:none; z-index:100; text-shadow:1px 1px 2px rgba(0,0,0,0.5);">
+            <div id="rogue-stage" style="font-size:16px; color:#64b4ff; margin-bottom:6px;">STAGE 1 / 32</div>
+            <div id="rogue-enemies" style="font-size:13px; color:#f0f0f0;">ENEMIES: 3</div>
+        </div>
         <div id="active-upgrades" style="position: absolute; bottom: 30px; left: 30px; font-size: 13px; color: rgba(255,255,255,0.7); font-family: 'Courier New', monospace; text-align: left; line-height: 1.5; letter-spacing: 1px; pointer-events: none; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
             <div id="upg-move">MOVE: ---</div>
             <div id="upg-proj">PROJ: ---</div>
@@ -344,6 +348,15 @@
             <button id="btn-online"><span>ONLINE</span></button>
             <button id="btn-options"><span>OPTIONS</span></button>
             <button id="btn-records"><span>RECORDS</span></button>
+        </div>
+        <div id="training-submenu" style="margin-top: 10px; background: transparent; width: 500px; display: none;">
+            <div style="color: #666; font-size: 10px; margin-bottom: 12px; letter-spacing: 1.5px; font-weight: 800; border-left: 2px solid #0ea5e9; padding-left: 8px;">TRAINING MODE</div>
+            <div id="training-row-0" class="setting-row" style="cursor:pointer;" onmouseenter="setTrainingIdx(0)" onclick="clickTrainingAction()">
+                <div class="setting-label-plate" style="width:500px;"><span>START TUTORIAL</span><div class="setting-arrow-group"><span class="setting-arrow">▶</span></div></div>
+            </div>
+            <div id="training-row-1" class="setting-row" style="cursor:pointer;" onmouseenter="setTrainingIdx(1)" onclick="clickTrainingAction()">
+                <div class="setting-label-plate" style="width:500px;"><span>PRACTICE</span><div class="setting-arrow-group"><span class="setting-arrow">▶</span></div></div>
+            </div>
         </div>
         <div id="main-settings" style="margin-top: 10px; background: transparent; width: 500px;">
             <div style="color: #666; font-size: 10px; margin-bottom: 12px; letter-spacing: 1.5px; font-weight: 800; border-left: 2px solid #0ea5e9; padding-left: 8px;">MAIN ASCENT SETUP</div>
@@ -454,6 +467,7 @@
     <script src="js/ai.js"></script>         <!-- AI生成 -->
     <script src="js/map.js"></script>        <!-- マップ・ブロック・膜 -->
     <script src="js/combat.js"></script>     <!-- 射撃・シャボン玉 -->
+    <script src="js/roguelike.js"></script>  <!-- ローグライクモード -->
     <script src="js/ghost.js"></script>      <!-- タイムトライアル・ゴースト -->
     <script src="js/network.js"></script>    <!-- マルチプレイ -->
     <script src="js/records.js"></script>    <!-- 記録保存 -->
@@ -479,7 +493,44 @@
         const optionsDefs = [
             { key: 'brightness', label: 'BRIGHTNESS', min: 0.01, max: 2.00, step: 0.01, value: 0.46 },
             { key: 'mouseSensitivity', label: 'MOUSE SENSITIVITY', min: 0.01, max: 3.0, step: 0.01, value: config.mouseSensitivity !== undefined ? config.mouseSensitivity : 1.0 },
-            { key: 'deathFall', label: 'DEATH FALL', type: 'select', options: ['none', '25', '50'], labels: ['OFF', '25m', '50m'], value: 'none' }
+            { key: 'deathFall', label: 'DEATH FALL', type: 'select', options: ['none', '25', '50'], labels: ['OFF', '25m', '50m'], value: 'none' },
+            { key: 'debugInvincible', label: '[ DEBUG ] INVINCIBLE', type: 'action', action: () => {
+                G.isInvincible = !G.isInvincible;
+                if (G.isInvincible) {
+                    G.invincibilityTimer = 999999;
+                    if (G.playerBody) { G._savedPlayerLayer = G.playerBody.belongsTo; G.playerBody.belongsTo = 0; }
+                } else {
+                    G.invincibilityTimer = 0;
+                    if (G.playerBody && G._savedPlayerLayer) G.playerBody.belongsTo = G._savedPlayerLayer;
+                    if (typeof restorePlayerMaterials === 'function') restorePlayerMaterials();
+                }
+                logStatus(`無敵モード: ${G.isInvincible ? 'ON' : 'OFF'}`);
+            }},
+            { key: 'debugSkipStage', label: '[ DEBUG ] SKIP STAGE', type: 'action', action: () => {
+                if (typeof RogueState !== 'undefined' && RogueState.isActive) {
+                    clearRogueEnemies();
+                    RogueState.enemiesAlive = 0;
+                    checkStageClear();
+                    logStatus(`ステージスキップ → STAGE ${RogueState.stage + 1}`);
+                } else {
+                    logStatus('ローグライクモードがアクティブではありません');
+                }
+            }},
+            { key: 'debugJumpStage', label: '[ DEBUG ] JUMP TO STAGE', type: 'action', action: () => {
+                if (typeof RogueState !== 'undefined' && RogueState.isActive) {
+                    let input = prompt(`ジャンプしたいステージ番号を入力してください (1 - ${RogueState.maxStages}):`);
+                    let targetStage = parseInt(input);
+                    if (!isNaN(targetStage) && targetStage >= 1 && targetStage <= RogueState.maxStages) {
+                        RogueState.stage = targetStage - 1;
+                        clearRogueEnemies();
+                        RogueState.enemiesAlive = 0;
+                        checkStageClear();
+                        logStatus(`ステージジャンプ → STAGE ${RogueState.stage + 1}`);
+                    }
+                } else {
+                    logStatus('ローグライクモードがアクティブではありません');
+                }
+            }}
         ];
         let currentOptionIdx = 0;
         let isOptionsFocused = false;
@@ -662,6 +713,25 @@
             }).join('');
         }
 
+        // OPTIONS UI用のグローバル関数（inline onclick/onmouseenter から呼ばれる）
+        window.setOptionIdx = function(idx) {
+            currentOptionIdx = idx;
+            isOptionsFocused = true;
+            updateOptionsUI();
+        };
+        window.clickOptionAction = function() {
+            const s = optionsDefs[currentOptionIdx];
+            if (s && s.type === 'action' && typeof s.action === 'function') {
+                s.action();
+            }
+        };
+        window.executeOptionAction = function() {
+            const s = optionsDefs[currentOptionIdx];
+            if (s && s.type === 'action' && typeof s.action === 'function') {
+                s.action();
+            }
+        };
+
         function updateOptionsUI() {
             const isTabActive = (currentMenuIdx === 3);
             optionsDefs.forEach((s, idx) => {
@@ -708,7 +778,7 @@
             });
         }
 
-        function changeOptionValue(dir) {
+        window.changeOptionValue = function(dir) {
             const s = optionsDefs[currentOptionIdx];
             if (s.type === 'toggle') {
                 if (dir === 1) s.value = true;
@@ -725,7 +795,7 @@
             syncOptionToGame(s);
             saveOptions();
             syncLobbySettings();
-        }
+        };
 
         function syncLobbySettings() {
             if (G.isHost && G.isOnline) {
@@ -1051,14 +1121,72 @@
             initApp();
         }
 
-        // Tutorial ボタン
-        document.getElementById('btn-tutorial').addEventListener('click', (e) => {
-            e.stopPropagation();
+        // Training サブメニュー用グローバル
+        let _currentTrainingIdx = 0;
+        let isTrainingFocused = false;
+
+        window.setTrainingIdx = function(idx) {
+            _currentTrainingIdx = idx;
+            isTrainingFocused = true;
+            updateTrainingUI();
+        };
+        window.clickTrainingAction = function() {
+            executeTrainingAction();
+        };
+
+        function updateTrainingUI() {
+            const isTabActive = (currentMenuIdx === 0);
+            for (let i = 0; i < 2; i++) {
+                const row = document.getElementById(`training-row-${i}`);
+                if (!row) continue;
+                const isActive = isTrainingFocused && isTabActive && i === _currentTrainingIdx;
+                if (isActive) row.classList.add('active');
+                else row.classList.remove('active');
+                if (isTabActive) row.classList.add('focused-tab');
+                else row.classList.remove('focused-tab');
+            }
+        }
+
+        function executeTrainingAction() {
+            if (_currentTrainingIdx === 0) {
+                startTutorialMode();
+            } else if (_currentTrainingIdx === 1) {
+                startRoguelikeMode();
+            }
+        }
+
+        window.handleTrainingKey = function(e) {
+            if (!isTrainingFocused) {
+                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') return false;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') return false;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'Enter') return false;
+            }
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                if (_currentTrainingIdx === 0) {
+                    isTrainingFocused = false;
+                    updateTrainingUI();
+                    return false;
+                }
+                _currentTrainingIdx--;
+                updateTrainingUI();
+                return true;
+            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                _currentTrainingIdx = Math.min(1, _currentTrainingIdx + 1);
+                updateTrainingUI();
+                return true;
+            } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'Enter') {
+                executeTrainingAction();
+                return true;
+            }
+            return false;
+        };
+
+        // チュートリアル開始（従来のbtn-tutorial処理を関数化）
+        function startTutorialMode() {
             if (G.isClientInLobby) { logStatus('ホストのゲーム開始を待っています…'); return; }
             if (G.isOnline && !G.isHost) { logStatus('ホストのゲーム開始を待っています…'); return; }
             if (!G.isStarted) {
                 if (!G.myPlayerName || G.myPlayerName.trim() === '') G.myPlayerName = 'GUEST';
-                // 設定値の同期
                 settingDefs.forEach(s => { if (s.type !== 'action') config[s.key] = s.value; });
                 if (config.raceType === 'TIME TRIAL') config.aiCount = false;
                 else config.aiCount = (config.aiCount > 0) ? config.aiCount : false;
@@ -1074,6 +1202,34 @@
                 init(); G.startTime = Date.now();
             }
             if (G.controls) G.controls.lock();
+        }
+
+        // ローグライクモード開始
+        function startRoguelikeMode() {
+            if (G.isStarted) return;
+            if (!G.myPlayerName || G.myPlayerName.trim() === '') G.myPlayerName = 'GUEST';
+            G.randomSeed = Math.random();
+            if (window.stopMenuOcean) window.stopMenuOcean();
+            document.getElementById('ui-layer').style.display = 'block';
+            G.isStarted = true; G.currentMode = 'roguelike'; G.playerLives = config.maxLives; updateLifeHUD();
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('tutorial-ui').classList.add('hidden');
+            document.getElementById('multiplayer-ui').classList.add('hidden');
+            document.getElementById('rogue-hud').classList.remove('hidden');
+            config.aiCount = false;
+            init();
+            G.startTime = Date.now();
+            if (G.controls) G.controls.lock();
+        }
+
+        // Tutorial ボタン（サブメニュー表示切り替え）
+        document.getElementById('btn-tutorial').addEventListener('click', (e) => {
+            e.stopPropagation();
+            // TRAININGタブを選択するだけ（サブメニュー表示はupdateMenuVisualで制御）
+            currentMenuIdx = 0;
+            isTrainingFocused = false;
+            updateMenuVisual();
+            updateTrainingUI();
         });
 
         function handleStartAction() {
@@ -1368,10 +1524,15 @@
             });
 
             // タブに応じたパネルの表示切り替え
+            const trainingMenu = document.getElementById('training-submenu');
             const mainSettings = document.getElementById('main-settings');
             const multiplayerUi = document.getElementById('multiplayer-ui');
             const aiSettings = document.getElementById('ai-training-ui');
             
+            if (trainingMenu) {
+                trainingMenu.style.display = (currentMenuIdx === 0) ? 'block' : 'none';
+                if (currentMenuIdx === 0) updateTrainingUI();
+            }
             if (mainSettings) mainSettings.style.display = (currentMenuIdx === 1) ? 'block' : 'none';
             if (multiplayerUi) {
                 multiplayerUi.style.display = (currentMenuIdx === 2) ? 'block' : 'none';
@@ -1412,6 +1573,10 @@
                 return;
             }
 
+            // TRAININGタブが表示されている場合
+            if (currentMenuIdx === 0) {
+                if (window.handleTrainingKey && window.handleTrainingKey(e)) return;
+            }
             // オンラインタブが表示されている場合
             if (currentMenuIdx === 2) {
                 if (window.handleOnlineKey && window.handleOnlineKey(e)) return;
@@ -1451,7 +1616,15 @@
                     updateSettingsUI();
                 }
             } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-                if (currentMenuIdx === 1) {
+                if (currentMenuIdx === 0) {
+                    if (!isTrainingFocused) {
+                        isTrainingFocused = true;
+                        _currentTrainingIdx = 0;
+                    } else {
+                        _currentTrainingIdx = Math.min(1, _currentTrainingIdx + 1);
+                    }
+                    updateTrainingUI();
+                } else if (currentMenuIdx === 1) {
                     if (!isSettingFocused) {
                         isSettingFocused = true;
                         currentSettingIdx = 0;
