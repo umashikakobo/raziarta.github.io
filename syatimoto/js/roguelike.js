@@ -1577,11 +1577,11 @@ function updateRogueEnemies(dt) {
                 if (now >= e.canFireTime) {
                     if (e.bossMode === 'missile') {
                         // ミサイル (壁貫通・高速・3WAY)
-                        if (now - e.lastFireTime >= 600) { // 発射レートを上げる (1000 -> 600)
+                        if (now - e.lastFireTime >= 1000) { // 発射レートを上げる (1000 -> 600)
                             e.lastFireTime = now;
                             e.bossAmmo -= 1;
                             if (typeof fireProjectile === 'function') {
-                                const bSpeed = 35.0;
+                                const bSpeed = 15.0;
                                 const pvx = G.playerBody ? G.playerBody.linearVelocity.x : 0;
                                 const pvz = G.playerBody ? G.playerBody.linearVelocity.z : 0;
                                 const timeToTarget = dist / bSpeed;
@@ -1601,7 +1601,7 @@ function updateRogueEnemies(dt) {
                                 fireProjectile(bp.x, bp.y + 0.5, bp.z, vx, vy, vz, e.body, null, { passWall: true, isNeedle: true, damage: 1, radiusMult: 1.0, rangeMult: 1.0 });
                                 
                                 // 左右に少し拡散させてヒット率を上げる (3WAY)
-                                const spreadAngle = 0.2;
+                                const spreadAngle = 0.35;
                                 const cosA = Math.cos(spreadAngle), sinA = Math.sin(spreadAngle);
                                 fireProjectile(bp.x, bp.y + 0.5, bp.z, vx*cosA - vz*sinA, vy, vx*sinA + vz*cosA, e.body, null, { passWall: true, isNeedle: true, damage: 1, radiusMult: 1.0, rangeMult: 1.0 });
                                 fireProjectile(bp.x, bp.y + 0.5, bp.z, vx*cosA - vz*-sinA, vy, vx*-sinA + vz*cosA, e.body, null, { passWall: true, isNeedle: true, damage: 1, radiusMult: 1.0, rangeMult: 1.0 });
@@ -1613,7 +1613,7 @@ function updateRogueEnemies(dt) {
                             e.lastFireTime = now;
                             e.bossAmmo -= 1;
                             if (typeof createBubble === 'function') {
-                                const bSpeed = 18.0; // シャボン玉も少し速めに
+                                const bSpeed = 10.0; // シャボン玉も少し速めに
                                 createBubble(bp.x, bp.y + 0.5, bp.z, (dx/dist)*bSpeed + (Math.random()-0.5)*5, 5.0, (dz/dist)*bSpeed + (Math.random()-0.5)*5, e.body, null, null, { damage: 1 });
                             }
                         }
@@ -1627,7 +1627,7 @@ function updateRogueEnemies(dt) {
                 } else if (Math.random() < 0.005 && dist < 10 && e.evadeTimer <= 0 && isGrounded) {
                     // 時折急降下攻撃のために上空へ (地上にいてジャンプしていない時のみ発動)
                     e.gravState = 'diving';
-                    bv.y = 15.0; // 大ジャンプに変更
+                    bv.y = 10.0; // 大ジャンプに変更
                     bv.x = (dx/dist) * 4; // 少しプレイヤーの方へ飛びながら
                     bv.z = (dz/dist) * 4;
                 }
