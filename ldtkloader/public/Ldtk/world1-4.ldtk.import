@@ -1,0 +1,37 @@
+[remap]
+
+importer="ldtk.import"
+type="PackedScene"
+uid="uid://bwkwqjeev4vld"
+path="res://.godot/imported/world1-4.ldtk-b59c58c203797353734d9369f4f0f852.scn"
+
+[deps]
+
+files=["res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/tilesets/tileset_16px.res", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Entrance.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Top.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Large_room.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Secret_passage.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Underwater_cove.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Cliff_cave.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Dead_end_west.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Pit.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Secret_hideout.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Cliff.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Water_cave.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Pit_bottom.scn", "res://.godot/imported/world1-4.ldtk-b59c58c203797353734d9369f4f0f852.scn"]
+
+source_file="res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/world1-4.ldtk"
+dest_files=["res://.godot/imported/world1-4.ldtk-b59c58c203797353734d9369f4f0f852.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/tilesets/tileset_16px.res", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Entrance.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Top.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Large_room.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Secret_passage.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Underwater_cove.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Cliff_cave.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Dead_end_west.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Pit.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Secret_hideout.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Cliff.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Water_cave.scn", "res://Stagedata_and_stage_load_manager_and_ldtk_map_files/Ldtk/levels/Pit_bottom.scn", "res://.godot/imported/world1-4.ldtk-b59c58c203797353734d9369f4f0f852.scn"]
+
+[params]
+
+World=""
+group_world_layers=false
+Level=""
+pack_levels=true
+Layer=""
+layers_always_visible=false
+Tileset=""
+tileset_custom_data=false
+integer_grid_tilesets=false
+atlas_texture_type=0
+Entity=""
+resolve_entityrefs=true
+use_entity_placeholders=false
+Post Import=""
+tileset_post_import=""
+entities_post_import=""
+level_post_import=""
+world_post_import=""
+Debug=""
+force_tileset_reimport=false
+verbose_output=false
