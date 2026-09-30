@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wall Climbing Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'eienken';
+      src: url('./assets/eienken8x8ASCII-qyWjrW9q.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    :root {
+      --ldtk-bg: #000000;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      background: var(--ldtk-bg);
+      font-family: 'eienken', monospace;
+      /* Fallback applied to body as well */
+    }
+
+    #game-container {
+      width: 100%;
+      height: 100vh;
+    }
+  </style>
+  <script>
+    (function () {
+      function applyLdtkBackground(color) {
+        if (!color) return;
+        document.documentElement.style.setProperty('--ldtk-bg', color);
+        const canvas = document.querySelector('#game-container canvas');
+        if (canvas) canvas.style.background = color;
+      }
+
+      function hexToRgba(hex) {
+        if (!hex) return [0, 0, 0, 1];
+        const h = hex.replace('#', '');
+        const r = parseInt(h.slice(0, 2), 16) / 255;
+        const g = parseInt(h.slice(2, 4), 16) / 255;
+        const b = parseInt(h.slice(4, 6), 16) / 255;
+        return [r, g, b, 1];
+      }
+
+      async function loadLdtkBackground() {
+        try {
+          const res = await fetch('./Ldtk/stage1.ldtk');
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data.defaultLevelBgColor || data.bgColor || data.levelBgColor || null;
+        } catch (e) {
+          console.warn('[LDtk] failed to read stage1.ldtk', e);
+          return null;
+        }
+      }
+
+      function patchWebGLClearColor(color) {
+        if (typeof WebGLRenderingContext === 'undefined' || !color) return;
+        const proto = WebGLRenderingContext.prototype;
+        if (proto._ldtkBgPatched) return;
+        const origClear = proto.clearColor;
+        proto.clearColor = function (r, g, b, a) {
+          const isDefaultBlue = Math.abs(r - 126 / 255) < 0.02 && Math.abs(g - 176 / 255) < 0.03 && Math.abs(b - 255 / 255) < 0.02;
+          if (isDefaultBlue) {
+            return origClear.call(this, color[0], color[1], color[2], color[3]);
+          }
+          return origClear.call(this, r, g, b, a);
+        };
+        if (typeof WebGL2RenderingContext !== 'undefined') {
+          WebGL2RenderingContext.prototype.clearColor = proto.clearColor;
+        }
+        proto._ldtkBgPatched = true;
+      }
+
+      async function initLdtkSupport() {
+        const bgColor = await loadLdtkBackground();
+        if (bgColor) {
+          applyLdtkBackground(bgColor);
+          patchWebGLClearColor(hexToRgba(bgColor));
+        }
+      }
+
+      initLdtkSupport();
+    })();
+  </script>
+  <script type="module" crossorigin src="./assets/index-BEiXYWRH.js"></script>
+</head>
+
+<body>
+  <div style="font-family: 'eienken'; position: absolute; visibility: hidden;">.</div>
+  <div id="game-container"></div>
+  <!-- GITHUB_PAGES_SPEC.md 3.1: ビルド済みbundleではなく、開発ソースを直接読み込む -->
+</body>
+
+</html>
